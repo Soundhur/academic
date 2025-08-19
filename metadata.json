@@ -1,5 +1,7 @@
 {
   "name": "Academic assistant timetable",
   "description": "An empty app",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
