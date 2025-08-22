@@ -403,6 +403,9 @@ const INITIAL_USERS: User[] = [
     { id: 'student-alice', name: 'Alice', password: 'password', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, {subject: 'AI/ML', score: 91}], attendance: { present: 70, total: 75 }, hasCompletedOnboarding: false },
     { id: 'student-bob', name: 'Bob', password: 'password', role: 'student', dept: 'ECE', year: 'II', status: 'active', grades: [{ subject: 'Digital Circuits', score: 92 }], attendance: { present: 68, total: 75 }, hasCompletedOnboarding: true },
     { id: 'pending-user', name: 'Pending User', password: 'password', role: 'faculty', dept: 'EEE', status: 'pending_approval' },
+    // Social Login Demo Users
+    { id: 'google-user', name: 'Alex (Google)', role: 'student', dept: 'CSE', year: 'II', status: 'active', hasCompletedOnboarding: true },
+    { id: 'microsoft-user', name: 'Sam (Microsoft)', role: 'faculty', dept: 'ECE', status: 'active', hasCompletedOnboarding: true },
 ];
 
 const INITIAL_ANNOUNCEMENTS: Announcement[] = [
@@ -2697,7 +2700,7 @@ const StudentDetailsModal = ({ student, onClose }: { student: User; onClose: () 
 
     return (
         <div className="modal-overlay open" onMouseDown={onClose}>
-            <div className="modal-content" onMouseDown={e => e.stopPropagation()}>
+            <div className="modal-content student-details-modal" onMouseDown={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3>{student.name}'s Profile</h3>
                     <button onClick={onClose} className="close-modal-btn">&times;</button>
@@ -2763,16 +2766,16 @@ const UserManagementView = () => {
                     <tbody>
                         {users.map((user: User) => (
                             <tr key={user.id}>
-                                <td>
+                                <td data-label="User">
                                     <div className="user-name-cell">
                                         <span>{user.name}</span>
                                         <small>{user.id}</small>
                                     </div>
                                 </td>
-                                <td>{user.role}</td>
-                                <td>{user.dept}{user.year ? ` / ${user.year}`: ''}</td>
-                                <td><span className={`status-pill ${user.isLocked ? 'locked' : user.status}`}>{user.isLocked ? 'Locked' : user.status.replace('_', ' ')}</span></td>
-                                <td>
+                                <td data-label="Role">{user.role}</td>
+                                <td data-label="Dept/Year">{user.dept}{user.year ? ` / ${user.year}`: ''}</td>
+                                <td data-label="Status"><span className={`status-pill ${user.isLocked ? 'locked' : user.status}`}>{user.isLocked ? 'Locked' : user.status.replace('_', ' ')}</span></td>
+                                <td data-label="Actions">
                                     <div className="item-actions">
                                         <button className="btn-action" title="Edit User">{Icons.editPencil}</button>
                                         <button className="btn-action" onClick={() => handleToggleLock(user.id)} title={user.isLocked ? "Unlock Account" : "Lock Account"}>
@@ -2884,7 +2887,7 @@ const AuthView = () => {
     const { users, setUsers, handleLogin, addNotification } = useAppContext();
     const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
     const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const [loadingProvider, setLoadingProvider] = useState<null | 'credentials' | 'google' | 'microsoft'>(null);
 
     // Login State
     const [username, setUsername] = useState('');
@@ -2923,7 +2926,7 @@ const AuthView = () => {
 
     const handleLoginSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
+        setLoadingProvider('credentials');
         setError('');
 
         setTimeout(() => { // Simulate network delay
@@ -2932,39 +2935,35 @@ const AuthView = () => {
             if (user && user.password === password) {
                 if (user.status === 'pending_approval') {
                      setError('Your account is still pending approval.');
-                     setIsLoading(false);
                 } else if (user.status === 'rejected') {
                      setError('Your registration has been rejected. Please contact an administrator.');
-                     setIsLoading(false);
                 } else {
                     const loginSuccess = handleLogin(user);
                     if (!loginSuccess) {
                         setError('This account is currently locked. Please contact an administrator.');
-                        setIsLoading(false);
                     }
                 }
             } else {
                 setError('Invalid username or password.');
-                setIsLoading(false);
             }
+            setLoadingProvider(null);
         }, 500);
     };
 
     const handleSignupSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
+        setLoadingProvider('credentials');
         setError('');
 
         if (!signupName || !signupUsername || !signupPassword) {
             setError('Please fill in all required fields.');
-            setIsLoading(false);
+            setLoadingProvider(null);
             return;
         }
 
         setTimeout(() => { // Simulate network delay
             if (users.some((u: User) => u.id === signupUsername)) {
                 setError('Username already exists. Please choose another.');
-                setIsLoading(false);
             } else {
                 const newUser: User = {
                     id: signupUsername,
@@ -2985,10 +2984,27 @@ const AuthView = () => {
                 setSignupName('');
                 setSignupUsername('');
                 setSignupPassword('');
-                setIsLoading(false);
             }
+            setLoadingProvider(null);
         }, 500);
     };
+    
+    const handleSocialLogin = (provider: 'google' | 'microsoft') => {
+        setLoadingProvider(provider);
+        setError('');
+
+        setTimeout(() => {
+            const userId = provider === 'google' ? 'google-user' : 'microsoft-user';
+            const user = users.find((u: User) => u.id === userId);
+            if (user) {
+                handleLogin(user);
+            } else {
+                setError(`Could not find demo user for ${provider}.`);
+                setLoadingProvider(null);
+            }
+        }, 1000);
+    };
+
 
     return (
         <div className="login-view-container">
@@ -3026,8 +3042,8 @@ const AuthView = () => {
                                 required
                             />
                         </div>
-                        <button type="submit" className="btn btn-primary" disabled={isLoading} style={{marginTop: '0.5rem', width: '100%'}}>
-                            {isLoading ? <span className="spinner-sm"></span> : 'Login'}
+                        <button type="submit" className="btn btn-primary" disabled={loadingProvider !== null} style={{marginTop: '0.5rem', width: '100%'}}>
+                            {loadingProvider === 'credentials' ? <span className="spinner-sm"></span> : 'Login'}
                         </button>
                     </form>
                 ) : (
@@ -3072,8 +3088,8 @@ const AuthView = () => {
                                 </select>
                             </div>
                         )}
-                        <button type="submit" className="btn btn-primary" disabled={isLoading} style={{width: '100%'}}>
-                            {isLoading ? <span className="spinner-sm"></span> : 'Sign Up'}
+                        <button type="submit" className="btn btn-primary" disabled={loadingProvider !== null} style={{width: '100%'}}>
+                            {loadingProvider === 'credentials' ? <span className="spinner-sm"></span> : 'Sign Up'}
                         </button>
                     </form>
                 )}
@@ -3082,8 +3098,14 @@ const AuthView = () => {
                     <span>OR</span>
                 </div>
                 <div className="social-login-buttons">
-                    <button className="btn btn-secondary social-btn">{Icons.google} Sign in with Google</button>
-                    <button className="btn btn-secondary social-btn">{Icons.microsoft} Sign in with Microsoft</button>
+                    <button className="btn btn-secondary social-btn" onClick={() => handleSocialLogin('google')} disabled={loadingProvider !== null}>
+                        {loadingProvider === 'google' ? <span className="spinner-sm" /> : Icons.google} 
+                        <span>Sign in with Google</span>
+                    </button>
+                    <button className="btn btn-secondary social-btn" onClick={() => handleSocialLogin('microsoft')} disabled={loadingProvider !== null}>
+                       {loadingProvider === 'microsoft' ? <span className="spinner-sm" /> : Icons.microsoft} 
+                        <span>Sign in with Microsoft</span>
+                    </button>
                 </div>
 
                 <div className="auth-toggle">
