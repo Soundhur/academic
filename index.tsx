@@ -403,9 +403,6 @@ const INITIAL_USERS: User[] = [
     { id: 'student-alice', name: 'Alice', password: 'password', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, {subject: 'AI/ML', score: 91}], attendance: { present: 70, total: 75 }, hasCompletedOnboarding: false },
     { id: 'student-bob', name: 'Bob', password: 'password', role: 'student', dept: 'ECE', year: 'II', status: 'active', grades: [{ subject: 'Digital Circuits', score: 92 }], attendance: { present: 68, total: 75 }, hasCompletedOnboarding: true },
     { id: 'pending-user', name: 'Pending User', password: 'password', role: 'faculty', dept: 'EEE', status: 'pending_approval' },
-    // Social Login Demo Users
-    { id: 'google-user', name: 'Alex (Google)', role: 'student', dept: 'CSE', year: 'II', status: 'active', hasCompletedOnboarding: true },
-    { id: 'microsoft-user', name: 'Sam (Microsoft)', role: 'faculty', dept: 'ECE', status: 'active', hasCompletedOnboarding: true },
 ];
 
 const INITIAL_ANNOUNCEMENTS: Announcement[] = [
@@ -1136,12 +1133,12 @@ const ManageTimetableView = () => {
                         <tbody>
                             {timetableEntries.filter((e: TimetableEntry) => e.type === 'class').sort((a,b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.timeIndex - b.timeIndex).map((entry: TimetableEntry) => (
                                 <tr key={entry.id}>
-                                    <td>{entry.day}</td>
-                                    <td>{timeSlots[entry.timeIndex]}</td>
-                                    <td>{entry.department} / {entry.year}</td>
-                                    <td>{entry.subject}</td>
-                                    <td>{entry.faculty}</td>
-                                    <td className="entry-actions">
+                                    <td data-label="Day">{entry.day}</td>
+                                    <td data-label="Time">{timeSlots[entry.timeIndex]}</td>
+                                    <td data-label="Dept/Year">{entry.department} / {entry.year}</td>
+                                    <td data-label="Subject">{entry.subject}</td>
+                                    <td data-label="Faculty">{entry.faculty}</td>
+                                    <td data-label="Actions" className="entry-actions">
                                         <button onClick={() => handleEdit(entry)}>{Icons.editPencil}</button>
                                         <button onClick={() => handleDelete(entry.id)} className="delete-btn">{Icons.delete}</button>
                                     </td>
@@ -2965,6 +2962,11 @@ const AuthView = () => {
             if (users.some((u: User) => u.id === signupUsername)) {
                 setError('Username already exists. Please choose another.');
             } else {
+                // Auto-approve the very first admin account
+                const isAdminRegistration = signupRole === 'admin';
+                const activeAdminExists = users.some((u: User) => u.role === 'admin' && u.status === 'active');
+                const newStatus = (isAdminRegistration && !activeAdminExists) ? 'active' : 'pending_approval';
+
                 const newUser: User = {
                     id: signupUsername,
                     name: signupName,
@@ -2972,12 +2974,18 @@ const AuthView = () => {
                     role: signupRole,
                     dept: signupDept,
                     year: signupRole === 'student' ? signupYear : undefined,
-                    status: 'pending_approval',
+                    status: newStatus,
                     hasCompletedOnboarding: false,
                     aiAssessment: "Standard user registration. No anomalies detected in provided information.",
                 };
                 setUsers((prevUsers: User[]) => [...prevUsers, newUser]);
-                addNotification('Registration successful! Your account is pending administrator approval.', 'success');
+                
+                if (newStatus === 'active') {
+                    addNotification('Admin account created and activated! You can now log in.', 'success');
+                } else {
+                    addNotification('Registration successful! Your account is pending administrator approval.', 'success');
+                }
+
                 setAuthMode('login');
                 setUsername('');
                 setPassword('');
@@ -2992,16 +3000,35 @@ const AuthView = () => {
     const handleSocialLogin = (provider: 'google' | 'microsoft') => {
         setLoadingProvider(provider);
         setError('');
-
+    
         setTimeout(() => {
-            const userId = provider === 'google' ? 'google-user' : 'microsoft-user';
-            const user = users.find((u: User) => u.id === userId);
-            if (user) {
-                handleLogin(user);
-            } else {
-                setError(`Could not find demo user for ${provider}.`);
-                setLoadingProvider(null);
-            }
+            // In a real app, this would come from an OAuth provider and you'd get a stable ID.
+            // For this demo, we generate a new user each time to show the approval flow.
+            const socialUserData = {
+                id: `${provider}-user-${Date.now()}`,
+                name: `New ${provider.charAt(0).toUpperCase() + provider.slice(1)} User`,
+                dept: provider === 'google' ? 'CSE' : 'ECE',
+                year: provider === 'google' ? 'I' : 'II',
+            };
+            
+            // This flow simulates a NEW user signing up via social media.
+            // A full implementation would first check if a user with this social ID already exists.
+            const newUser: User = {
+                id: socialUserData.id,
+                name: socialUserData.name,
+                role: 'student', // Defaulting to student for social signups
+                dept: socialUserData.dept,
+                year: socialUserData.year,
+                status: 'pending_approval',
+                hasCompletedOnboarding: false,
+                aiAssessment: `User registered via ${provider}. Standard checks passed.`,
+            };
+    
+            setUsers((prevUsers: User[]) => [...prevUsers, newUser]);
+            addNotification(`Account created with ${provider}. It is now pending administrator approval.`, 'success');
+            setAuthMode('login'); // Go back to login screen to wait for approval
+            setLoadingProvider(null);
+            
         }, 1000);
     };
 
@@ -3072,6 +3099,7 @@ const AuthView = () => {
                             <select id="signupRole" className="form-control" value={signupRole} onChange={(e) => setSignupRole(e.target.value as UserRole)}>
                                 <option value="student">Student</option>
                                 <option value="faculty">Faculty</option>
+                                <option value="admin">Administrator</option>
                             </select>
                         </div>
                         <div className="control-group">
@@ -3127,7 +3155,7 @@ const AuthView = () => {
 };
 
 const Chatbot = () => {
-    const { isChatbotOpen, setChatbotOpen } = useAppContext();
+    const { isChatbotOpen, setChatbotOpen, currentUser } = useAppContext();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -3145,12 +3173,16 @@ const Chatbot = () => {
         setInput('');
         setIsLoading(true);
 
+        const systemInstruction = currentUser?.role === 'admin'
+            ? "You are JARVIS, a hyper-intelligent, witty, and friendly AI personal assistant for the college's Administrator. Address the admin directly and with a touch of personality, like a trusted colleague. Your goal is to provide precise, efficient support for managing the institution. Be proactive and anticipate needs where possible."
+            : "You are AcademiaAI, a helpful assistant for a college management system. Your goal is to provide clear, concise, and relevant information to students, faculty, and administrators about their schedules, campus life, and academic queries. Be friendly and professional.";
+
         try {
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: input,
                 config: {
-                    systemInstruction: "You are AcademiaAI, a helpful assistant for a college management system. Your goal is to provide clear, concise, and relevant information to students, faculty, and administrators about their schedules, campus life, and academic queries. Be friendly and professional."
+                    systemInstruction: systemInstruction
                 }
             });
             const modelMessage: ChatMessage = { id: uuidv4(), role: 'model', text: response.text };
