@@ -94,7 +94,7 @@ interface BriefingData {
 type DaySchedule = Period[];
 type TimetableData = Record<string, Record<string, DaySchedule[]>>;
 type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'class advisor';
-type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources';
+type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar';
 interface ManageFormData {
     department: string;
     year: string;
@@ -259,6 +259,24 @@ interface OnboardingStep {
     title: string;
 }
 
+interface Collection {
+    id: string;
+    name: string;
+    description: string;
+    creatorId: string;
+    creatorName: string;
+    resourceIds: string[];
+    department: string;
+}
+
+interface AcademicEvent {
+    id: string;
+    title: string;
+    date: number; // timestamp for the start of the day
+    type: 'exam' | 'holiday' | 'event';
+    description: string;
+}
+
 
 const DEPARTMENTS = ["CSE", "ECE", "EEE", "MCA", "AI&DS", "CYBERSECURITY", "MECHANICAL", "TAMIL", "ENGLISH", "MATHS", "LIB", "NSS", "NET"];
 const YEARS = ["I", "II", "III", "IV"];
@@ -279,6 +297,7 @@ const TIME_SLOTS_DEFAULT = [
 const APP_VIEWS_CONFIG: Record<AppView, { title: string; icon: keyof typeof Icons; roles: UserRole[] }> = {
     dashboard: { title: "For You", icon: "dashboard", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
     timetable: { title: "Timetable", icon: "timetable", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
+    academicCalendar: { title: "Academic Calendar", icon: "calendarDays", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
     resources: { title: "Resources", icon: "bookOpen", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
     studentDirectory: { title: "Student Directory", icon: "users", roles: ['faculty', 'hod', 'class advisor', 'admin'] },
     approvals: { title: "Approvals", icon: "approvals", roles: ['hod', 'admin'] },
@@ -404,6 +423,8 @@ const INITIAL_USERS: User[] = [
     { id: 'faculty-chithambaram', name: 'Mr. CHITHAMBARAM', password: 'password', role: 'faculty', dept: 'NSS', status: 'active', specialization: ['NSS Coordinator'] },
     { id: 'student-alice', name: 'Alice', password: 'password', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, {subject: 'AI/ML', score: 91}], attendance: { present: 70, total: 75 }, hasCompletedOnboarding: false },
     { id: 'student-bob', name: 'Bob', password: 'password', role: 'student', dept: 'ECE', year: 'II', status: 'active', grades: [{ subject: 'Digital Circuits', score: 92 }], attendance: { present: 68, total: 75 }, hasCompletedOnboarding: true },
+    { id: 'student-charlie', name: 'Charlie', password: 'password', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 95 }, {subject: 'AI/ML', score: 98}], attendance: { present: 74, total: 75 }, hasCompletedOnboarding: true },
+    { id: 'student-diana', name: 'Diana', password: 'password', role: 'student', dept: 'CSE', year: 'IV', status: 'active', grades: [{ subject: 'Compiler Design', score: 72 }], attendance: { present: 60, total: 75 }, hasCompletedOnboarding: true },
     { id: 'pending-user', name: 'Pending User', password: 'password', role: 'faculty', dept: 'EEE', status: 'pending_approval' },
 ];
 
@@ -460,6 +481,11 @@ const INITIAL_WEB_RESOURCES: WebResource[] = [
     { id: 'web-res-2', url: 'https://www.tutorialspoint.com/object_oriented_programming/index.htm', title: 'TutorialsPoint: OOPs Concepts', summary: 'An introduction to Object-Oriented Programming concepts, covering topics like inheritance, polymorphism, and encapsulation.', department: 'CSE', subject: 'OOPS', addedById: 'admin', addedByName: 'Admin', timestamp: Date.now() - 86400000 * 3, aiStatus: 'approved', aiReason: 'Relevant and high-quality educational content.' },
 ];
 
+const INITIAL_COLLECTIONS: Collection[] = [
+    { id: 'col-1', name: 'Data Structures Essentials', description: 'Core materials for the CSE II Year DST course.', creatorId: 'advisor-anitha-m', creatorName: 'Mrs. ANITHA M', resourceIds: ['res-001', 'web-res-1'], department: 'CSE' },
+    { id: 'col-2', name: 'OOPs Concepts Starter Pack', description: 'Introductory notes and links for Object Oriented Programming.', creatorId: 'faculty-myshree-b', creatorName: 'Ms. MYSHREE B', resourceIds: ['res-002', 'web-res-2'], department: 'CSE' },
+];
+
 const INITIAL_SECURITY_ALERTS: SecurityAlert[] = [
     { id: 'alert-1', type: 'Anomaly', title: 'Unusual Login Pattern', description: 'User student-alice logged in from an unrecognized IP address (198.51.100.24) at 2:15 AM.', timestamp: Date.now() - 3600000 * 3, severity: 'medium', relatedUserId: 'student-alice', isResolved: false, responsePlan: { containment: 'Monitor user activity for further anomalies.', investigation: 'Verify login with the user.', recovery: 'If malicious, force logout and password reset.', recommendedAction: 'MONITOR' } },
     { id: 'alert-2', type: 'Threat', title: 'Potential Brute-force Attack', description: 'Detected 25 failed login attempts for user admin in the last 15 minutes.', timestamp: Date.now() - 3600000 * 24, severity: 'high', relatedUserId: 'admin', isResolved: true, responsePlan: { containment: 'Temporarily lock the account.', investigation: 'Analyze source IPs and login attempt patterns.', recovery: 'Unlock account after verification with the administrator.', recommendedAction: 'LOCK_USER' } },
@@ -469,6 +495,77 @@ const INITIAL_DEADLINES: Deadline[] = [
     { id: 'deadline-1', title: 'Internal Assessment Marks Submission', dueDate: Date.now() + 86400000 * 5, audience: ['faculty', 'hod', 'class advisor'] },
     { id: 'deadline-2', title: 'Course Fee Payment - Final Reminder', dueDate: Date.now() + 86400000 * 10, audience: ['student'] },
 ];
+
+const getStartOfDay = (date: Date) => {
+    const newDate = new Date(date);
+    newDate.setHours(0, 0, 0, 0);
+    return newDate.getTime();
+};
+
+const INITIAL_ACADEMIC_EVENTS: AcademicEvent[] = [
+    // August 2025
+    { id: 'evt-25-08-04', title: 'Commencement of Regular Classes', date: getStartOfDay(new Date(2025, 7, 4)), type: 'event', description: 'Regular classes commence for UG (II, III & IV YR) & PG (II YR).' },
+    { id: 'evt-25-08-09', title: 'Thursday Timetable', date: getStartOfDay(new Date(2025, 7, 9)), type: 'event', description: 'The timetable for Thursday will be followed today.' },
+    { id: 'evt-25-08-10', title: 'Holiday', date: getStartOfDay(new Date(2025, 7, 10)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-08-15', title: 'Independence Day', date: getStartOfDay(new Date(2025, 7, 15)), type: 'holiday', description: 'College closed for Independence Day.' },
+    { id: 'evt-25-08-16', title: 'Krishna Jayanthi', date: getStartOfDay(new Date(2025, 7, 16)), type: 'holiday', description: 'College closed for Krishna Jayanthi.' },
+    { id: 'evt-25-08-17', title: 'Holiday', date: getStartOfDay(new Date(2025, 7, 17)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-08-21', title: 'Unit I Completion', date: getStartOfDay(new Date(2025, 7, 21)), type: 'event', description: 'Deadline for Unit I syllabus completion.' },
+    { id: 'evt-25-08-23', title: 'Monday Timetable', date: getStartOfDay(new Date(2025, 7, 23)), type: 'event', description: 'The timetable for Monday will be followed today.' },
+    { id: 'evt-25-08-24', title: 'Holiday', date: getStartOfDay(new Date(2025, 7, 24)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-08-27', title: 'Vinayakar Chathurthi', date: getStartOfDay(new Date(2025, 7, 27)), type: 'holiday', description: 'College closed for Vinayakar Chathurthi.' },
+    { id: 'evt-25-08-30', title: 'Tuesday Timetable', date: getStartOfDay(new Date(2025, 7, 30)), type: 'event', description: 'The timetable for Tuesday will be followed today.' },
+    { id: 'evt-25-08-31', title: 'Holiday', date: getStartOfDay(new Date(2025, 7, 31)), type: 'holiday', description: 'Sunday Holiday.' },
+
+    // September 2025
+    { id: 'evt-25-09-05', title: 'Milad-Un-Nabi', date: getStartOfDay(new Date(2025, 8, 5)), type: 'holiday', description: 'College closed for Milad-Un-Nabi.' },
+    { id: 'evt-25-09-06', title: 'Friday Timetable', date: getStartOfDay(new Date(2025, 8, 6)), type: 'event', description: 'The timetable for Friday will be followed today.' },
+    { id: 'evt-25-09-07', title: 'Holiday', date: getStartOfDay(new Date(2025, 8, 7)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-09-08', title: 'IAT - I Starts', date: getStartOfDay(new Date(2025, 8, 8)), type: 'exam', description: 'Internal Assessment Test I begins.' },
+    { id: 'evt-25-09-09', title: 'IAT - I', date: getStartOfDay(new Date(2025, 8, 9)), type: 'exam', description: 'Internal Assessment Test I.' },
+    { id: 'evt-25-09-10', title: 'IAT - I & Unit II Completion', date: getStartOfDay(new Date(2025, 8, 10)), type: 'exam', description: 'Internal Assessment Test I & Deadline for Unit II syllabus completion.' },
+    { id: 'evt-25-09-11', title: 'IAT - I', date: getStartOfDay(new Date(2025, 8, 11)), type: 'exam', description: 'Internal Assessment Test I.' },
+    { id: 'evt-25-09-12', title: 'IAT - I Ends', date: getStartOfDay(new Date(2025, 8, 12)), type: 'exam', description: 'Internal Assessment Test I ends.' },
+    { id: 'evt-25-09-13', title: 'Wednesday Timetable', date: getStartOfDay(new Date(2025, 8, 13)), type: 'event', description: 'The timetable for Wednesday will be followed today.' },
+    { id: 'evt-25-09-14', title: 'Holiday', date: getStartOfDay(new Date(2025, 8, 14)), type: 'holiday', description: 'Sunday Holiday.' },
+    
+    // October 2025
+    { id: 'evt-25-10-01', title: 'Ayutha Pooja', date: getStartOfDay(new Date(2025, 9, 1)), type: 'holiday', description: 'College closed for Ayutha Pooja.' },
+    { id: 'evt-25-10-02', title: 'Vijaya Dasami / Gandhi Jayanthi', date: getStartOfDay(new Date(2025, 9, 2)), type: 'holiday', description: 'College closed for Vijaya Dasami and Gandhi Jayanthi.' },
+    { id: 'evt-25-10-04', title: 'Tuesday Timetable', date: getStartOfDay(new Date(2025, 9, 4)), type: 'event', description: 'The timetable for Tuesday will be followed today.' },
+    { id: 'evt-25-10-05', title: 'Holiday', date: getStartOfDay(new Date(2025, 9, 5)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-10-06', title: 'IAT - II Starts', date: getStartOfDay(new Date(2025, 9, 6)), type: 'exam', description: 'Internal Assessment Test II begins.' },
+    { id: 'evt-25-10-07', title: 'IAT - II', date: getStartOfDay(new Date(2025, 9, 7)), type: 'exam', description: 'Internal Assessment Test II.' },
+    { id: 'evt-25-10-08', title: 'IAT - II', date: getStartOfDay(new Date(2025, 9, 8)), type: 'exam', description: 'Internal Assessment Test II.' },
+    { id: 'evt-25-10-09', title: 'IAT - II', date: getStartOfDay(new Date(2025, 9, 9)), type: 'exam', description: 'Internal Assessment Test II.' },
+    { id: 'evt-25-10-10', title: 'IAT - II', date: getStartOfDay(new Date(2025, 9, 10)), type: 'exam', description: 'Internal Assessment Test II.' },
+    { id: 'evt-25-10-11', title: 'IAT - II Ends', date: getStartOfDay(new Date(2025, 9, 11)), type: 'exam', description: 'Internal Assessment Test II ends.' },
+    { id: 'evt-25-10-12', title: 'Holiday', date: getStartOfDay(new Date(2025, 9, 12)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-10-14', title: 'Unit IV Completion', date: getStartOfDay(new Date(2025, 9, 14)), type: 'event', description: 'Deadline for Unit IV syllabus completion.' },
+    { id: 'evt-25-10-18', title: 'Wednesday Timetable', date: getStartOfDay(new Date(2025, 9, 18)), type: 'event', description: 'The timetable for Wednesday will be followed today.' },
+    { id: 'evt-25-10-19', title: 'Holiday', date: getStartOfDay(new Date(2025, 9, 19)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-10-20', title: 'Deepavali', date: getStartOfDay(new Date(2025, 9, 20)), type: 'holiday', description: 'College closed for Deepavali.' },
+    { id: 'evt-25-10-25', title: 'Monday Timetable', date: getStartOfDay(new Date(2025, 9, 25)), type: 'event', description: 'The timetable for Monday will be followed today.' },
+    { id: 'evt-25-10-26', title: 'Holiday', date: getStartOfDay(new Date(2025, 9, 26)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-10-30', title: 'Cycle II Experiment Completion', date: getStartOfDay(new Date(2025, 9, 30)), type: 'event', description: 'Deadline for Cycle II Experiment completion.' },
+    { id: 'evt-25-10-31', title: 'Unit V Completion', date: getStartOfDay(new Date(2025, 9, 31)), type: 'event', description: 'Deadline for Unit V syllabus completion.' },
+
+    // November 2025
+    { id: 'evt-25-11-01', title: 'Tuesday Timetable', date: getStartOfDay(new Date(2025, 10, 1)), type: 'event', description: 'The timetable for Tuesday will be followed today.' },
+    { id: 'evt-25-11-02', title: 'Holiday', date: getStartOfDay(new Date(2025, 10, 2)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-11-04', title: 'IAT - III Starts', date: getStartOfDay(new Date(2025, 10, 4)), type: 'exam', description: 'Internal Assessment Test III begins.' },
+    { id: 'evt-25-11-05', title: 'IAT - III', date: getStartOfDay(new Date(2025, 10, 5)), type: 'exam', description: 'Internal Assessment Test III.' },
+    { id: 'evt-25-11-06', title: 'IAT - III', date: getStartOfDay(new Date(2025, 10, 6)), type: 'exam', description: 'Internal Assessment Test III.' },
+    { id: 'evt-25-11-07', title: 'IAT - III', date: getStartOfDay(new Date(2025, 10, 7)), type: 'exam', description: 'Internal Assessment Test III.' },
+    { id: 'evt-25-11-08', title: 'IAT - III Ends', date: getStartOfDay(new Date(2025, 10, 8)), type: 'exam', description: 'Internal Assessment Test III ends.' },
+    { id: 'evt-25-11-09', title: 'Holiday', date: getStartOfDay(new Date(2025, 10, 9)), type: 'holiday', description: 'Sunday Holiday.' },
+    { id: 'evt-25-11-10', title: 'Model Practical Exam', date: getStartOfDay(new Date(2025, 10, 10)), type: 'exam', description: 'Model Practical Examinations.' },
+    { id: 'evt-25-11-11', title: 'Model Practical Exam', date: getStartOfDay(new Date(2025, 10, 11)), type: 'exam', description: 'Model Practical Examinations.' },
+    { id: 'evt-25-11-12', title: 'Model Practical Exam', date: getStartOfDay(new Date(2025, 10, 12)), type: 'exam', description: 'Model Practical Examinations.' },
+    { id: 'evt-25-11-13', title: 'Model Practical Exam', date: getStartOfDay(new Date(2025, 10, 13)), type: 'exam', description: 'Model Practical Examinations.' },
+    { id: 'evt-25-11-14', title: 'Last Working Day', date: getStartOfDay(new Date(2025, 10, 14)), type: 'event', description: 'Last working day for the odd semester.' },
+];
+
 
 // --- APP CONTEXT ---
 const AppContext = createContext<any>(null);
@@ -489,12 +586,14 @@ const App = () => {
     const [resources, setResources] = usePersistedState<Resource[]>('resources', INITIAL_RESOURCES);
     const [resourceUpdateLogs, setResourceUpdateLogs] = usePersistedState<ResourceUpdateLog[]>('resourceUpdateLogs', INITIAL_RESOURCE_UPDATE_LOGS);
     const [webResources, setWebResources] = usePersistedState<WebResource[]>('webResources', INITIAL_WEB_RESOURCES);
+    const [collections, setCollections] = usePersistedState<Collection[]>('collections', INITIAL_COLLECTIONS);
     const [resourceLogs, setResourceLogs] = usePersistedState<ResourceLog[]>('resourceLogs', []);
     const [userNotes, setUserNotes] = usePersistedState<Record<string, string>>('userNotes', {});
     const [qnaPosts, setQnaPosts] = usePersistedState<QnAPost[]>('qnaPosts', []);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [securityAlerts, setSecurityAlerts] = usePersistedState<SecurityAlert[]>('securityAlerts', INITIAL_SECURITY_ALERTS);
     const [deadlines, setDeadlines] = usePersistedState<Deadline[]>('deadlines', INITIAL_DEADLINES);
+    const [academicEvents, setAcademicEvents] = usePersistedState<AcademicEvent[]>('academicEvents', INITIAL_ACADEMIC_EVENTS);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isChatbotOpen, setChatbotOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -622,11 +721,13 @@ const App = () => {
         resources, setResources,
         resourceUpdateLogs, setResourceUpdateLogs,
         webResources, setWebResources,
+        collections, setCollections,
         resourceLogs, setResourceLogs,
         userNotes, setUserNotes,
         qnaPosts, setQnaPosts,
         securityAlerts, setSecurityAlerts,
         deadlines, setDeadlines,
+        academicEvents, setAcademicEvents,
         isSidebarOpen, setSidebarOpen,
         isChatbotOpen, setChatbotOpen,
         addNotification,
@@ -659,6 +760,7 @@ const App = () => {
                     <div className="page-content">
                         {appView === 'dashboard' && <DashboardView />}
                         {appView === 'timetable' && <TimetableView />}
+                        {appView === 'academicCalendar' && <AcademicCalendarView />}
                         {appView === 'resources' && <ResourcesView />}
                         {appView === 'manage' && <ManageTimetableView />}
                         {appView === 'settings' && <SettingsView />}
@@ -994,6 +1096,118 @@ const TimetablePopover = ({ popover, onClose }: { popover: { x: number, y: numbe
         </div>
     );
 };
+
+const AcademicCalendarView = () => {
+    const { academicEvents } = useAppContext();
+
+    const getInitialCalendarDate = () => {
+        if (academicEvents.length > 0) {
+            const sortedEvents = [...academicEvents].sort((a: AcademicEvent, b: AcademicEvent) => a.date - b.date);
+            const firstEventDate = new Date(sortedEvents[0].date);
+            const now = new Date();
+            
+            // If the first event is in a future year, or a future month of the current year, start the calendar there.
+            if (firstEventDate.getFullYear() > now.getFullYear() || 
+                (firstEventDate.getFullYear() === now.getFullYear() && firstEventDate.getMonth() > now.getMonth())) {
+                return firstEventDate;
+            }
+        }
+        return new Date(); // Otherwise, default to today
+    };
+
+    const [currentDate, setCurrentDate] = useState(getInitialCalendarDate());
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const startDayOfWeek = firstDayOfMonth.getDay();
+
+    const eventsByDate = useMemo(() => {
+        const map = new Map<number, AcademicEvent[]>();
+        academicEvents.forEach((event: AcademicEvent) => {
+            const dateKey = getStartOfDay(new Date(event.date));
+            if (!map.has(dateKey)) {
+                map.set(dateKey, []);
+            }
+            map.get(dateKey)!.push(event);
+        });
+        return map;
+    }, [academicEvents]);
+
+    const calendarCells = [];
+    // Previous month's days
+    for (let i = 0; i < startDayOfWeek; i++) {
+        calendarCells.push(<div key={`prev-${i}`} className="calendar-date-cell is-other-month"></div>);
+    }
+    // Current month's days
+    for (let day = 1; day <= daysInMonth; day++) {
+        const cellDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        const cellTimestamp = getStartOfDay(cellDate);
+        const todayTimestamp = getStartOfDay(new Date());
+        const isToday = cellTimestamp === todayTimestamp;
+        const eventsForDay = eventsByDate.get(cellTimestamp) || [];
+
+        calendarCells.push(
+            <div
+                key={day}
+                className={`calendar-date-cell ${isToday ? 'is-today' : ''}`}
+                onClick={() => setSelectedDate(cellDate)}
+            >
+                <span className="date-number">{day}</span>
+                {eventsForDay.length > 0 && (
+                    <div className="event-dots-container">
+                        {eventsForDay.slice(0, 3).map(event => (
+                            <div key={event.id} className={`event-dot event-${event.type}`}></div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    const changeMonth = (delta: number) => {
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1));
+        setSelectedDate(null);
+    };
+
+    const selectedDayEvents = selectedDate ? eventsByDate.get(getStartOfDay(selectedDate)) || [] : [];
+    
+    return (
+        <div className="calendar-view-container">
+            <div className="calendar-main-content">
+                <div className="calendar-header">
+                    <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(-1)}>&lt;</button>
+                    <h2>{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h2>
+                    <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(1)}>&gt;</button>
+                    <button className="btn btn-secondary" onClick={() => setCurrentDate(new Date())}>Today</button>
+                </div>
+                <div className="calendar-grid">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d} className="calendar-day-header">{d}</div>)}
+                    {calendarCells}
+                </div>
+            </div>
+            {selectedDate && (
+                 <div className="calendar-details-panel">
+                    <h3>{selectedDate.toLocaleDateString('default', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
+                    <div className="event-list">
+                        {selectedDayEvents.length > 0 ? (
+                            selectedDayEvents.map(event => (
+                                <div key={event.id} className={`event-item event-${event.type}`}>
+                                    <div className="event-item-title">{event.title}</div>
+                                    <p className="event-item-description">{event.description}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="no-events">No events scheduled for this day.</p>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 const ManageTimetableView = () => {
     const { timetableEntries, setTimetableEntries, timeSlots, addNotification } = useAppContext();
@@ -1515,84 +1729,49 @@ const useDebouncedEffect = (effect: () => void, deps: React.DependencyList, dela
     }, [...deps, delay]);
 };
 
-const AIRecommendations = ({ onSelectResource }: { onSelectResource: (res: Resource) => void }) => {
-    const { currentUser, resources, addNotification } = useAppContext();
-    const [recommendations, setRecommendations] = useState<Resource[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+const ForYouSection = ({ onSelectResource }: { onSelectResource: (res: Resource) => void }) => {
+    const { currentUser, resources, collections, setAppView } = useAppContext();
 
-    useEffect(() => {
-        const fetchRecommendations = async () => {
-            if (!isAiEnabled || !ai) {
-                setIsLoading(false);
-                return;
-            }
-
-            const resourceContext = resources.map((r: Resource) => ({
-                id: r.id,
-                name: r.name,
-                subject: r.subject,
-                department: r.department,
-                type: r.type,
-            }));
-
-            const prompt = `You are a personalized academic advisor AI. Your goal is to recommend relevant learning materials to a user based on their profile.
-            User Profile:
-            - Role: ${currentUser.role}
-            - Department: ${currentUser.dept}
-            - Year: ${currentUser.year || 'N/A'}
-    
-            Available Resources (JSON format):
-            ${JSON.stringify(resourceContext)}
-    
-            Analyze the user's profile and the list of available resources. Select up to 5 resources that would be most beneficial for this user. Prioritize resources matching their department and year (if student). Return ONLY a JSON array of the recommended resource IDs.
-            Example response: ["res-001", "res-002"]`;
-
-            try {
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: { responseMimeType: 'application/json' }
-                });
-                const recommendedIds = JSON.parse(response.text);
-                const recommendedResources = resources.filter((r: Resource) => recommendedIds.includes(r.id));
-                setRecommendations(recommendedResources);
-            } catch (error) {
-                console.error("AI Recommendation Error:", error);
-                // Don't show a notification for this as it's a background enhancement
-            } finally {
-                setIsLoading(false);
-            }
+    const featuredItems = useMemo(() => {
+        const userCollections = collections.filter((c: Collection) => c.department === currentUser.dept);
+        const userResources = resources.filter((r: Resource) => r.department === currentUser.dept && r.aiInsightsStatus === 'complete');
+        
+        return {
+            collection: userCollections[0],
+            resources: userResources.slice(0, 2),
         };
+    }, [currentUser, resources, collections]);
 
-        fetchRecommendations();
-    }, [currentUser, resources]);
-
-    if (isLoading) {
-        return (
-            <div className="recommendations-container">
-                <h3>{Icons.lightbulb} AI Recommendations For You</h3>
-                <div className="recommendations-carousel">
-                    {[...Array(3)].map((_, i) => <div key={i} className="skeleton-card"></div>)}
-                </div>
-            </div>
-        );
-    }
-    
-    if (recommendations.length === 0) {
-        return null; // Don't show the section if there are no recommendations
+    if (!featuredItems.collection && featuredItems.resources.length === 0) {
+        return null; // Don't show if nothing to recommend
     }
 
     return (
-        <div className="recommendations-container">
-            <h3>{Icons.lightbulb} AI Recommendations For You</h3>
-            <div className="recommendations-carousel">
-                {recommendations.map(res => (
-                    <div key={res.id} className="recommendation-card" onClick={() => onSelectResource(res)}>
-                         <div className="recommendation-card-icon">{resourceTypeIcons[res.type]}</div>
-                         <div>
-                            <h4 className="recommendation-card-title">{res.name}</h4>
-                            <p className="recommendation-card-meta">{res.department} | {res.subject}</p>
-                         </div>
+        <div className="for-you-section">
+            <h3>{Icons.lightbulb} Curated For You</h3>
+            <div className="for-you-grid">
+                {featuredItems.collection && (
+                    <div className="featured-card featured-collection-card" onClick={() => setAppView('resources')}>
+                        <div className="featured-card-header">
+                            <span>Featured Collection</span>
+                            {Icons.viewGrid}
+                        </div>
+                        <h4>{featuredItems.collection.name}</h4>
+                        <p>{featuredItems.collection.description}</p>
+                        <div className="featured-card-footer">
+                            <span>{featuredItems.collection.resourceIds.length} items</span>
+                            <span>by {featuredItems.collection.creatorName}</span>
+                        </div>
+                    </div>
+                )}
+                {featuredItems.resources.map(res => (
+                    <div key={res.id} className="featured-card featured-resource-card" onClick={() => onSelectResource(res)}>
+                        <div className="featured-card-header">
+                            <span>Recommended Resource</span>
+                            {resourceTypeIcons[res.type]}
+                        </div>
+                        <h4>{res.name}</h4>
+                        <p>{res.aiInsights?.summary.substring(0, 80)}...</p>
                     </div>
                 ))}
             </div>
@@ -1602,7 +1781,7 @@ const AIRecommendations = ({ onSelectResource }: { onSelectResource: (res: Resou
 
 
 const ResourcesView = () => {
-    const { resources, webResources, resourceLogs, currentUser, addNotification } = useAppContext();
+    const { resources, webResources, resourceLogs, collections, currentUser, addNotification } = useAppContext();
     const [isUploadModalOpen, setUploadModalOpen] = useState(false);
     const [isAddLinkModalOpen, setAddLinkModalOpen] = useState(false);
     const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
@@ -1613,7 +1792,7 @@ const ResourcesView = () => {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [isSearchLoading, setIsSearchLoading] = useState(false);
     const [searchResults, setSearchResults] = useState<string[] | null>(null);
-    const [activeTab, setActiveTab] = useState<'library' | 'web'>('library');
+    const [activeTab, setActiveTab] = useState<'library' | 'web' | 'collections'>('library');
 
     const downloadCounts = useMemo(() => {
         const counts = new Map<string, number>();
@@ -1716,9 +1895,13 @@ const ResourcesView = () => {
         return items;
     }, [resources, webResources, searchResults, filters, sortBy, activeTab]);
 
+    const filteredCollections = useMemo(() => {
+        return collections.filter((c: Collection) => filters.department === 'all' || c.department === filters.department);
+    }, [collections, filters.department])
+
     return (
         <div className="resources-container-view">
-            {activeTab === 'library' && <AIRecommendations onSelectResource={setSelectedResource} />}
+            <ForYouSection onSelectResource={setSelectedResource} />
             <div className="resources-header">
                 <h2>Digital Library</h2>
                 <div className="resources-controls">
@@ -1740,6 +1923,9 @@ const ResourcesView = () => {
                     </button>
                     <button className={activeTab === 'web' ? 'active' : ''} onClick={() => setActiveTab('web')}>
                         {Icons.externalLink} Web Links ({webResources.length})
+                    </button>
+                    <button className={activeTab === 'collections' ? 'active' : ''} onClick={() => setActiveTab('collections')}>
+                        {Icons.viewGrid} Collections ({collections.length})
                     </button>
                 </div>
                 <div className="resources-view-controls">
@@ -1784,9 +1970,10 @@ const ResourcesView = () => {
             
             {isSearchLoading ? (
                 viewMode === 'grid' ? <ResourceGridSkeleton /> : <ResourceListSkeleton />
-            ) : filteredItems.length > 0 ? (
-                activeTab === 'library' ? (
-                     viewMode === 'grid' ? (
+            ) : (
+                <>
+                {activeTab === 'library' && (
+                     filteredItems.length > 0 ? (viewMode === 'grid' ? (
                         <div className="resources-grid">
                             {(filteredItems as Resource[]).map((res) => (
                                 <ResourceCard key={res.id} resource={res} onSelect={() => setSelectedResource(res)} downloadCount={downloadCounts.get(res.id) || 0} />
@@ -1798,19 +1985,27 @@ const ResourcesView = () => {
                                 <ResourceListItem key={res.id} resource={res} onSelect={() => setSelectedResource(res)} downloadCount={downloadCounts.get(res.id) || 0} />
                             ))}
                         </div>
-                    )
-                ) : (
-                    <div className="web-resource-list">
-                       {(filteredItems as WebResource[]).map((res) => (
-                           <WebResourceCard key={res.id} webResource={res} />
-                       ))}
-                    </div>
-                )
-            ) : (
-                <div className="empty-state">
-                    <h3>No Resources Found</h3>
-                    <p>Try adjusting your search or filters, or be the first to contribute!</p>
-                </div>
+                    )) : <div className="empty-state"><h3>No Resources Found</h3><p>Try adjusting your search or filters.</p></div>
+                )}
+
+                {activeTab === 'web' && (
+                    filteredItems.length > 0 ? (
+                        <div className="web-resource-list">
+                           {(filteredItems as WebResource[]).map((res) => (
+                               <WebResourceCard key={res.id} webResource={res} />
+                           ))}
+                        </div>
+                    ) : <div className="empty-state"><h3>No Web Links Found</h3><p>Try adjusting your search or filters.</p></div>
+                )}
+
+                {activeTab === 'collections' && (
+                     filteredCollections.length > 0 ? (
+                        <div className="resources-grid">
+                             {filteredCollections.map(collection => <CollectionCard key={collection.id} collection={collection} />)}
+                        </div>
+                     ) : <div className="empty-state"><h3>No Collections Found</h3><p>Faculty and admins can create collections to group resources.</p></div>
+                )}
+                </>
             )}
 
             {isUploadModalOpen && <UploadResourceModal onClose={() => setUploadModalOpen(false)} />}
@@ -1840,9 +2035,26 @@ const resourceTypeIcons = {
     other: Icons.file,
 };
 
-const ResourceCard = ({ resource, onSelect, downloadCount }: { resource: Resource, onSelect: () => void, downloadCount: number }) => {
+const CollectionCard = ({ collection }: { collection: Collection }) => {
     return (
-        <div className="resource-card">
+        <div className="resource-card collection-card">
+            <div className="resource-card-header">
+                <span className="resource-card-icon">{Icons.viewGrid}</span>
+            </div>
+            <h4 className="resource-card-title">{collection.name}</h4>
+            <p className="resource-card-meta">{collection.description}</p>
+            <div className="resource-card-footer-meta">
+                <span>{collection.resourceIds.length} items</span>
+                <span>By {collection.creatorName}</span>
+            </div>
+        </div>
+    );
+}
+
+const ResourceCard = ({ resource, onSelect, downloadCount }: { resource: Resource, onSelect: () => void, downloadCount: number }) => {
+    const popularity = (downloadCount * 5) + (resource.version > 1 ? 10 : 0); // Dummy popularity
+    return (
+        <div className={`resource-card resource-type-${resource.type}`} onClick={onSelect}>
             <div className="resource-card-header">
                 <span className="resource-card-icon">{resourceTypeIcons[resource.type]}</span>
                  <AIStatusPill status={resource.aiSafetyStatus} />
@@ -1851,24 +2063,21 @@ const ResourceCard = ({ resource, onSelect, downloadCount }: { resource: Resourc
             <p className="resource-card-meta">
                 <span>{resource.department}</span> | <span>{resource.subject}</span>
             </p>
-             <p className="resource-card-meta">
-                Uploaded by {resource.uploaderName}
-             </p>
              <div className="resource-card-stats">
                 <span title={`${downloadCount} downloads`}>{Icons.download} {downloadCount}</span>
                 <span title={`Version ${resource.version}`}>{Icons.history} v{resource.version}</span>
-                {resource.aiInsightsStatus === 'generating' && <span className="generating-indicator">{Icons.lightbulb} Generating Insights...</span>}
+                {resource.aiInsightsStatus === 'complete' && <span className="ai-insight-available" title="AI Insights Available">{Icons.lightbulb}</span>}
              </div>
-            <div className="resource-card-footer">
-                <button className="btn btn-secondary" onClick={onSelect}>View Details</button>
-            </div>
+             <div className="popularity-bar">
+                <div className="popularity-fill" style={{width: `${Math.min(100, popularity)}%`}}></div>
+             </div>
         </div>
     );
 };
 
 const ResourceListItem = ({ resource, onSelect, downloadCount }: { resource: Resource, onSelect: () => void, downloadCount: number }) => {
     return (
-        <div className="resource-list-item">
+        <div className={`resource-list-item resource-type-${resource.type}`} onClick={onSelect}>
             <span className="resource-list-item-icon">{resourceTypeIcons[resource.type]}</span>
             <div className="resource-list-item-info">
                 <h4 className="resource-list-item-title">{resource.name}</h4>
@@ -1881,7 +2090,7 @@ const ResourceListItem = ({ resource, onSelect, downloadCount }: { resource: Res
                  <span>{getRelativeTime(resource.timestamp)}</span>
             </div>
             <AIStatusPill status={resource.aiSafetyStatus} />
-            <button className="btn btn-secondary btn-sm" onClick={onSelect}>Details</button>
+            <button className="btn btn-secondary btn-sm">Details</button>
         </div>
     );
 };
@@ -2274,75 +2483,33 @@ const UpdateResourceModal = ({ resource, onClose }: { resource: Resource, onClos
 
 
 const FilePreviewer = ({ resource }: { resource: Resource }) => {
-    const renderContent = () => {
-        const genericText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.";
-        switch (resource.type) {
-            case 'lab':
-                return (
-                    <>
-                        <h2>Lab Manual: {resource.name}</h2>
-                        <h3>Experiment 1: Introduction to {resource.subject}</h3>
-                        <h4>Objective</h4>
-                        <p>To understand the fundamental concepts and basic operations of {resource.subject}. {genericText.substring(0, 200)}...</p>
-                        <h4>Apparatus Required</h4>
-                        <ul>
-                            <li>Component A, Model #123</li>
-                            <li>Component B, 5V Variant</li>
-                            <li>Standard DC Power Supply</li>
-                            <li>Connecting Wires</li>
-                        </ul>
-                        <h4>Procedure</h4>
-                        <ol>
-                            <li>Set up the apparatus as shown in the circuit diagram provided in Figure 1.1.</li>
-                            <li>Ensure all connections are secure before powering on the device.</li>
-                            <li>Apply an input voltage of 3.3V and observe the output on the oscilloscope.</li>
-                            <li>Record the readings in the observation table below.</li>
-                            <li>Repeat the process for input voltages of 5V and 9V.</li>
-                            <li>{genericText.substring(0, 150)}...</li>
-                        </ol>
-                        <h4>Result</h4>
-                        <p>The experiment was conducted successfully, and the results were found to be in accordance with theoretical values.</p>
-                    </>
-                );
-            case 'book':
-                 return (
-                    <>
-                        <h2>{resource.name}</h2>
-                        <h3>Chapter 1: Introduction to {resource.subject}</h3>
-                        <p>{genericText} {genericText}</p>
-                        <h3>Chapter 2: Core Concepts and Principles</h3>
-                        <p>{genericText} {genericText}</p>
-                        <h3>Chapter 3: Advanced Topics</h3>
-                        <p>{genericText}</p>
-                    </>
-                );
-            case 'notes':
-                return (
-                    <>
-                        <h2>Lecture Notes: {resource.subject}</h2>
-                        <h3>Unit 1: {resource.name}</h3>
-                        <p><strong>Key Topics Covered:</strong></p>
-                        <ul>
-                            <li>Topic 1.1 - A detailed explanation of the first key concept.</li>
-                            <li>Topic 1.2 - An overview of the second important theory.</li>
-                            <li>Topic 1.3 - Practical applications and examples.</li>
-                        </ul>
-                        <p>{genericText}</p>
-                        <h4>Important Formulae:</h4>
-                        <p>E = mc²</p>
-                    </>
-                );
-            default:
-                return (
-                    <div className="empty-state">
-                        <h3>Preview Not Available</h3>
-                        <p>A detailed preview is not available for this file type.</p>
-                    </div>
-                );
-        }
-    };
+    const genericText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+    
+    return (
+        <div className="file-preview-container">
+            <h1>{resource.name}</h1>
+            <p className="document-meta">Subject: {resource.subject} | Uploaded by: {resource.uploaderName}</p>
+            
+            <h2>1. Introduction to {resource.subject}</h2>
+            <p>{genericText.substring(0, 400)}.</p>
+            <p>In this document, we will explore the fundamental principles of {resource.subject}, including key definitions, historical context, and practical applications in the modern world. {genericText.substring(400, 650)}.</p>
+            
+            <div className="placeholder-image">
+                <span>Diagram 1.1: Core Concept Flowchart</span>
+            </div>
 
-    return <div className="file-preview-container">{renderContent()}</div>
+            <h2>2. Core Methodologies</h2>
+            <p>{genericText.substring(100, 550)}.</p>
+            <ul>
+                <li><strong>Methodology A:</strong> A detailed explanation of the first key concept. {genericText.substring(0, 100)}.</li>
+                <li><strong>Methodology B:</strong> An overview of the second important theory. {genericText.substring(100, 200)}.</li>
+                <li><strong>Methodology C:</strong> Practical applications and examples. {genericText.substring(200, 300)}.</li>
+            </ul>
+
+            <h2>3. Advanced Topics & Conclusion</h2>
+            <p>{genericText.substring(0, 300)}.</p>
+        </div>
+    );
 };
 
 
@@ -2624,16 +2791,86 @@ const QnAPostView = ({ post, replies, getReplies }: { post: QnAPost, replies: Qn
 
 
 const StudentDirectoryView = () => {
-    const { users } = useAppContext();
+    const { users, addNotification } = useAppContext();
     const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState({ department: 'all', year: 'all' });
     const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+    const [isAiSearching, setIsAiSearching] = useState(false);
+    const [aiSearchResults, setAiSearchResults] = useState<string[] | null>(null);
+
+    const handleSemanticSearch = useCallback(async (query: string) => {
+        if (!isAiEnabled || !ai) {
+            addNotification('AI search is disabled.', 'warning');
+            return;
+        }
+        setIsAiSearching(true);
+        const studentData = users.filter(u => u.role === 'student').map(u => ({
+            id: u.id,
+            name: u.name,
+            dept: u.dept,
+            year: u.year,
+            grades: u.grades,
+            attendance: u.attendance
+        }));
+
+        const prompt = `You are a search API for a student directory. Analyze the user's query and the provided student data. Return a JSON array of student IDs that best match the query.
+        User Query: "${query}"
+        Student Data: ${JSON.stringify(studentData)}
+        
+        Interpret natural language queries about performance (e.g., "top performers", "low grades"), attendance ("good attendance", "poor attendance"), and demographics. Return only the matching student IDs.`;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' }
+            });
+            const resultIds = JSON.parse(response.text);
+            setAiSearchResults(resultIds);
+        } catch (error) {
+            console.error("AI Student Search Error:", error);
+            addNotification('AI search failed.', 'error');
+            setAiSearchResults([]);
+        } finally {
+            setIsAiSearching(false);
+        }
+    }, [users, addNotification]);
+    
+    const isSemanticQuery = useMemo(() => {
+        const semanticKeywords = ['show', 'find', 'who', 'with', 'good', 'bad', 'top', 'low', 'poor', 'high'];
+        return semanticKeywords.some(keyword => searchTerm.toLowerCase().includes(keyword));
+    }, [searchTerm]);
+
+    useDebouncedEffect(() => {
+        if (searchTerm.trim().length > 3 && isSemanticQuery) {
+            handleSemanticSearch(searchTerm);
+        } else {
+            setAiSearchResults(null);
+        }
+    }, [searchTerm], 500);
 
     const students = useMemo(() => {
-        return users
-            .filter((u: User) => u.role === 'student')
-            .filter((u: User) => u.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        let studentList = users.filter((u: User) => u.role === 'student');
+
+        if (aiSearchResults !== null) {
+            const resultsSet = new Set(aiSearchResults);
+            studentList = studentList.filter(u => resultsSet.has(u.id));
+        } else if (searchTerm) {
+            studentList = studentList.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        }
+
+        return studentList
+            .filter((u: User) => (filters.department === 'all' || u.dept === filters.department))
+            .filter((u: User) => (filters.year === 'all' || u.year === filters.year))
             .sort((a: User, b: User) => a.name.localeCompare(b.name));
-    }, [users, searchTerm]);
+    }, [users, searchTerm, filters, aiSearchResults]);
+    
+    const getAttendanceStatus = (attendance: User['attendance']) => {
+        if (!attendance || attendance.total === 0) return { percent: 0, status: 'fair' };
+        const percent = (attendance.present / attendance.total) * 100;
+        let status = 'poor';
+        if (percent >= 90) status = 'good';
+        else if (percent >= 75) status = 'fair';
+        return { percent, status };
+    };
 
     return (
         <div className="directory-container">
@@ -2644,32 +2881,55 @@ const StudentDirectoryView = () => {
                         {Icons.search}
                         <input
                             type="search"
-                            placeholder="Search by student name..."
+                            placeholder="Search by name or ask AI, e.g., 'top performers in CSE'"
                             className="form-control"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
+                         {isAiSearching && <span className="spinner-sm search-spinner"></span>}
+                    </div>
+                    <div className="directory-filters">
+                         <select className="form-control" value={filters.department} onChange={e => setFilters(f => ({...f, department: e.target.value}))}>
+                            <option value="all">All Departments</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <select className="form-control" value={filters.year} onChange={e => setFilters(f => ({...f, year: e.target.value}))}>
+                            <option value="all">All Years</option>
+                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
                     </div>
                 </div>
             </div>
-            <div className="student-grid">
-                {students.length > 0 ? (
-                    students.map((student: User) => (
-                        <div key={student.id} className="student-card" onClick={() => setSelectedStudent(student)}>
-                            <div className="student-card-avatar">{(student.name[0] || '').toUpperCase()}</div>
-                            <div className="student-card-info">
-                                <h4>{student.name}</h4>
-                                <p>{student.dept} - Year {student.year}</p>
-                            </div>
+            {isAiSearching ? (
+                <div className="student-grid">
+                     {[...Array(6)].map((_, i) => <div key={i} className="skeleton-card" style={{height: '100px'}}></div>)}
+                </div>
+            ) : (
+                <div className="student-grid">
+                    {students.length > 0 ? (
+                        students.map((student: User) => {
+                            const { percent, status } = getAttendanceStatus(student.attendance);
+                            return (
+                                <div key={student.id} className="student-card" onClick={() => setSelectedStudent(student)}>
+                                    <div className="student-card-avatar">{(student.name[0] || '').toUpperCase()}</div>
+                                    <div className="student-card-info">
+                                        <h4>{student.name}</h4>
+                                        <p>{student.dept} - Year {student.year}</p>
+                                        <div className="attendance-bar-container" title={`Attendance: ${percent.toFixed(0)}%`}>
+                                            <div className={`attendance-bar ${status}`} style={{width: `${percent}%`}}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })
+                    ) : (
+                        <div className="empty-state">
+                            <h3>No Students Found</h3>
+                            <p>Your search or filter criteria did not return any results.</p>
                         </div>
-                    ))
-                ) : (
-                    <div className="empty-state">
-                        <h3>No Students Found</h3>
-                        <p>Your search for "{searchTerm}" did not return any results.</p>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
             {selectedStudent && <StudentDetailsModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />}
         </div>
     );
