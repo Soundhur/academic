@@ -319,7 +319,7 @@ const Icons = {
     edit: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>,
     settings: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>,
     chatbot: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>,
-    send: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"></path></svg>,
+    send: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.949a.75.75 0 00.95.544l4.25-1.215a.75.75 0 01.544.95l-1.414 4.949a.75.75 0 00.95.826l12.25-3.5a.75.75 0 000-1.392l-12.25-3.5a.75.75 0 00-.124-.012z"></path></svg>,
     editPencil: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd"></path></svg>,
     delete: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"></path></svg>,
     sun: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>,
@@ -333,6 +333,8 @@ const Icons = {
     users: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>,
     login: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>,
     microphone: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clipRule="evenodd"></path></svg>,
+    speaker: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>,
+    speakerMute: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-3l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>,
     check: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>,
     x: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.693a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>,
     lightbulb: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>,
@@ -801,11 +803,14 @@ const DashboardView = () => {
         switch (item.type) {
             case 'class':
                 const entry = item.data;
+                const isBreakOrCommon = entry.type === 'break' || entry.type === 'common';
+                const title = isBreakOrCommon ? `Upcoming Schedule: ${entry.subject}` : `Upcoming Class: ${entry.subject}`;
+                
                 return (
                     <div className="feed-item-card class">
                         <div className="feed-item-icon">{Icons.timetable}</div>
                         <div className="feed-item-content">
-                            <p className="feed-item-title">Upcoming Class: {entry.subject}</p>
+                            <p className="feed-item-title">{title}</p>
                             <p className="feed-item-meta">
                                 {timeSlots[entry.timeIndex]} {entry.faculty && `with ${entry.faculty}`}
                             </p>
@@ -3154,24 +3159,94 @@ const AuthView = () => {
     );
 };
 
+const OracleVisualizer = ({ status }: { status: 'idle' | 'listening' | 'thinking' | 'speaking' }) => {
+    return (
+        <div className="oracle-visualizer" data-status={status}>
+            <div className="oracle-glow"></div>
+            <div className="oracle-orb"></div>
+        </div>
+    );
+};
+
+
 const Chatbot = () => {
-    const { isChatbotOpen, setChatbotOpen, currentUser } = useAppContext();
+    const { isChatbotOpen, setChatbotOpen, currentUser, addNotification } = useAppContext();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const [aiStatus, setAiStatus] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+    const [isMuted, setIsMuted] = useState(true);
     const historyRef = useRef<HTMLDivElement>(null);
+    const recognitionRef = useRef<any>(null);
 
     useEffect(() => {
-        historyRef.current?.scrollTo(0, historyRef.current.scrollHeight);
+        historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages]);
 
-    const handleSend = async () => {
-        if (!input.trim() || !isAiEnabled || !ai) return;
+    useEffect(() => {
+        // Speech Recognition setup
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = false;
+            recognitionRef.current.interimResults = false;
 
-        const userMessage: ChatMessage = { id: uuidv4(), role: 'user', text: input };
+            recognitionRef.current.onstart = () => {
+                setAiStatus('listening');
+            };
+
+            recognitionRef.current.onend = () => {
+                setAiStatus('idle');
+            };
+
+            recognitionRef.current.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                setInput(transcript);
+                handleSend(transcript); 
+            };
+            
+            recognitionRef.current.onerror = (event: any) => {
+                console.error('Speech recognition error:', event.error);
+                addNotification(`Voice error: ${event.error}`, 'error');
+                setAiStatus('idle');
+            };
+
+        }
+    }, [addNotification]);
+    
+    const handleVoiceInput = () => {
+        if (aiStatus === 'listening') {
+            recognitionRef.current?.stop();
+        } else {
+             try {
+                recognitionRef.current?.start();
+            } catch(e) {
+                addNotification('Voice recognition already active.', 'warning');
+            }
+        }
+    };
+
+    const speak = (text: string) => {
+        if (isMuted || !('speechSynthesis' in window)) return;
+        
+        window.speechSynthesis.cancel(); // Cancel any previous speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        utterance.onstart = () => setAiStatus('speaking');
+        utterance.onend = () => setAiStatus('idle');
+        utterance.onerror = () => setAiStatus('idle');
+
+        window.speechSynthesis.speak(utterance);
+    };
+
+    const handleSend = async (textToSend?: string) => {
+        const currentInput = textToSend || input;
+        if (!currentInput.trim() || !isAiEnabled || !ai) return;
+
+        const userMessage: ChatMessage = { id: uuidv4(), role: 'user', text: currentInput };
         setMessages(prev => [...prev, userMessage]);
         setInput('');
-        setIsLoading(true);
+        setAiStatus('thinking');
+        window.speechSynthesis.cancel();
 
         const systemInstruction = currentUser?.role === 'admin'
             ? "You are JARVIS, a hyper-intelligent, witty, and friendly AI personal assistant for the college's Administrator. Address the admin directly and with a touch of personality, like a trusted colleague. Your goal is to provide precise, efficient support for managing the institution. Be proactive and anticipate needs where possible."
@@ -3180,19 +3255,25 @@ const Chatbot = () => {
         try {
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: input,
+                contents: currentInput,
                 config: {
                     systemInstruction: systemInstruction
                 }
             });
             const modelMessage: ChatMessage = { id: uuidv4(), role: 'model', text: response.text };
             setMessages(prev => [...prev, modelMessage]);
+            speak(response.text);
+
         } catch (e) {
             console.error(e);
-            const errorMessage: ChatMessage = { id: uuidv4(), role: 'model', text: 'Sorry, I encountered an error.', isError: true };
+            const errorText = 'Sorry, I encountered an error.';
+            const errorMessage: ChatMessage = { id: uuidv4(), role: 'model', text: errorText, isError: true };
             setMessages(prev => [...prev, errorMessage]);
+            speak(errorText);
         } finally {
-            setIsLoading(false);
+            if (aiStatus !== 'speaking') {
+                 setAiStatus('idle');
+            }
         }
     };
     
@@ -3203,7 +3284,20 @@ const Chatbot = () => {
             </button>
             {isChatbotOpen && (
                 <div className="chatbot-window">
-                    <div className="chatbot-header"><h3>{Icons.chatbot} AI Assistant</h3></div>
+                    <div className="chatbot-header">
+                        <OracleVisualizer status={aiStatus} />
+                        <h3>AI Voice Assistant</h3>
+                        <button 
+                            className={`speaker-btn ${isMuted ? 'muted' : ''}`}
+                            onClick={() => {
+                                setIsMuted(m => !m);
+                                if (!isMuted) window.speechSynthesis.cancel();
+                            }} 
+                            aria-label={isMuted ? "Unmute voice" : "Mute voice"}
+                        >
+                            {isMuted ? Icons.speakerMute : Icons.speaker}
+                        </button>
+                    </div>
                     <div className="chatbot-history" ref={historyRef}>
                         {messages.length === 0 && <p className="no-history-text">Ask me anything about the schedule, faculty, or campus info.</p>}
                         {messages.map(msg => (
@@ -3211,25 +3305,33 @@ const Chatbot = () => {
                                 <div className="message-content" dangerouslySetInnerHTML={{ __html: marked.parse(msg.text) }}></div>
                             </div>
                         ))}
-                         {isLoading && (
+                         {aiStatus === 'thinking' && (
                             <div className="chat-message model">
                                 <div className="message-content">
-                                    <span className="spinner-sm" style={{margin: 'auto'}}/>
+                                    <span className="thinking-dots"><span>.</span><span>.</span><span>.</span></span>
                                 </div>
                             </div>
                         )}
                     </div>
                     <div className="chatbot-input">
+                         <button 
+                            className={`mic-btn ${aiStatus === 'listening' ? 'listening' : ''}`}
+                            onClick={handleVoiceInput}
+                            disabled={!recognitionRef.current}
+                            aria-label="Use voice input"
+                        >
+                            {Icons.microphone}
+                        </button>
                         <input
                             type="text"
-                            placeholder="Ask a question..."
+                            placeholder={aiStatus === 'listening' ? "Listening..." : "Ask a question..."}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSend()}
-                            disabled={isLoading}
+                            onKeyPress={(e) => e.key === 'Enter' && aiStatus !== 'thinking' && handleSend()}
+                            disabled={aiStatus === 'thinking' || aiStatus === 'listening'}
                         />
-                        <button onClick={handleSend} disabled={isLoading || !input.trim()}>
-                            {isLoading ? <span className="spinner-sm"></span> : Icons.send}
+                        <button onClick={() => handleSend()} disabled={aiStatus === 'thinking' || !input.trim()}>
+                            {aiStatus === 'thinking' ? <span className="spinner-sm"></span> : Icons.send}
                         </button>
                     </div>
                 </div>
@@ -3237,6 +3339,7 @@ const Chatbot = () => {
         </>
     );
 };
+
 
 const OnboardingTour = () => {
     // Basic implementation placeholder
