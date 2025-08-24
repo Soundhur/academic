@@ -50,12 +50,12 @@ interface Announcement {
 }
 interface ChatMessage {
     id: string;
-    role: 'user' | 'model' | 'tool';
+    role: 'user' | 'model';
     text: string;
     isError?: boolean;
 }
 
-type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'class advisor' | 'principal';
+type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'class advisor' | 'principal' | 'creator';
 type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar' | 'courseFiles';
 
 interface User {
@@ -111,6 +111,13 @@ interface CourseFile {
     };
 }
 
+interface CalendarEvent {
+    id: string;
+    date: Date;
+    title: string;
+    type: 'exam' | 'holiday' | 'event' | 'deadline';
+}
+
 
 interface AppNotification {
     id: string;
@@ -160,18 +167,18 @@ const TIME_SLOTS_DEFAULT = [
 ];
 
 const APP_VIEWS_CONFIG: Record<AppView, { title: string; icon: keyof typeof Icons; roles: UserRole[] }> = {
-    dashboard: { title: "For You", icon: "dashboard", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'] },
-    timetable: { title: "Timetable", icon: "timetable", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
-    academicCalendar: { title: "Academic Calendar", icon: "calendarDays", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'] },
-    resources: { title: "Resources", icon: "bookOpen", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'] },
-    studentDirectory: { title: "Student Directory", icon: "users", roles: ['faculty', 'hod', 'class advisor', 'admin', 'principal'] },
-    courseFiles: { title: "Course Files", icon: 'folder', roles: ['faculty', 'hod', 'admin', 'class advisor', 'principal'] },
-    approvals: { title: "Approvals", icon: "approvals", roles: ['hod', 'admin', 'principal'] },
-    announcements: { title: "Announcements", icon: "announcement", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'] },
-    manage: { title: "Manage Timetable", icon: "edit", roles: ['admin'] },
-    userManagement: { title: "User Management", icon: "users", roles: ['admin', 'principal'] },
-    security: { title: "Security Center", icon: "security", roles: ['admin', 'principal'] },
-    settings: { title: "Settings", icon: "settings", roles: ['admin'] },
+    dashboard: { title: "For You", icon: "dashboard", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
+    timetable: { title: "Timetable", icon: "timetable", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
+    academicCalendar: { title: "Academic Calendar", icon: "calendarDays", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
+    resources: { title: "Resources", icon: "bookOpen", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
+    studentDirectory: { title: "Student Directory", icon: "users", roles: ['faculty', 'hod', 'class advisor', 'admin', 'principal', 'creator'] },
+    courseFiles: { title: "Course Files", icon: 'folder', roles: ['faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
+    approvals: { title: "Approvals", icon: "approvals", roles: ['hod', 'admin', 'principal', 'creator'] },
+    announcements: { title: "Announcements", icon: "announcement", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
+    manage: { title: "Manage Timetable", icon: "edit", roles: ['admin', 'creator'] },
+    userManagement: { title: "User Management", icon: "users", roles: ['admin', 'principal', 'creator'] },
+    security: { title: "Security Center", icon: "security", roles: ['admin', 'principal', 'creator'] },
+    settings: { title: "Settings", icon: "settings", roles: ['admin', 'creator'] },
     auth: { title: "Authentication", icon: "login", roles: [] },
 };
 
@@ -230,6 +237,10 @@ const Icons = {
     folder: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /></svg>,
     file: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V8.414a2 2 0 00-.586-1.414l-4.828-4.828A2 2 0 0010.586 2H4zm6 6a1 1 0 10-2 0v4a1 1 0 102 0V8z" clipRule="evenodd" /></svg>,
     sparkles: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2.5a.75.75 0 01.75.75v.518a2.5 2.5 0 011.64 2.228l.248.012a.75.75 0 01.732.968l-.343 1.03a2.5 2.5 0 01-2.228 1.64l-.012.248a.75.75 0 01-.968.732l-1.03-.343a2.5 2.5 0 01-1.64-2.228l-.248-.012a.75.75 0 01-.732-.968l.343-1.03A2.5 2.5 0 017.482 5.5l.012-.248A2.5 2.5 0 019.72 3.032V3.25a.75.75 0 01.75-.75zM10 5.25a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75V6a.75.75 0 01.75-.75zM5 10a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75V10.75A.75.75 0 015 10zm10 0a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75V10.75a.75.75 0 01.75-.75zM7.158 14.35a.75.75 0 01.292.65v.008a.75.75 0 01-1.492.142l-.006-.007a.75.75 0 01.142-1.492l.007-.006a.75.75 0 011.057.705zM12.842 14.35a.75.75 0 011.057-.705l.007.006a.75.75 0 01.142 1.492l-.006.007a.75.75 0 01-1.492-.142v-.008a.75.75 0 01.292-.65z" clipRule="evenodd" /></svg>,
+    chevronLeft: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" /></svg>,
+    chevronRight: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>,
+    lockOpen: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2V7a5 5 0 00-5-5zm1 11a1 1 0 11-2 0v-3a1 1 0 112 0v3z" /><path d="M10 4a3 3 0 00-3 3v2h6V7a3 3 0 00-3-3z" /></svg>,
+    lockClosed: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>,
 }
 
 // --- DATA PERSISTENCE HOOK ---
@@ -237,7 +248,13 @@ function usePersistentState<T>(key: string, initialState: T): [T, React.Dispatch
     const [state, setState] = useState<T>(() => {
         try {
             const storageValue = localStorage.getItem(key);
-            return storageValue ? JSON.parse(storageValue) : initialState;
+            if (!storageValue) return initialState;
+            const parsed = JSON.parse(storageValue);
+            // Handle date revival for calendar events
+            if (key === 'app_calendarEvents' && Array.isArray(parsed)) {
+                return parsed.map(event => ({ ...event, date: new Date(event.date) })) as T;
+            }
+            return parsed;
         } catch (error) {
             console.warn(`Error reading localStorage key "${key}":`, error);
             return initialState;
@@ -258,10 +275,12 @@ function usePersistentState<T>(key: string, initialState: T): [T, React.Dispatch
 // --- DEMO DATA GENERATION ---
 const studentNames = ["Alice Johnson", "Bob Williams", "Charlie Brown", "Diana Miller", "Ethan Davis", "Fiona Garcia", "George Rodriguez", "Hannah Wilson"];
 const generateDemoData = () => {
-    // Generate an admin user if none exists
     const users: User[] = [
+        { id: 'creator-01', name: 'Creator', password: 'creator', role: 'creator', dept: 'System', status: 'active' },
         { id: 'admin-01', name: 'Admin', password: 'admin', role: 'admin', dept: 'System', status: 'active' },
-        { id: 'principal-01', name: 'Principal', password: 'principal', role: 'principal', dept: 'Administration', status: 'active' }
+        { id: 'principal-01', name: 'Principal', password: 'principal', role: 'principal', dept: 'Administration', status: 'active' },
+        { id: 'student-pending', name: 'Penny Pending', password: 'password123', role: 'student', dept: 'CSE', year: 'I', status: 'pending_approval' },
+        { id: 'faculty-pending', name: 'Frank Future', password: 'password123', role: 'faculty', dept: 'ECE', status: 'pending_approval' },
     ];
 
     const facultyNames = ["Dr. Smith", "Prof. Jones", "Dr. Williams"];
@@ -298,8 +317,17 @@ const generateDemoData = () => {
     const courseFiles: CourseFile[] = [
         { id: 'cf-1', facultyId: 'faculty-01', facultyName: 'Dr. Smith', department: 'CSE', subject: 'Data Structures', semester: 'Fall 2024', files: [{ name: 'syllabus.pdf', type: 'syllabus'}, { name: 'notes_ch1.pdf', type: 'notes' }], status: 'approved', submittedAt: Date.now() - 259200000, aiReview: { status: 'complete', summary: 'The materials are comprehensive and well-structured.', suggestions: ['Consider adding more visual diagrams to explain complex topics like tree traversal.'], corrections: [{ original: 'A stack is a LIFO (Last-In, First-Out) data structure.', corrected: 'A stack is a LIFO (Last-In, First-Out) abstract data type that serves as a collection of elements.'}] } },
     ];
+    
+    const now = new Date();
+    const calendarEvents: CalendarEvent[] = [
+        { id: 'ce-1', date: new Date(now.getFullYear(), now.getMonth(), 15), title: 'Mid-term Exams Begin', type: 'exam' },
+        { id: 'ce-2', date: new Date(now.getFullYear(), now.getMonth(), 28), title: 'Project Submission', type: 'deadline' },
+        { id: 'ce-3', date: new Date(now.getFullYear(), now.getMonth(), 10), title: 'Guest Lecture on AI', type: 'event' },
+        { id: 'ce-4', date: new Date(now.getFullYear(), now.getMonth() + 1, 1), title: 'Semester Break', type: 'holiday' },
+    ];
 
-    return { users, timetable, auditLogs, securityAlerts, settings, announcements, resources, onlineCourses, courseFiles };
+
+    return { users, timetable, auditLogs, securityAlerts, settings, announcements, resources, onlineCourses, courseFiles, calendarEvents };
 };
 
 // --- APP CONTEXT ---
@@ -316,7 +344,10 @@ interface AppContextType {
     resources: Resource[];
     onlineCourses: OnlineCourse[];
     courseFiles: CourseFile[];
+    calendarEvents: CalendarEvent[];
     settings: AppSettings;
+    chatMessages: ChatMessage[];
+    isChatLoading: boolean;
     login: (username: string, pass: string) => boolean;
     logout: () => void;
     signup: (userData: Omit<User, 'id' | 'status'>) => { success: boolean, message: string };
@@ -329,6 +360,12 @@ interface AppContextType {
     toggleAnnouncementReaction: (announcementId: string, emoji: string) => void;
     addCloudResource: (file: { name: string; source: 'gdrive' | 'onedrive' }) => void;
     triggerCourseFileAiReview: (courseFileId: string) => Promise<void>;
+    sendChatMessage: (message: string) => Promise<void>;
+    approveUser: (userId: string) => void;
+    rejectUser: (userId: string) => void;
+    updateUser: (userId: string, newDetails: Partial<User>) => void;
+    toggleUserLock: (userId: string) => void;
+    updateSettings: (newSettings: Partial<AppSettings>) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -349,11 +386,36 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const [resources, setResources] = usePersistentState<Resource[]>('app_resources', []);
     const [onlineCourses, setOnlineCourses] = usePersistentState<OnlineCourse[]>('app_onlineCourses', []);
     const [courseFiles, setCourseFiles] = usePersistentState<CourseFile[]>('app_courseFiles', []);
+    const [calendarEvents, setCalendarEvents] = usePersistentState<CalendarEvent[]>('app_calendarEvents', []);
     const [settings, setSettings] = usePersistentState<AppSettings>('app_settings', { timeSlots: TIME_SLOTS_DEFAULT, accentColor: '#3B82F6' });
     
+    // Chat State
+    const [chatMessages, setChatMessages] = usePersistentState<ChatMessage[]>('app_chatMessages', []);
+    const [isChatLoading, setIsChatLoading] = useState(false);
+    const chatSessionRef = useRef<Chat | null>(null);
+
+    // This effect ensures that demo data is seeded only once if localStorage is empty,
+    // preventing created users from being wiped out on reload.
     useEffect(() => {
-        const isDataInitialized = localStorage.getItem('isDataInitialized');
-        if (!isDataInitialized) {
+        try {
+            const storedUsers = localStorage.getItem('app_users');
+            // If there are no users stored, it's a fresh start.
+            if (!storedUsers || JSON.parse(storedUsers).length === 0) {
+                const demoData = generateDemoData();
+                setUsers(demoData.users);
+                setTimetableEntries(demoData.timetable);
+                setAuditLogs(demoData.auditLogs);
+                setSecurityAlerts(demoData.securityAlerts);
+                setSettings(demoData.settings);
+                setAnnouncements(demoData.announcements);
+                setResources(demoData.resources);
+                setOnlineCourses(demoData.onlineCourses);
+                setCourseFiles(demoData.courseFiles);
+                setCalendarEvents(demoData.calendarEvents);
+            }
+        } catch (error) {
+            console.error("Failed to initialize app data:", error);
+            // Handle potential JSON parsing errors by resetting data
             const demoData = generateDemoData();
             setUsers(demoData.users);
             setTimetableEntries(demoData.timetable);
@@ -364,10 +426,10 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
             setResources(demoData.resources);
             setOnlineCourses(demoData.onlineCourses);
             setCourseFiles(demoData.courseFiles);
-            localStorage.setItem('isDataInitialized', 'true');
+            setCalendarEvents(demoData.calendarEvents);
         }
         setIsInitialized(true);
-    }, []);
+    }, []); // Empty dependency array ensures this runs only once on mount
 
     useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
     
@@ -393,32 +455,60 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }, [setAuditLogs]);
 
     const login = (username: string, pass: string): boolean => {
-        const user = users.find(u => u.name.toLowerCase() === username.toLowerCase() && u.password === pass);
-        if (user) {
-            if (user.isLocked) {
-                addNotification("Your account is locked. Please contact an administrator.", 'error');
-                addAuditLog({ userId: user.id, userName: user.name, action: 'Login Attempt (Locked Account)', ip: 'local', status: 'failure' });
-                return false;
-            }
-            setCurrentUser(user);
-            setCurrentView('dashboard');
-            addNotification(`Welcome back, ${user.name}!`, 'success');
-            addAuditLog({ userId: user.id, userName: user.name, action: 'User Login', ip: 'local', status: 'success' });
-            return true;
+        // Find user by name first to provide specific feedback
+        const userByName = users.find(u => u.name.toLowerCase() === username.toLowerCase());
+    
+        if (!userByName || userByName.password !== pass) {
+            addNotification("Invalid username or password.", 'error');
+            addAuditLog({ userId: userByName?.id || 'unknown', userName: username, action: 'Failed Login Attempt', ip: 'local', status: 'failure', details: !userByName ? 'Username not found.' : 'Incorrect password.' });
+            return false;
         }
-        addAuditLog({ userId: 'unknown', userName: username, action: 'Failed Login Attempt', ip: 'local', status: 'failure' });
-        addNotification("Invalid username or password.", 'error');
-        return false;
+    
+        // Now we know username and password are correct. Check status.
+        if (userByName.status === 'pending_approval') {
+            addNotification("Your account is pending approval from an administrator.", 'warning');
+            addAuditLog({ userId: userByName.id, userName: userByName.name, action: 'Login Attempt (Pending Account)', ip: 'local', status: 'failure' });
+            return false;
+        }
+    
+        if (userByName.status === 'rejected') {
+            addNotification("Your account registration was rejected. Please contact an admin.", 'error');
+            addAuditLog({ userId: userByName.id, userName: userByName.name, action: 'Login Attempt (Rejected Account)', ip: 'local', status: 'failure' });
+            return false;
+        }
+    
+        if (userByName.isLocked) {
+            addNotification("Your account is locked. Please contact an administrator.", 'error');
+            addAuditLog({ userId: userByName.id, userName: userByName.name, action: 'Login Attempt (Locked Account)', ip: 'local', status: 'failure' });
+            return false;
+        }
+
+        if (userByName.status !== 'active') {
+             addNotification("This account is currently inactive.", 'error');
+             addAuditLog({ userId: userByName.id, userName: userByName.name, action: 'Login Attempt (Inactive Account)', ip: 'local', status: 'failure' });
+             return false;
+        }
+    
+        // All checks passed, user is active and not locked
+        setCurrentUser(userByName);
+        setCurrentView('dashboard');
+        addNotification(`Welcome back, ${userByName.name}!`, 'success');
+        addAuditLog({ userId: userByName.id, userName: userByName.name, action: 'User Login', ip: 'local', status: 'success' });
+        return true;
     };
     
     const signup = (userData: Omit<User, 'id'|'status'>) => {
+        const reservedNames = ['admin', 'principal', 'creator'];
+        if (reservedNames.includes(userData.name.toLowerCase())) {
+            return { success: false, message: `The username "${userData.name}" is reserved and cannot be registered.` };
+        }
         if (users.find(u => u.name.toLowerCase() === userData.name.toLowerCase())) {
             return { success: false, message: "Username already exists." };
         }
-        const newUser: User = { ...userData, id: uuidv4(), status: 'active' };
+        const newUser: User = { ...userData, id: uuidv4(), status: 'pending_approval' };
         setUsers(prev => [...prev, newUser]);
-        addAuditLog({ userId: newUser.id, userName: newUser.name, action: 'User Signup', ip: 'local', status: 'success' });
-        return { success: true, message: "Account created successfully!" };
+        addAuditLog({ userId: newUser.id, userName: newUser.name, action: 'User Signup (Pending)', ip: 'local', status: 'info' });
+        return { success: true, message: "Account created! It will be active after administrator approval." };
     };
 
     const logout = () => {
@@ -432,7 +522,7 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const resolveSecurityAlert = (alertId: string) => {
         setSecurityAlerts(prev => prev.map(alert => alert.id === alertId ? { ...alert, isResolved: true } : alert));
         addNotification("Alert has been marked as resolved.", 'info');
-        addAuditLog({ userId: currentUser?.id || 'system', userName: currentUser?.name || 'System', action: `Resolved Security Alert ${alertId}`, ip: 'local', status: 'info' });
+        if(currentUser) addAuditLog({ userId: currentUser.id, userName: currentUser.name, action: `Resolved Security Alert ${alertId}`, ip: 'local', status: 'info' });
     };
 
     const toggleAnnouncementReaction = (announcementId: string, emoji: string) => {
@@ -468,7 +558,7 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
         const courseFile = courseFiles.find(cf => cf.id === courseFileId);
         if (!courseFile) return;
 
-        setCourseFiles(prev => prev.map(cf => cf.id === courseFileId ? { ...cf, aiReview: { status: 'pending', summary: '', suggestions: [] } } : cf));
+        setCourseFiles(prev => prev.map(cf => cf.id === courseFileId ? { ...cf, aiReview: { ...cf.aiReview, status: 'pending' } } : cf));
 
         try {
             const prompt = `As an expert academic reviewer, analyze the following course file content for a "${courseFile.subject}" course. Provide a brief summary, 3-5 actionable suggestions for improvement, and identify one specific passage from the notes that could be improved, providing both original and corrected versions.
@@ -493,19 +583,72 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
         } catch (error) {
             console.error("AI Review Error:", error);
             addNotification("AI review failed.", 'error');
-            setCourseFiles(prev => prev.map(cf => cf.id === courseFileId ? { ...cf, aiReview: { status: 'failed', summary: 'Error during analysis.', suggestions: [] } } : cf));
+            setCourseFiles(prev => prev.map(cf => cf.id === courseFileId ? { ...cf, aiReview: { ...cf.aiReview, status: 'failed', summary: 'Error during analysis.', suggestions: [] } } : cf));
+        }
+    };
+    
+    const sendChatMessage = async (message: string) => {
+        if (!ai) {
+            addNotification("AI features are disabled.", 'warning');
+            return;
+        }
+        const userMessage: ChatMessage = { id: uuidv4(), role: 'user', text: message };
+        setChatMessages(prev => [...prev, userMessage]);
+        setIsChatLoading(true);
+
+        try {
+            if (!chatSessionRef.current) {
+                chatSessionRef.current = ai.chats.create({
+                    model: 'gemini-2.5-flash',
+                    config: { systemInstruction: "You are AcademiaAI, a helpful and friendly assistant for a college management portal. Answer concisely." }
+                });
+            }
+            const response = await chatSessionRef.current.sendMessage({ message });
+            const modelMessage: ChatMessage = { id: uuidv4(), role: 'model', text: response.text };
+            setChatMessages(prev => [...prev, modelMessage]);
+        } catch (error) {
+            console.error("Chat Error:", error);
+            const errorMessage: ChatMessage = { id: uuidv4(), role: 'model', text: "Sorry, I couldn't process that. Please try again.", isError: true };
+            setChatMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsChatLoading(false);
         }
     };
 
+    const approveUser = (userId: string) => {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active' } : u));
+        addNotification("User approved.", 'success');
+    };
+
+    const rejectUser = (userId: string) => {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'rejected' } : u));
+        addNotification("User rejected.", 'info');
+    };
+
+    const updateUser = (userId: string, newDetails: Partial<User>) => {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...newDetails } : u));
+        addNotification("User details updated.", 'success');
+    };
+
+    const toggleUserLock = (userId: string) => {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, isLocked: !u.isLocked } : u));
+        addNotification("User lock status changed.", 'info');
+    };
+    
+    const updateSettings = (newSettings: Partial<AppSettings>) => {
+        setSettings(prev => ({...prev, ...newSettings}));
+        addNotification("Settings updated successfully.", "success");
+    };
 
     if (!isInitialized) {
         return <div className="loading-fullscreen"><div className="spinner"></div></div>;
     }
 
     const value = {
-        currentUser, currentView, isSidebarOpen, theme, users, timetableEntries, auditLogs, securityAlerts, announcements, resources, onlineCourses, courseFiles, settings,
+        currentUser, currentView, isSidebarOpen, theme, users, timetableEntries, auditLogs, securityAlerts, announcements, resources, onlineCourses, courseFiles, calendarEvents, settings, chatMessages, isChatLoading,
         login, logout, signup, setCurrentView, toggleSidebar, setTheme, addNotification, addAuditLog, resolveSecurityAlert,
-        toggleAnnouncementReaction, addCloudResource, triggerCourseFileAiReview,
+        toggleAnnouncementReaction, addCloudResource, triggerCourseFileAiReview, sendChatMessage,
+        approveUser, rejectUser, updateUser, toggleUserLock, updateSettings,
     };
 
     return (
@@ -542,7 +685,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }: { isOpen: bool
             <div className={`modal-content modal-${size}`} onMouseDown={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3>{title}</h3>
-                    <button className="close-modal-btn" onClick={onClose}>&times;</button>
+                    <button className="close-modal-btn" onClick={onClose}>{Icons.close}</button>
                 </div>
                 <div className="modal-body">{children}</div>
             </div>
@@ -585,7 +728,7 @@ const FloatingWindow = ({ isOpen, onClose, title, children, initialPosition = {x
         <div className="floating-window" style={{ left: `${position.x}px`, top: `${position.y}px`, width: `${size.w}px`, height: `${size.h}px` }}>
             <div className="floating-window-header" onMouseDown={handleDragMouseDown}>
                 <h3>{title}</h3>
-                <button className="close-modal-btn" onClick={onClose}>&times;</button>
+                <button className="close-modal-btn" onClick={onClose}>{Icons.close}</button>
             </div>
             <div className="floating-window-content">{children}</div>
             <div className="resize-handle" onMouseDown={handleResizeMouseDown}></div>
@@ -621,6 +764,64 @@ const DraggableBubble = ({ children, onClick, initialPosition = { right: 32, bot
     
     return <div className={`chatbot-fab ${isDragging ? 'dragging' : ''}`} style={{ right: `${position.right}px`, bottom: `${position.bottom}px` }} onMouseDown={handleMouseDown}>{children}</div>;
 };
+
+const ChatbotWindow = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+    const { chatMessages, sendChatMessage, isChatLoading } = useAppContext();
+    const [input, setInput] = useState('');
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [chatMessages, isOpen]);
+
+    const handleSend = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (input.trim() && !isChatLoading) {
+            sendChatMessage(input);
+            setInput('');
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return createPortal(
+        <div className="chatbot-window">
+            <div className="chatbot-header">
+                <h3>AI Assistant</h3>
+                <button onClick={onClose}>{Icons.close}</button>
+            </div>
+            <div className="chatbot-messages">
+                 {chatMessages.length === 0 && <div className="chat-empty-state">Ask me anything!</div>}
+                {chatMessages.map(msg => (
+                    <div key={msg.id} className={`chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}>
+                        <div className="chat-bubble" dangerouslySetInnerHTML={{ __html: msg.role === 'model' ? marked.parse(msg.text) : msg.text.replace(/</g, "&lt;").replace(/>/g, "&gt;") }}></div>
+                    </div>
+                ))}
+                {isChatLoading && (
+                    <div className="chat-message model">
+                        <div className="chat-bubble loading-dots"><span></span><span></span><span></span></div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+            <form className="chatbot-input-form" onSubmit={handleSend}>
+                <input
+                    type="text"
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    placeholder="Ask me anything..."
+                    disabled={isChatLoading}
+                    aria-label="Chat input"
+                />
+                <button type="submit" disabled={isChatLoading || !input.trim()} aria-label="Send message">{Icons.send}</button>
+            </form>
+        </div>,
+        document.body
+    );
+};
+
 
 const Sidebar = () => {
     const { currentUser, currentView, setCurrentView, logout, isSidebarOpen, toggleSidebar } = useAppContext();
@@ -691,6 +892,7 @@ const AuthView = () => {
         if (isLoginView) {
             login(username, password);
         } else {
+            if (password.length < 6) { addNotification("Password must be at least 6 characters.", 'error'); return; }
             if (password !== confirmPassword) { addNotification("Passwords do not match.", 'error'); return; }
             const signupData: Omit<User, 'id' | 'status'> = { name: username, password, role, dept: (role === 'admin' || role === 'principal') ? 'Administration' : dept, year: role === 'student' ? year : undefined, };
             const { success, message } = signup(signupData);
@@ -748,7 +950,27 @@ const AuthView = () => {
 };
 
 const DashboardView = () => {
-    const { currentUser, users, courseFiles } = useAppContext();
+    const { currentUser, users, courseFiles, securityAlerts, announcements } = useAppContext();
+
+    if (currentUser?.role === 'creator') {
+        const pendingApprovals = users.filter(u => u.status === 'pending_approval').length;
+        const unresolvedAlerts = securityAlerts.filter(a => !a.isResolved).length;
+        return (
+            <div className="dashboard-container">
+                <h2 className="dashboard-greeting">Creator Control Panel</h2>
+                <div className="principal-stats-grid">
+                    <div className="dashboard-card stat-card"><h3>Total Users</h3><p>{users.length}</p></div>
+                    <div className="dashboard-card stat-card"><h3>Pending Approvals</h3><p>{pendingApprovals}</p></div>
+                    <div className="dashboard-card stat-card"><h3>Active Alerts</h3><p>{unresolvedAlerts}</p></div>
+                    <div className="dashboard-card stat-card"><h3>Announcements</h3><p>{announcements.length}</p></div>
+                </div>
+                 <div className="dashboard-card">
+                    <h3>System Status Overview</h3>
+                    <p>All systems are operational. You have full access to all management modules via the sidebar.</p>
+                </div>
+            </div>
+        )
+    }
 
     if (currentUser?.role === 'principal') {
         return (
@@ -1050,7 +1272,7 @@ const CourseFilesView = () => {
     const relevantFiles = courseFiles.filter(cf => 
         currentUser?.role === 'faculty' ? cf.facultyId === currentUser.id :
         currentUser?.role === 'hod' || currentUser?.role === 'class advisor' ? cf.department === currentUser.dept :
-        true // Admin and Principal see all
+        true // Admin, principal and creator see all
     );
 
     const handleReviewClick = (e: React.MouseEvent, file: CourseFile) => {
@@ -1109,9 +1331,9 @@ const CourseFilesView = () => {
                         {!selectedFile.aiReview && <p>No AI review has been performed yet.</p>}
                         <div className="form-actions">
                             <button className="btn btn-secondary" onClick={(e) => handleReviewClick(e, selectedFile)} disabled={selectedFile.aiReview?.status === 'pending'}>
-                                {selectedFile.aiReview?.status === 'pending' ? 'Analyzing...' : 'Re-run AI Review'}
+                                {Icons.sparkles} {selectedFile.aiReview?.status === 'pending' ? 'Analyzing...' : 'Re-run AI Review'}
                             </button>
-                            {(currentUser?.role === 'admin' || currentUser?.role === 'hod' || currentUser?.role === 'principal') && (
+                            {(currentUser?.role === 'principal') && (
                                 <>
                                 <button className="btn btn-danger">Request Revision</button>
                                 <button className="btn btn-success">Approve</button>
@@ -1125,10 +1347,198 @@ const CourseFilesView = () => {
     );
 };
 
+const AcademicCalendarView = () => {
+    const { calendarEvents } = useAppContext();
+    const [currentDate, setCurrentDate] = useState(new Date());
 
-const PlaceholderView = ({ title }: { title: string }) => (
-    <div className="dashboard-container"> <div className="dashboard-card empty-state"> <h3>{title}</h3> <p>This feature is under construction.</p> </div> </div>
-);
+    const changeMonth = (amount: number) => {
+        setCurrentDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(newDate.getMonth() + amount);
+            return newDate;
+        });
+    };
+
+    const calendarGrid = useMemo(() => {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        const grid: { day: number; isCurrentMonth: boolean; events: CalendarEvent[] }[] = [];
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+        // Previous month's days
+        for (let i = (firstDay + 6) % 7; i > 0; i--) {
+            grid.push({ day: daysInPrevMonth - i + 1, isCurrentMonth: false, events: [] });
+        }
+        // Current month's days
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dayEvents = calendarEvents.filter(e => 
+                e.date.getFullYear() === year && e.date.getMonth() === month && e.date.getDate() === i
+            );
+            grid.push({ day: i, isCurrentMonth: true, events: dayEvents });
+        }
+        // Next month's days
+        const remaining = 42 - grid.length;
+        for (let i = 1; i <= remaining; i++) {
+            grid.push({ day: i, isCurrentMonth: false, events: [] });
+        }
+        return grid;
+    }, [currentDate, calendarEvents]);
+    
+    return (
+        <div className="calendar-view-container">
+            <div className="calendar-header">
+                <button onClick={() => changeMonth(-1)}>{Icons.chevronLeft}</button>
+                <h2>{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h2>
+                <button onClick={() => changeMonth(1)}>{Icons.chevronRight}</button>
+            </div>
+            <div className="calendar-grid">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <div key={day} className="calendar-day-header">{day}</div>)}
+                {calendarGrid.map((cell, index) => (
+                    <div key={index} className={`calendar-cell ${!cell.isCurrentMonth ? 'other-month' : ''}`}>
+                        <div className="day-number">{cell.day}</div>
+                        <div className="events">
+                            {cell.events.map(event => (
+                                <div key={event.id} className={`event-pill ${event.type}`}>{event.title}</div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const ApprovalsView = () => {
+    const { users, approveUser, rejectUser } = useAppContext();
+    const pendingUsers = users.filter(u => u.status === 'pending_approval');
+
+    return (
+        <div className="approvals-container">
+            <div className="dashboard-card">
+                <h3>Pending User Approvals</h3>
+                {pendingUsers.length === 0 ? <p>No users are currently awaiting approval.</p> : (
+                    <div className="table-wrapper">
+                        <table className="entry-list-table">
+                            <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {pendingUsers.map(user => (
+                                    <tr key={user.id}>
+                                        <td data-label="Name">{user.name}</td>
+                                        <td data-label="Role">{user.role}</td>
+                                        <td data-label="Department">{user.dept}</td>
+                                        <td data-label="Actions">
+                                            <div className="entry-actions">
+                                                <button className="btn btn-sm btn-success" onClick={() => approveUser(user.id)}>{Icons.check} Approve</button>
+                                                <button className="btn btn-sm btn-danger" onClick={() => rejectUser(user.id)}>{Icons.close} Reject</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const UserManagementView = () => {
+    const { users, updateUser, toggleUserLock } = useAppContext();
+    const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [search, setSearch] = useState('');
+
+    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()));
+
+    const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (editingUser) {
+            updateUser(editingUser.id, editingUser);
+            setEditingUser(null);
+        }
+    };
+    
+    return (
+        <div className="user-management-container">
+            <div className="dashboard-card">
+                <h3>User Management</h3>
+                <div className="search-bar" style={{margin: '1rem 0'}}> {Icons.search} <input type="text" className="form-control" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} /> </div>
+                <div className="table-wrapper">
+                    <table className="entry-list-table">
+                        <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Locked</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {filteredUsers.map(user => (
+                                <tr key={user.id}>
+                                    <td data-label="Name">{user.name}</td>
+                                    <td data-label="Role">{user.role}</td>
+                                    <td data-label="Status"><span className={`status-pill ${user.status}`}>{user.status.replace('_', ' ')}</span></td>
+                                    <td data-label="Locked">{user.isLocked ? 'Yes' : 'No'}</td>
+                                    <td data-label="Actions">
+                                        <div className="entry-actions">
+                                            <button onClick={() => setEditingUser(user)}>{Icons.editPencil}</button>
+                                            <button onClick={() => toggleUserLock(user.id)}>{user.isLocked ? Icons.lockOpen : Icons.lockClosed}</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title={`Edit User: ${editingUser?.name}`}>
+                {editingUser && (
+                    <form onSubmit={handleSave}>
+                        <div className="control-group"> <label htmlFor="edit-name">Name</label> <input id="edit-name" type="text" className="form-control" value={editingUser.name} onChange={e => setEditingUser(u => u ? {...u, name: e.target.value} : null)} /> </div>
+                        <div className="control-group"> <label htmlFor="edit-role">Role</label> <select id="edit-role" className="form-control" value={editingUser.role} onChange={e => setEditingUser(u => u ? {...u, role: e.target.value as UserRole} : null)}> {Object.keys(APP_VIEWS_CONFIG).flatMap(k => APP_VIEWS_CONFIG[k as AppView].roles).filter((v,i,a)=>a.indexOf(v)===i).map(r => <option key={r} value={r}>{r}</option>)} </select> </div>
+                        <div className="form-actions"> <button className="btn btn-secondary" onClick={() => setEditingUser(null)}>Cancel</button> <button type="submit" className="btn btn-primary">Save Changes</button> </div>
+                    </form>
+                )}
+            </Modal>
+        </div>
+    );
+};
+
+const SettingsView = () => {
+    const { settings, updateSettings, addNotification } = useAppContext();
+    const [accentColor, setAccentColor] = useState(settings.accentColor);
+    const [timeSlotsText, setTimeSlotsText] = useState(settings.timeSlots.join('\n'));
+
+    const handleSave = () => {
+        const timeSlots = timeSlotsText.split('\n').filter(Boolean);
+        if (timeSlots.length < 1) {
+            addNotification("You must have at least one time slot.", "error");
+            return;
+        }
+        updateSettings({ accentColor, timeSlots });
+    };
+
+    return (
+        <div className="settings-container">
+            <div className="dashboard-card">
+                <h3>Application Settings</h3>
+                <div className="settings-form">
+                    <div className="control-group">
+                        <label htmlFor="accent-color">Accent Color</label>
+                        <div className="color-picker-wrapper">
+                             <input id="accent-color" type="color" value={accentColor} onChange={e => setAccentColor(e.target.value)} />
+                             <span>{accentColor}</span>
+                        </div>
+                    </div>
+                     <div className="control-group">
+                        <label htmlFor="time-slots">Time Slots (one per line)</label>
+                        <textarea id="time-slots" className="form-control" rows={10} value={timeSlotsText} onChange={e => setTimeSlotsText(e.target.value)}></textarea>
+                    </div>
+                    <div className="form-actions">
+                        <button className="btn btn-primary" onClick={handleSave}>Save Settings</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const PageContent = () => {
     const { currentView } = useAppContext();
@@ -1136,16 +1546,16 @@ const PageContent = () => {
     switch (currentView) {
         case 'dashboard': return <DashboardView />;
         case 'timetable': return <TimetableView />;
-        case 'academicCalendar': return <PlaceholderView title="Academic Calendar" />;
+        case 'academicCalendar': return <AcademicCalendarView />;
         case 'resources': return <ResourcesView />;
         case 'studentDirectory': return <StudentDirectoryView />;
-        case 'approvals': return <PlaceholderView title="Approvals" />;
+        case 'approvals': return <ApprovalsView />;
         case 'announcements': return <AnnouncementsView />;
         case 'courseFiles': return <CourseFilesView />;
         case 'manage': return <ManageTimetableView />;
-        case 'userManagement': return <PlaceholderView title="User Management" />;
+        case 'userManagement': return <UserManagementView />;
         case 'security': return <SecurityView />;
-        case 'settings': return <PlaceholderView title="Settings" />;
+        case 'settings': return <SettingsView />;
         default: return <DashboardView />;
     }
 };
@@ -1164,7 +1574,8 @@ const App = () => {
                 <Header />
                 <div className="page-content"><PageContent /></div>
             </main>
-            <DraggableBubble onClick={() => setIsChatOpen(!isChatOpen)}>{Icons.chatbot}</DraggableBubble>
+            <DraggableBubble onClick={() => setIsChatOpen(true)}>{Icons.chatbot}</DraggableBubble>
+            <ChatbotWindow isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
         </div>
     );
 };
