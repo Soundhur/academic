@@ -27,11 +27,6 @@ if (API_KEY) {
 }
 
 // --- DATA STRUCTURES & CONSTANTS ---
-interface Period {
-    subject: string;
-    faculty?: string;
-    type?: 'break' | 'class' | 'common';
-}
 interface TimetableEntry {
     id: string;
     department: string;
@@ -41,21 +36,7 @@ interface TimetableEntry {
     subject: string;
     type: 'break' | 'class' | 'common';
     faculty?: string;
-    originalFaculty?: string; // For substitutions
     room?: string;
-    status?: 'normal' | 'leave_pending' | 'substitution' | 'cancelled';
-}
-interface LeaveRequest {
-    id: string;
-    facultyId: string;
-    facultyName: string;
-    timetableEntryId: string;
-    day: string;
-    timeIndex: number;
-    status: 'pending' | 'approved' | 'rejected';
-    aiSuggestion?: string;
-    reason?: string; // Optional reason for leave
-    timestamp: number; // For activity feed
 }
 interface Announcement {
     id: string;
@@ -63,49 +44,20 @@ interface Announcement {
     content: string;
     author: string; // e.g., "Admin", "HOD (CSE)"
     timestamp: number;
-    publishTimestamp?: number; // For scheduling
     targetRole: 'all' | 'student' | 'faculty';
     targetDept: 'all' | 'CSE' | 'ECE' | 'EEE' | 'MCA' | 'AI&DS' | 'CYBERSECURITY' | 'MECHANICAL' | 'TAMIL' | 'ENGLISH' | 'MATHS' | 'LIB' | 'NSS' | 'NET';
-    engagement?: { views: number; reactions: number };
-}
-interface GroundingChunk {
-    web?: {
-        uri?: string;
-        title?: string;
-    };
+    reactions?: { [emoji: string]: string[] }; // Emoji: [userId1, userId2]
 }
 interface ChatMessage {
     id: string;
     role: 'user' | 'model' | 'tool';
     text: string;
     isError?: boolean;
-    sources?: GroundingChunk[];
-    toolResult?: any; // To hold the result of a tool call
-}
-interface BriefingData {
-    localSummary: string;
-    transportAdvisory: {
-        status: string;
-        severity: 'low' | 'medium' | 'high';
-    };
-    educationTrends: { title: string; url: string; }[];
 }
 
+type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'class advisor' | 'principal';
+type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar' | 'courseFiles';
 
-type DaySchedule = Period[];
-type TimetableData = Record<string, Record<string, DaySchedule[]>>;
-type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'class advisor';
-type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar';
-interface ManageFormData {
-    department: string;
-    year: string;
-    day: string;
-    timeIndex: number;
-    subject: string;
-    type: 'break' | 'class' | 'common';
-    faculty?: string;
-    room?: string;
-}
 interface User {
     id: string;
     name: string;
@@ -114,35 +66,12 @@ interface User {
     dept: string;
     year?: string;
     status: 'active' | 'pending_approval' | 'rejected';
-    aiAssessment?: string;
     aiSummary?: string;
-    specialization?: string[]; // For faculty
     grades?: { subject: string; score: number }[]; // For students
     attendance?: { present: number; total: number }; // For students
     isLocked?: boolean;
-    officeHours?: { day: string, time: string }[];
-    hasCompletedOnboarding?: boolean; // For new user guide
-}
-interface ResourceRequest {
-    id: string;
-    userId: string;
-    requestText: string;
-    status: 'pending' | 'approved' | 'rejected';
-    timestamp: number;
-    aiRecommendation?: string;
 }
 
-interface QuizQuestion {
-    question: string;
-    options: string[];
-    correctAnswer: string;
-}
-interface AIInsights {
-    summary: string;
-    keyConcepts: string[];
-    quiz: QuizQuestion[];
-    relatedResourceIds: string[];
-}
 interface Resource {
     id: string;
     name: string;
@@ -152,61 +81,37 @@ interface Resource {
     uploaderId: string;
     uploaderName: string;
     timestamp: number;
-    fileName?: string;
-    fileUrl?: string; // a fake URL for now
-    aiSafetyStatus: 'pending' | 'safe' | 'unsafe' | 'irrelevant';
-    aiSafetyReason?: string;
-    aiInsightsStatus: 'pending' | 'generating' | 'complete' | 'failed';
-    aiInsights?: AIInsights | null;
-    version: number;
-}
-interface ResourceUpdateLog {
-    id: string;
-    resourceId: string;
-    timestamp: number;
-    updatedByUserId: string;
-    updatedByUserName: string;
-    version: number;
-    previousFileName: string;
-    newFileName: string;
-    aiChangeSummary?: string;
+    source?: 'local' | 'gdrive' | 'onedrive';
 }
 
-
-interface WebResource {
+interface OnlineCourse {
     id: string;
-    url: string;
     title: string;
-    summary: string;
+    platform: string;
+    url: string;
+    description: string;
+    tags: string[];
+}
+
+interface CourseFile {
+    id: string;
+    facultyId: string;
+    facultyName: string;
     department: string;
     subject: string;
-    addedById: string;
-    addedByName: string;
-    timestamp: number;
-    aiStatus: 'approved' | 'rejected' | 'pending';
-    aiReason?: string;
+    semester: string;
+    files: { name: string; type: 'syllabus' | 'notes' | 'quiz' }[];
+    status: 'pending_review' | 'approved' | 'needs_revision';
+    submittedAt: number;
+    aiReview?: {
+        summary: string;
+        suggestions: string[];
+        corrections?: { original: string; corrected: string; }[];
+        status: 'pending' | 'complete' | 'failed';
+    };
 }
 
-interface QnAPost {
-    id: string;
-    resourceId: string;
-    authorId: string;
-    authorName: string;
-    text: string;
-    timestamp: number;
-    isAiReply?: boolean;
-    parentId?: string; // For threading replies
-}
 
-interface ResourceLog {
-    id: string;
-    resourceId: string;
-    resourceName: string;
-    userId: string;
-    userName: string;
-    action: 'upload' | 'download' | 'update';
-    timestamp: number;
-}
 interface AppNotification {
     id: string;
     message: string;
@@ -241,78 +146,31 @@ interface SecurityAlert {
     };
 }
 
-interface Deadline {
-    id: string;
-    title: string;
-    dueDate: number;
-    audience: ('all' | UserRole)[];
-}
-
-interface ScheduleConflict {
-    type: 'Faculty' | 'Class' | 'Room';
-    identifier: string;
-    entries: TimetableEntry[];
-    description: string;
-}
-
-interface OnboardingStep {
-    target: string; // CSS selector
-    contentKey: string; // A key to generate AI prompt
-    title: string;
-}
-
-interface Collection {
-    id: string;
-    name: string;
-    description: string;
-    creatorId: string;
-    creatorName: string;
-    resourceIds: string[];
-    department: string;
-}
-
-interface AcademicEvent {
-    id: string;
-    title: string;
-    date: number; // timestamp for the start of the day
-    type: 'exam' | 'holiday' | 'event';
-    description: string;
-}
-
 interface AppSettings {
     timeSlots: string[];
     accentColor: string;
-    // Add other settings here
 }
-
 
 const DEPARTMENTS = ["CSE", "ECE", "EEE", "MCA", "AI&DS", "CYBERSECURITY", "MECHANICAL", "TAMIL", "ENGLISH", "MATHS", "LIB", "NSS", "NET"];
 const YEARS = ["I", "II", "III", "IV"];
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const TIME_SLOTS_DEFAULT = [
-    "9:00 - 9:50",
-    "9:50 - 10:35",
-    "10:35 - 10:50",
-    "10:50 - 11:35",
-    "11:35 - 12:20",
-    "12:20 - 1:05",
-    "1:05 - 2:00",
-    "2:00 - 2:50",
-    "2:50 - 3:40",
-    "3:40 - 4:30"
+    "9:00 - 9:50", "9:50 - 10:35", "10:35 - 10:50", "10:50 - 11:35", "11:35 - 12:20",
+    "12:20 - 1:05", "1:05 - 2:00", "2:00 - 2:50", "2:50 - 3:40", "3:40 - 4:30"
 ];
 
 const APP_VIEWS_CONFIG: Record<AppView, { title: string; icon: keyof typeof Icons; roles: UserRole[] }> = {
-    dashboard: { title: "For You", icon: "dashboard", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
+    dashboard: { title: "For You", icon: "dashboard", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'] },
     timetable: { title: "Timetable", icon: "timetable", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
-    academicCalendar: { title: "Academic Calendar", icon: "calendarDays", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
-    resources: { title: "Resources", icon: "bookOpen", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
-    studentDirectory: { title: "Student Directory", icon: "users", roles: ['faculty', 'hod', 'class advisor', 'admin'] },
-    approvals: { title: "Approvals", icon: "approvals", roles: ['hod', 'admin'] },
-    announcements: { title: "Announcements", icon: "announcement", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor'] },
+    academicCalendar: { title: "Academic Calendar", icon: "calendarDays", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'] },
+    resources: { title: "Resources", icon: "bookOpen", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'] },
+    studentDirectory: { title: "Student Directory", icon: "users", roles: ['faculty', 'hod', 'class advisor', 'admin', 'principal'] },
+    courseFiles: { title: "Course Files", icon: 'folder', roles: ['faculty', 'hod', 'admin', 'class advisor', 'principal'] },
+    approvals: { title: "Approvals", icon: "approvals", roles: ['hod', 'admin', 'principal'] },
+    announcements: { title: "Announcements", icon: "announcement", roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'] },
     manage: { title: "Manage Timetable", icon: "edit", roles: ['admin'] },
-    userManagement: { title: "User Management", icon: "users", roles: ['admin'] },
-    security: { title: "Security Center", icon: "security", roles: ['admin'] },
+    userManagement: { title: "User Management", icon: "users", roles: ['admin', 'principal'] },
+    security: { title: "Security Center", icon: "security", roles: ['admin', 'principal'] },
     settings: { title: "Settings", icon: "settings", roles: ['admin'] },
     auth: { title: "Authentication", icon: "login", roles: [] },
 };
@@ -337,52 +195,9 @@ const getRelativeTime = (timestamp: number) => {
     return "Just now";
 };
 
-const sanitizeHtml = (htmlString: string): string => {
-    // Basic sanitizer to prevent XSS. A library like DOMPurify is recommended for production.
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = htmlString;
-
-    // Remove dangerous tags
-    const dangerousTags = ['script', 'style', 'iframe', 'object', 'embed'];
-    dangerousTags.forEach(tagName => {
-        const tags = tempDiv.getElementsByTagName(tagName);
-        while (tags.length > 0) {
-            tags[0].parentNode?.removeChild(tags[0]);
-        }
-    });
-
-    // Remove event handlers and dangerous hrefs
-    const allElements = tempDiv.getElementsByTagName('*');
-    for (const element of Array.from(allElements)) {
-        // Remove on* attributes
-        for (const attr of Array.from(element.attributes)) {
-            if (attr.name.toLowerCase().startsWith('on')) {
-                element.removeAttribute(attr.name);
-            }
-        }
-        // Check href/src for javascript protocol
-        if (element.hasAttribute('href')) {
-            const href = element.getAttribute('href') || '';
-            if (href.toLowerCase().startsWith('javascript:')) {
-                element.removeAttribute('href');
-            }
-        }
-        if (element.hasAttribute('src')) {
-            const src = element.getAttribute('src') || '';
-            if (src.toLowerCase().startsWith('javascript:')) {
-                element.removeAttribute('src');
-            }
-        }
-    }
-
-    return tempDiv.innerHTML;
-};
-
-
 // --- ICONS ---
 const Icons = {
-    logo: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 9l4 1.5V17a1 1 0 001 1h12a1 1 0 001-1v-6.5L23 9z"></path></svg>,
-    home: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>,
+    logo: <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5zM12 22.08V12M12 12L3.5 7.5M12 12l8.5-4.5M20.5 7.5L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     dashboard: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6M4 6.342A5.965 5.965 0 017.29 4.25a5.965 5.965 0 017.42 0 5.965 5.965 0 013.29 2.092m-13.9.002A5.965 5.965 0 014 6.342m16 0a5.965 5.965 0 01-3.29 2.092m-13.9-.002a5.965 5.965 0 013.29-2.092"></path></svg>,
     timetable: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>,
     edit: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>,
@@ -405,13 +220,16 @@ const Icons = {
     calendarDays: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zM4.5 8.5a.75.75 0 000 1.5h.5a.75.75 0 000-1.5h-.5zM6 10a.75.75 0 01.75-.75h.5a.75.75 0 010 1.5h-.5A.75.75 0 016 10zm2.25.75a.75.75 0 000-1.5h.5a.75.75 0 000 1.5h-.5zM11 10a.75.75 0 01.75-.75h.5a.75.75 0 010 1.5h-.5a.75.75 0 01-.75-.75zm2.25.75a.75.75 0 000-1.5h.5a.75.75 0 000 1.5h-.5zM4.5 13.5a.75.75 0 000 1.5h.5a.75.75 0 000-1.5h-.5zM6 15a.75.75 0 01.75-.75h.5a.75.75 0 010 1.5h-.5A.75.75 0 016 15zm2.25.75a.75.75 0 000-1.5h.5a.75.75 0 000 1.5h-.5z" clipRule="evenodd" /></svg>,
     bookOpen: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M2 5.25A3.25 3.25 0 015.25 2h9.5A3.25 3.25 0 0118 5.25v9.5A3.25 3.25 0 0114.75 18h-9.5A3.25 3.25 0 012 14.75v-9.5zm3.25-.75c-.69 0-1.25.56-1.25 1.25v9.5c0 .69.56 1.25 1.25 1.25h3.5v-12h-3.5zM10 4.5v12h4.75c.69 0 1.25-.56 1.25-1.25v-9.5c0-.69-.56-1.25-1.25-1.25H10z" clipRule="evenodd" /></svg>,
     search: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" /></svg>,
-    key: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>,
-    userCircle: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.483 6.483 0 0010 16.5a6.483 6.483 0 004.793-2.11A5.99 5.99 0 0010 12z" clipRule="evenodd" /></svg>,
-    lock: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>,
     check: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z" clipRule="evenodd" /></svg>,
     download: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>,
     upload: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9.25 2.75a.75.75 0 011.5 0v8.614l2.955-3.129a.75.75 0 011.09 1.03l-4.25 4.5a.75.75 0 01-1.09 0l-4.25-4.5a.75.75 0 011.09-1.03L9.25 11.364V2.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>,
-    reset: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.312 11.342a1.25 1.25 0 010-1.768l-3.25-3.25a.75.75 0 011.06-1.06l3.25 3.25a2.75 2.75 0 010 3.888l-3.25 3.25a.75.75 0 11-1.06-1.06l3.25-3.25z" clipRule="evenodd" /><path fillRule="evenodd" d="M7.938 3.658a.75.75 0 011.06 1.06l-3.25 3.25a1.25 1.25 0 000 1.768l3.25 3.25a.75.75 0 11-1.06 1.06l-3.25-3.25a2.75 2.75 0 010-3.888l3.25-3.25z" clipRule="evenodd" /></svg>,
+    cloud: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z" /></svg>,
+    react: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a.75.75 0 01.083-1.06 5 5 0 00-8.238 0 .75.75 0 01-1.144-.974 6.5 6.5 0 0110.526 0 .75.75 0 01-1.06.083z" clipRule="evenodd" /></svg>,
+    googleDrive: <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.0001 9.52L8.50006 20.52L12.5001 13.52H8.50006L15.0001 2.52L11.0001 9.52H15.0001Z" fill="#34A853"/><path d="M21.5 9.51995L15 20.52L19 13.52H15L21.5 2.51995L17.5 9.51995H21.5Z" fill="#FFC107"/><path d="M2.5 9.51995L9 20.52L5 13.52H9L2.5 2.51995L6.5 9.51995H2.5Z" fill="#4285F4"/></svg>,
+    oneDrive: <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 8H13C14.1046 8 15 8.89543 15 10V17C15 18.1046 14.1046 19 13 19H4C2.89543 19 2 18.1046 2 17V10C2 8.89543 2.89543 8 4 8Z" fill="#0072C6"/><path d="M11 5H20C21.1046 5 22 5.89543 22 7V14C22 15.1046 21.1046 16 20 16H11C9.89543 16 9 15.1046 9 14V7C9 5.89543 9.89543 5 11 5Z" fill="#0072C6"/></svg>,
+    folder: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /></svg>,
+    file: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V8.414a2 2 0 00-.586-1.414l-4.828-4.828A2 2 0 0010.586 2H4zm6 6a1 1 0 10-2 0v4a1 1 0 102 0V8z" clipRule="evenodd" /></svg>,
+    sparkles: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2.5a.75.75 0 01.75.75v.518a2.5 2.5 0 011.64 2.228l.248.012a.75.75 0 01.732.968l-.343 1.03a2.5 2.5 0 01-2.228 1.64l-.012.248a.75.75 0 01-.968.732l-1.03-.343a2.5 2.5 0 01-1.64-2.228l-.248-.012a.75.75 0 01-.732-.968l.343-1.03A2.5 2.5 0 017.482 5.5l.012-.248A2.5 2.5 0 019.72 3.032V3.25a.75.75 0 01.75-.75zM10 5.25a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75V6a.75.75 0 01.75-.75zM5 10a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75V10.75A.75.75 0 015 10zm10 0a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75V10.75a.75.75 0 01.75-.75zM7.158 14.35a.75.75 0 01.292.65v.008a.75.75 0 01-1.492.142l-.006-.007a.75.75 0 01.142-1.492l.007-.006a.75.75 0 011.057.705zM12.842 14.35a.75.75 0 011.057-.705l.007.006a.75.75 0 01.142 1.492l-.006.007a.75.75 0 01-1.492-.142v-.008a.75.75 0 01.292-.65z" clipRule="evenodd" /></svg>,
 }
 
 // --- DATA PERSISTENCE HOOK ---
@@ -438,85 +256,50 @@ function usePersistentState<T>(key: string, initialState: T): [T, React.Dispatch
 }
 
 // --- DEMO DATA GENERATION ---
+const studentNames = ["Alice Johnson", "Bob Williams", "Charlie Brown", "Diana Miller", "Ethan Davis", "Fiona Garcia", "George Rodriguez", "Hannah Wilson"];
 const generateDemoData = () => {
     // Generate an admin user if none exists
     const users: User[] = [
-        { id: 'admin-01', name: 'Admin', password: 'admin', role: 'admin', dept: 'System', status: 'active' }
+        { id: 'admin-01', name: 'Admin', password: 'admin', role: 'admin', dept: 'System', status: 'active' },
+        { id: 'principal-01', name: 'Principal', password: 'principal', role: 'principal', dept: 'Administration', status: 'active' }
     ];
 
-    // Generate some faculty and students
     const facultyNames = ["Dr. Smith", "Prof. Jones", "Dr. Williams"];
     facultyNames.forEach((name, i) => {
-        users.push({
-            id: `faculty-0${i+1}`,
-            name,
-            password: 'password123',
-            role: 'faculty',
-            dept: DEPARTMENTS[i % 3], // Assign to first 3 depts
-            status: 'active'
-        });
+        users.push({ id: `faculty-0${i+1}`, name, password: 'password123', role: 'faculty', dept: DEPARTMENTS[i % 3], status: 'active' });
     });
 
-    const studentNames = ["Alice", "Bob", "Charlie", "David", "Eve"];
     studentNames.forEach((name, i) => {
-        users.push({
-            id: `student-0${i+1}`,
-            name,
-            password: 'password123',
-            role: 'student',
-            dept: DEPARTMENTS[i % 2], // CSE or ECE
-            year: YEARS[i % 4],
-            status: 'active',
-            attendance: { present: Math.floor(Math.random() * 20) + 70, total: 100 },
-            grades: [{ subject: 'Intro to AI', score: Math.floor(Math.random() * 30) + 65 }]
-        });
+        users.push({ id: `student-0${i+1}`, name, password: 'password123', role: 'student', dept: DEPARTMENTS[i % 2], year: YEARS[i % 4], status: 'active', attendance: { present: Math.floor(Math.random() * 20) + 70, total: 100 }, grades: [{ subject: 'Intro to AI', score: Math.floor(Math.random() * 30) + 65 }] });
     });
 
-    const timetable: TimetableEntry[] = [];
-    timetable.push({
-        id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 0,
-        subject: 'Data Structures', type: 'class', faculty: 'Dr. Smith', room: 'CS-101'
-    });
-    timetable.push({
-        id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 1,
-        subject: 'Algorithms', type: 'class', faculty: 'Dr. Smith', room: 'CS-102'
-    });
-    timetable.push({
-        id: uuidv4(), department: 'ECE', year: 'III', day: 'Tuesday', timeIndex: 3,
-        subject: 'Microprocessors', type: 'class', faculty: 'Prof. Jones', room: 'EC-201'
-    });
-     timetable.push({
-        id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 2,
-        subject: 'Break', type: 'break'
-    });
-
-
-    const auditLogs: AuditLogEntry[] = [
-        { id: uuidv4(), timestamp: Date.now() - 50000, userId: 'admin-01', userName: 'Admin', action: 'User Login', ip: '192.168.1.1', status: 'success' },
-        { id: uuidv4(), timestamp: Date.now() - 80000, userId: 'unknown', userName: 'unknown', action: 'Failed Login Attempt', ip: '203.0.113.5', status: 'failure', details: 'Invalid credentials for user: hacker' },
+    const timetable: TimetableEntry[] = [
+        { id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 0, subject: 'Data Structures', type: 'class', faculty: 'Dr. Smith', room: 'CS-101' },
+        { id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 1, subject: 'Algorithms', type: 'class', faculty: 'Dr. Smith', room: 'CS-102' },
+        { id: uuidv4(), department: 'ECE', year: 'III', day: 'Tuesday', timeIndex: 3, subject: 'Microprocessors', type: 'class', faculty: 'Prof. Jones', room: 'EC-201' },
+        { id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 2, subject: 'Break', type: 'break' },
     ];
-    
-    const securityAlerts: SecurityAlert[] = [
-        {
-            id: uuidv4(), type: 'Anomaly', title: 'Multiple Failed Logins',
-            description: 'Detected 5 failed login attempts for user "Admin" from IP 203.0.113.5.',
-            timestamp: Date.now() - 75000, severity: 'high', relatedUserId: 'admin-01',
-            isResolved: false,
-            responsePlan: {
-                containment: "Temporarily block IP address 203.0.113.5.",
-                investigation: "Verify if the attempts were made by the legitimate user.",
-                recovery: "If legitimate, assist user with password reset. If malicious, maintain block.",
-                recommendedAction: 'MONITOR'
-            }
-        },
-    ];
-    
-    const settings: AppSettings = {
-        timeSlots: TIME_SLOTS_DEFAULT,
-        accentColor: '#3B82F6'
-    };
 
-    return { users, timetable, auditLogs, securityAlerts, settings };
+    const announcements: Announcement[] = [{ id: uuidv4(), title: "Welcome to the New Semester!", content: "We're excited to start a new academic year. Please check your timetables and report any discrepancies to the admin office.", author: "Admin", timestamp: Date.now() - 86400000, targetRole: 'all', targetDept: 'all', reactions: { '🎉': ['student-01', 'faculty-02'], '👍': ['student-02'] } }];
+    
+    const resources: Resource[] = [{ id: uuidv4(), name: "DSA Textbook", type: 'book', department: 'CSE', subject: 'Data Structures', uploaderId: 'admin-01', uploaderName: 'Admin', timestamp: Date.now() - 172800000, source: 'local' }];
+
+    const auditLogs: AuditLogEntry[] = [{ id: uuidv4(), timestamp: Date.now() - 50000, userId: 'admin-01', userName: 'Admin', action: 'User Login', ip: '192.168.1.1', status: 'success' }, { id: uuidv4(), timestamp: Date.now() - 80000, userId: 'unknown', userName: 'unknown', action: 'Failed Login Attempt', ip: '203.0.113.5', status: 'failure', details: 'Invalid credentials for user: hacker' }];
+    
+    const securityAlerts: SecurityAlert[] = [{ id: uuidv4(), type: 'Anomaly', title: 'Multiple Failed Logins', description: 'Detected 5 failed login attempts for user "Admin" from IP 203.0.113.5.', timestamp: Date.now() - 75000, severity: 'high', relatedUserId: 'admin-01', isResolved: false, responsePlan: { containment: "Temporarily block IP address 203.0.113.5.", investigation: "Verify if the attempts were made by the legitimate user.", recovery: "If legitimate, assist user with password reset. If malicious, maintain block.", recommendedAction: 'MONITOR' } }];
+    
+    const settings: AppSettings = { timeSlots: TIME_SLOTS_DEFAULT, accentColor: '#3B82F6' };
+
+    const onlineCourses: OnlineCourse[] = [
+        { id: 'oc-1', title: 'AI for Everyone', platform: 'Coursera', url: 'https://www.coursera.org/learn/ai-for-everyone', description: 'A foundational course on artificial intelligence, its applications, and its impact on society.', tags: ['AI', 'Beginner'] },
+        { id: 'oc-2', title: 'Introduction to Python Programming', platform: 'edX', url: 'https://www.edx.org/course/introduction-to-python-programming', description: 'Learn the fundamentals of Python, a versatile language used in web development, data science, and more.', tags: ['Programming', 'Python', 'Beginner'] },
+    ];
+
+    const courseFiles: CourseFile[] = [
+        { id: 'cf-1', facultyId: 'faculty-01', facultyName: 'Dr. Smith', department: 'CSE', subject: 'Data Structures', semester: 'Fall 2024', files: [{ name: 'syllabus.pdf', type: 'syllabus'}, { name: 'notes_ch1.pdf', type: 'notes' }], status: 'approved', submittedAt: Date.now() - 259200000, aiReview: { status: 'complete', summary: 'The materials are comprehensive and well-structured.', suggestions: ['Consider adding more visual diagrams to explain complex topics like tree traversal.'], corrections: [{ original: 'A stack is a LIFO (Last-In, First-Out) data structure.', corrected: 'A stack is a LIFO (Last-In, First-Out) abstract data type that serves as a collection of elements.'}] } },
+    ];
+
+    return { users, timetable, auditLogs, securityAlerts, settings, announcements, resources, onlineCourses, courseFiles };
 };
 
 // --- APP CONTEXT ---
@@ -529,22 +312,23 @@ interface AppContextType {
     timetableEntries: TimetableEntry[];
     auditLogs: AuditLogEntry[];
     securityAlerts: SecurityAlert[];
+    announcements: Announcement[];
+    resources: Resource[];
+    onlineCourses: OnlineCourse[];
+    courseFiles: CourseFile[];
     settings: AppSettings;
     login: (username: string, pass: string) => boolean;
     logout: () => void;
     signup: (userData: Omit<User, 'id' | 'status'>) => { success: boolean, message: string };
-    recoverPassword: (username: string, newPass: string) => boolean;
-    findUsername: (dept: string, role: UserRole) => User | undefined;
     setCurrentView: (view: AppView) => void;
     toggleSidebar: () => void;
     setTheme: (theme: 'light' | 'dark') => void;
     addNotification: (message: string, type?: AppNotification['type']) => void;
     addAuditLog: (log: Omit<AuditLogEntry, 'id' | 'timestamp'>) => void;
     resolveSecurityAlert: (alertId: string) => void;
-    setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
-    updateUser: (updatedUser: User) => void;
-    resetAllData: () => void;
-    importData: (data: string) => boolean;
+    toggleAnnouncementReaction: (announcementId: string, emoji: string) => void;
+    addCloudResource: (file: { name: string; source: 'gdrive' | 'onedrive' }) => void;
+    triggerCourseFileAiReview: (courseFileId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -561,13 +345,13 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const [timetableEntries, setTimetableEntries] = usePersistentState<TimetableEntry[]>('app_timetable', []);
     const [auditLogs, setAuditLogs] = usePersistentState<AuditLogEntry[]>('app_auditLogs', []);
     const [securityAlerts, setSecurityAlerts] = usePersistentState<SecurityAlert[]>('app_securityAlerts', []);
-    const [settings, setSettings] = usePersistentState<AppSettings>('app_settings', {
-        timeSlots: TIME_SLOTS_DEFAULT,
-        accentColor: '#3B82F6',
-    });
+    const [announcements, setAnnouncements] = usePersistentState<Announcement[]>('app_announcements', []);
+    const [resources, setResources] = usePersistentState<Resource[]>('app_resources', []);
+    const [onlineCourses, setOnlineCourses] = usePersistentState<OnlineCourse[]>('app_onlineCourses', []);
+    const [courseFiles, setCourseFiles] = usePersistentState<CourseFile[]>('app_courseFiles', []);
+    const [settings, setSettings] = usePersistentState<AppSettings>('app_settings', { timeSlots: TIME_SLOTS_DEFAULT, accentColor: '#3B82F6' });
     
     useEffect(() => {
-        // One-time initialization of demo data if the database is empty
         const isDataInitialized = localStorage.getItem('isDataInitialized');
         if (!isDataInitialized) {
             const demoData = generateDemoData();
@@ -576,44 +360,36 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
             setAuditLogs(demoData.auditLogs);
             setSecurityAlerts(demoData.securityAlerts);
             setSettings(demoData.settings);
+            setAnnouncements(demoData.announcements);
+            setResources(demoData.resources);
+            setOnlineCourses(demoData.onlineCourses);
+            setCourseFiles(demoData.courseFiles);
             localStorage.setItem('isDataInitialized', 'true');
         }
         setIsInitialized(true);
     }, []);
 
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme);
-    }, [theme]);
+    useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
     
     useEffect(() => {
-        // Apply accent color
         document.documentElement.style.setProperty('--accent-primary', settings.accentColor);
-        // A slightly lighter shade for hover, calculated simply
         const accentColor = settings.accentColor || '#3B82F6';
         if (accentColor.startsWith('#')) {
-             let r = parseInt(accentColor.slice(1, 3), 16);
-             let g = parseInt(accentColor.slice(3, 5), 16);
-             let b = parseInt(accentColor.slice(5, 7), 16);
-             r = Math.min(255, r + 20);
-             g = Math.min(255, g + 20);
-             b = Math.min(255, b + 20);
+             let r = parseInt(accentColor.slice(1, 3), 16), g = parseInt(accentColor.slice(3, 5), 16), b = parseInt(accentColor.slice(5, 7), 16);
+             r = Math.min(255, r + 20); g = Math.min(255, g + 20); b = Math.min(255, b + 20);
              const hoverColor = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
              document.documentElement.style.setProperty('--accent-primary-hover', hoverColor);
         }
-
     }, [settings.accentColor]);
 
     const addNotification = (message: string, type: AppNotification['type'] = 'info') => {
         const newNotif = { id: uuidv4(), message, type };
         setNotifications(prev => [...prev, newNotif]);
-        setTimeout(() => {
-            setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
-        }, 5000);
+        setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== newNotif.id)), 5000);
     };
 
     const addAuditLog = useCallback((log: Omit<AuditLogEntry, 'id' | 'timestamp'>) => {
-        const newLog = { ...log, id: uuidv4(), timestamp: Date.now() };
-        setAuditLogs(prev => [newLog, ...prev]);
+        setAuditLogs(prev => [{ ...log, id: uuidv4(), timestamp: Date.now() }, ...prev]);
     }, [setAuditLogs]);
 
     const login = (username: string, pass: string): boolean => {
@@ -636,8 +412,7 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     };
     
     const signup = (userData: Omit<User, 'id'|'status'>) => {
-        const existingUser = users.find(u => u.name.toLowerCase() === userData.name.toLowerCase());
-        if (existingUser) {
+        if (users.find(u => u.name.toLowerCase() === userData.name.toLowerCase())) {
             return { success: false, message: "Username already exists." };
         }
         const newUser: User = { ...userData, id: uuidv4(), status: 'active' };
@@ -646,26 +421,8 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
         return { success: true, message: "Account created successfully!" };
     };
 
-    const recoverPassword = (username: string, newPass: string) => {
-        const userIndex = users.findIndex(u => u.name.toLowerCase() === username.toLowerCase());
-        if (userIndex !== -1) {
-            const updatedUsers = [...users];
-            updatedUsers[userIndex].password = newPass;
-            setUsers(updatedUsers);
-            addAuditLog({ userId: updatedUsers[userIndex].id, userName: username, action: 'Password Recovery', ip: 'local', status: 'success' });
-            return true;
-        }
-        return false;
-    };
-
-    const findUsername = (dept: string, role: UserRole) => {
-        return users.find(u => u.dept === dept && u.role === role);
-    };
-
     const logout = () => {
-        if (currentUser) {
-            addAuditLog({ userId: currentUser.id, userName: currentUser.name, action: 'User Logout', ip: 'local', status: 'info' });
-        }
+        if (currentUser) addAuditLog({ userId: currentUser.id, userName: currentUser.name, action: 'User Logout', ip: 'local', status: 'info' });
         setCurrentUser(null);
         setCurrentView('auth');
     };
@@ -673,95 +430,82 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
     
     const resolveSecurityAlert = (alertId: string) => {
-        setSecurityAlerts(prev => prev.map(alert =>
-            alert.id === alertId ? { ...alert, isResolved: true } : alert
-        ));
+        setSecurityAlerts(prev => prev.map(alert => alert.id === alertId ? { ...alert, isResolved: true } : alert));
         addNotification("Alert has been marked as resolved.", 'info');
         addAuditLog({ userId: currentUser?.id || 'system', userName: currentUser?.name || 'System', action: `Resolved Security Alert ${alertId}`, ip: 'local', status: 'info' });
     };
 
-    const updateUser = (updatedUser: User) => {
-        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-    };
-
-    const resetAllData = () => {
-        if (window.confirm("Are you sure you want to reset all application data? This action cannot be undone.")) {
-            localStorage.clear();
-            setCurrentUser(null);
-            const demoData = generateDemoData();
-            setUsers(demoData.users);
-            setTimetableEntries(demoData.timetable);
-            setAuditLogs(demoData.auditLogs);
-            setSecurityAlerts(demoData.securityAlerts);
-            setSettings(demoData.settings);
-            localStorage.setItem('isDataInitialized', 'true');
-            addNotification("All application data has been reset to default.", "success");
-            setCurrentView('auth');
-        }
-    };
-
-    const importData = (dataStr: string) => {
-        try {
-            const data = JSON.parse(dataStr);
-            if (data.app_users && data.app_timetable && data.app_settings) {
-                 if (window.confirm("Are you sure you want to import this data? This will overwrite all current application data.")) {
-                    localStorage.setItem('app_users', JSON.stringify(data.app_users));
-                    setUsers(data.app_users);
-                    localStorage.setItem('app_timetable', JSON.stringify(data.app_timetable));
-                    setTimetableEntries(data.app_timetable);
-                    localStorage.setItem('app_auditLogs', JSON.stringify(data.app_auditLogs || []));
-                    setAuditLogs(data.app_auditLogs || []);
-                    localStorage.setItem('app_securityAlerts', JSON.stringify(data.app_securityAlerts || []));
-                    setSecurityAlerts(data.app_securityAlerts || []);
-                    localStorage.setItem('app_settings', JSON.stringify(data.app_settings));
-                    setSettings(data.app_settings);
-                    
-                    localStorage.setItem('isDataInitialized', 'true');
-                    addNotification("Data imported successfully!", "success");
-                    logout(); // Force re-login
-                    return true;
-                }
-            } else {
-                addNotification("Invalid data file format.", "error");
-                return false;
+    const toggleAnnouncementReaction = (announcementId: string, emoji: string) => {
+        if (!currentUser) return;
+        setAnnouncements(prev => prev.map(ann => {
+            if (ann.id === announcementId) {
+                const newReactions = { ...(ann.reactions || {}) };
+                if (!newReactions[emoji]) newReactions[emoji] = [];
+                const userIndex = newReactions[emoji].indexOf(currentUser.id);
+                userIndex > -1 ? newReactions[emoji].splice(userIndex, 1) : newReactions[emoji].push(currentUser.id);
+                return { ...ann, reactions: newReactions };
             }
-        } catch (error) {
-            addNotification("Failed to parse data file.", "error");
-            console.error(error);
-            return false;
-        }
-        return false;
+            return ann;
+        }));
     };
+    
+    const addCloudResource = (file: { name: string; source: 'gdrive' | 'onedrive' }) => {
+        if (!currentUser) return;
+        const newResource: Resource = {
+            id: uuidv4(), name: file.name, source: file.source, type: 'notes', department: currentUser.dept, subject: 'General',
+            uploaderId: currentUser.id, uploaderName: currentUser.name, timestamp: Date.now(),
+        };
+        setResources(prev => [newResource, ...prev]);
+        addNotification(`Added "${file.name}" from cloud.`, 'success');
+    };
+
+    const triggerCourseFileAiReview = async (courseFileId: string) => {
+        if (!ai) {
+            addNotification("AI features are disabled.", 'warning');
+            return;
+        }
+
+        const courseFile = courseFiles.find(cf => cf.id === courseFileId);
+        if (!courseFile) return;
+
+        setCourseFiles(prev => prev.map(cf => cf.id === courseFileId ? { ...cf, aiReview: { status: 'pending', summary: '', suggestions: [] } } : cf));
+
+        try {
+            const prompt = `As an expert academic reviewer, analyze the following course file content for a "${courseFile.subject}" course. Provide a brief summary, 3-5 actionable suggestions for improvement, and identify one specific passage from the notes that could be improved, providing both original and corrected versions.
+            
+            Simulated Content:
+            - Syllabus covers standard topics for this subject.
+            - Lecture notes excerpt: "A stack is a LIFO data structure. You push things on and pop them off."
+            - Sample quiz has 5 multiple-choice questions on basic concepts.
+
+            Respond ONLY with a JSON object with keys: "summary", "suggestions" (an array of strings), and "corrections" (an array of objects with "original" and "corrected" string properties).`;
+
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: { responseMimeType: "application/json" }
+            });
+
+            const result = JSON.parse(response.text);
+            setCourseFiles(prev => prev.map(cf => cf.id === courseFileId ? { ...cf, aiReview: { ...result, status: 'complete' } } : cf));
+            addNotification("AI review complete.", 'success');
+
+        } catch (error) {
+            console.error("AI Review Error:", error);
+            addNotification("AI review failed.", 'error');
+            setCourseFiles(prev => prev.map(cf => cf.id === courseFileId ? { ...cf, aiReview: { status: 'failed', summary: 'Error during analysis.', suggestions: [] } } : cf));
+        }
+    };
+
 
     if (!isInitialized) {
         return <div className="loading-fullscreen"><div className="spinner"></div></div>;
     }
 
     const value = {
-        currentUser,
-        currentView,
-        isSidebarOpen,
-        theme,
-        users,
-        timetableEntries,
-        auditLogs,
-        securityAlerts,
-        settings,
-        login,
-        logout,
-        signup,
-        recoverPassword,
-        findUsername,
-        setCurrentView,
-        toggleSidebar,
-        setTheme,
-        addNotification,
-        addAuditLog,
-        resolveSecurityAlert,
-        setSettings,
-        updateUser,
-        resetAllData,
-        importData,
+        currentUser, currentView, isSidebarOpen, theme, users, timetableEntries, auditLogs, securityAlerts, announcements, resources, onlineCourses, courseFiles, settings,
+        login, logout, signup, setCurrentView, toggleSidebar, setTheme, addNotification, addAuditLog, resolveSecurityAlert,
+        toggleAnnouncementReaction, addCloudResource, triggerCourseFileAiReview,
     };
 
     return (
@@ -774,56 +518,113 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
 const useAppContext = () => {
     const context = useContext(AppContext);
-    if (!context) {
-        throw new Error('useAppContext must be used within an AppProvider');
-    }
+    if (!context) throw new Error('useAppContext must be used within an AppProvider');
     return context;
 };
 
 // --- COMPONENTS ---
 
-const NotificationPortal = ({ notifications, removeNotification }: { notifications: AppNotification[], removeNotification: (id: string) => void }) => {
-    return createPortal(
-        <div className="notification-container">
-            {notifications.map(notification => (
-                <div key={notification.id} className={`notification-item ${notification.type}`}>
-                    <span>{notification.message}</span>
-                    <button className="notification-dismiss" onClick={() => removeNotification(notification.id)}>&times;</button>
-                </div>
-            ))}
-        </div>,
-        document.body
-    );
-};
+const NotificationPortal = ({ notifications, removeNotification }: { notifications: AppNotification[], removeNotification: (id: string) => void }) => createPortal(
+    <div className="notification-container">
+        {notifications.map(notification => (
+            <div key={notification.id} className={`notification-item ${notification.type}`}>
+                <span>{notification.message}</span>
+                <button className="notification-dismiss" onClick={() => removeNotification(notification.id)}>&times;</button>
+            </div>
+        ))}
+    </div>, document.body
+);
 
 const Modal = ({ isOpen, onClose, title, children, size = 'md' }: { isOpen: boolean, onClose: () => void, title: string, children: React.ReactNode, size?: 'md' | 'lg' | 'xl' }) => {
     if (!isOpen) return null;
-
-    const sizeClasses = {
-        md: 'student-details-modal', // default max-width: 500px
-        lg: 'resource-details-modal', // max-width: 900px
-        xl: 'modal-xl' // You'd need to add a class for this
-    }
-
     return createPortal(
         <div className={`modal-overlay ${isOpen ? 'open' : ''}`} onMouseDown={onClose}>
-            <div className={`modal-content ${sizeClasses[size]}`} onMouseDown={(e) => e.stopPropagation()}>
+            <div className={`modal-content modal-${size}`} onMouseDown={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3>{title}</h3>
                     <button className="close-modal-btn" onClick={onClose}>&times;</button>
                 </div>
-                {children}
+                <div className="modal-body">{children}</div>
             </div>
-        </div>,
-        document.body
+        </div>, document.body
     );
+};
+
+const FloatingWindow = ({ isOpen, onClose, title, children, initialPosition = {x: 100, y: 100}, initialSize = {w: 500, h: 400} }: { isOpen: boolean, onClose: () => void, title: string, children: React.ReactNode, initialPosition?: {x: number, y: number}, initialSize?: {w: number, h: number} }) => {
+    if (!isOpen) return null;
+
+    const [position, setPosition] = useState({ x: initialPosition.x, y: initialPosition.y });
+    const [size, setSize] = useState({ w: initialSize.w, h: initialSize.h });
+    const [isDragging, setIsDragging] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
+    const dragStartRef = useRef({ startX: 0, startY: 0, elemX: 0, elemY: 0 });
+    const resizeStartRef = useRef({ startX: 0, startY: 0, startW: 0, startH: 0 });
+
+    const handleDragMouseDown = (e: React.MouseEvent) => { setIsDragging(true); dragStartRef.current = { startX: e.clientX, startY: e.clientY, elemX: position.x, elemY: position.y }; e.preventDefault(); };
+    const handleResizeMouseDown = (e: React.MouseEvent) => { setIsResizing(true); resizeStartRef.current = { startX: e.clientX, startY: e.clientY, startW: size.w, startH: size.h }; e.preventDefault(); };
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (isDragging) setPosition({ x: dragStartRef.current.elemX + e.clientX - dragStartRef.current.startX, y: dragStartRef.current.elemY + e.clientY - dragStartRef.current.startY });
+        if (isResizing) setSize({ w: Math.max(300, resizeStartRef.current.startW + e.clientX - resizeStartRef.current.startX), h: Math.max(200, resizeStartRef.current.startH + e.clientY - resizeStartRef.current.startY) });
+    }, [isDragging, isResizing]);
+
+    const handleMouseUp = useCallback(() => { setIsDragging(false); setIsResizing(false); }, []);
+
+    useEffect(() => {
+        if (isDragging || isResizing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
+
+    return createPortal(
+        <div className="floating-window" style={{ left: `${position.x}px`, top: `${position.y}px`, width: `${size.w}px`, height: `${size.h}px` }}>
+            <div className="floating-window-header" onMouseDown={handleDragMouseDown}>
+                <h3>{title}</h3>
+                <button className="close-modal-btn" onClick={onClose}>&times;</button>
+            </div>
+            <div className="floating-window-content">{children}</div>
+            <div className="resize-handle" onMouseDown={handleResizeMouseDown}></div>
+        </div>, document.body
+    );
+};
+
+const DraggableBubble = ({ children, onClick, initialPosition = { right: 32, bottom: 32 } }: { children: React.ReactNode, onClick: () => void, initialPosition?: {right: number, bottom: number} }) => {
+    const [position, setPosition] = useState(initialPosition);
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef({ startX: 0, startY: 0, startRight: 0, startBottom: 0 });
+    const hasDragged = useRef(false);
+
+    const handleMouseDown = (e: React.MouseEvent) => { e.preventDefault(); setIsDragging(true); hasDragged.current = false; dragStartRef.current = { startX: e.clientX, startY: e.clientY, startRight: position.right, startBottom: position.bottom, }; };
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isDragging) return;
+        const dx = e.clientX - dragStartRef.current.startX; const dy = e.clientY - dragStartRef.current.startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) hasDragged.current = true;
+        setPosition({ right: dragStartRef.current.startRight - dx, bottom: dragStartRef.current.startBottom - dy });
+    }, [isDragging]);
+    const handleMouseUp = () => { setIsDragging(false); if (!hasDragged.current) onClick(); };
+
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, handleMouseMove]);
+    
+    return <div className={`chatbot-fab ${isDragging ? 'dragging' : ''}`} style={{ right: `${position.right}px`, bottom: `${position.bottom}px` }} onMouseDown={handleMouseDown}>{children}</div>;
 };
 
 const Sidebar = () => {
     const { currentUser, currentView, setCurrentView, logout, isSidebarOpen, toggleSidebar } = useAppContext();
-    const visibleViews = Object.entries(APP_VIEWS_CONFIG).filter(([, config]) =>
-        currentUser && config.roles.includes(currentUser.role)
-    );
+    const visibleViews = Object.entries(APP_VIEWS_CONFIG).filter(([, config]) => currentUser && config.roles.includes(currentUser.role));
 
     return (
         <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
@@ -833,26 +634,19 @@ const Sidebar = () => {
                 <button className="sidebar-close" onClick={toggleSidebar}>{Icons.close}</button>
             </div>
             <nav className="nav-list">
-                {visibleViews.map(([viewKey, config]) => (
-                    <li className="nav-item" key={viewKey}>
-                        <button
-                            className={currentView === viewKey ? 'active' : ''}
-                            onClick={() => {
-                                setCurrentView(viewKey as AppView);
-                                if (isSidebarOpen) toggleSidebar();
-                            }}
-                        >
-                            {Icons[config.icon]}
-                            <span>{config.title}</span>
-                        </button>
-                    </li>
-                ))}
+                <ul>
+                    {visibleViews.map(([viewKey, config]) => (
+                        <li className="nav-item" key={viewKey}>
+                            <button className={currentView === viewKey ? 'active' : ''} onClick={() => { setCurrentView(viewKey as AppView); if (isSidebarOpen) toggleSidebar(); }}>
+                                {Icons[config.icon]}
+                                <span>{config.title}</span>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
             </nav>
             <div className="sidebar-footer">
-                <button className="nav-item" onClick={logout}>
-                    {Icons.logout}
-                    <span>Logout</span>
-                </button>
+                <button className="nav-item" onClick={logout}>{Icons.logout}<span>Logout</span></button>
             </div>
         </aside>
     );
@@ -882,7 +676,7 @@ const Header = () => {
 };
 
 const AuthView = () => {
-    const { login, signup, addNotification, recoverPassword, findUsername } = useAppContext();
+    const { login, signup, addNotification } = useAppContext();
     const [isLoginView, setIsLoginView] = useState(true);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -890,63 +684,20 @@ const AuthView = () => {
     const [role, setRole] = useState<UserRole>('student');
     const [dept, setDept] = useState(DEPARTMENTS[0]);
     const [year, setYear] = useState(YEARS[0]);
-
-    const [isRecoveryModalOpen, setRecoveryModalOpen] = useState(false);
-    const [recoveryMode, setRecoveryMode] = useState<'user' | 'pass'>('pass');
-    const [recoveryUsername, setRecoveryUsername] = useState('');
-    const [recoveryNewPass, setRecoveryNewPass] = useState('');
-    const [recoveryDept, setRecoveryDept] = useState(DEPARTMENTS[0]);
-    const [recoveryRole, setRecoveryRole] = useState<UserRole>('student');
-
+    const [isAiHelpOpen, setAiHelpOpen] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isLoginView) {
             login(username, password);
         } else {
-            if (password !== confirmPassword) {
-                addNotification("Passwords do not match.", 'error');
-                return;
-            }
-            const signupData: Omit<User, 'id' | 'status'> = {
-                name: username,
-                password,
-                role,
-                dept: role === 'admin' ? 'System' : dept,
-                year: role === 'student' ? year : undefined,
-            };
+            if (password !== confirmPassword) { addNotification("Passwords do not match.", 'error'); return; }
+            const signupData: Omit<User, 'id' | 'status'> = { name: username, password, role, dept: (role === 'admin' || role === 'principal') ? 'Administration' : dept, year: role === 'student' ? year : undefined, };
             const { success, message } = signup(signupData);
-            if (success) {
-                addNotification(message, 'success');
-                setIsLoginView(true); // Flip back to login view
-                // Optionally clear password fields
-                setPassword('');
-                setConfirmPassword('');
-            } else {
-                addNotification(message, 'error');
-            }
+            if (success) { addNotification(message, 'success'); setIsLoginView(true); setPassword(''); setConfirmPassword(''); } 
+            else { addNotification(message, 'error'); }
         }
     };
-    
-    const handleRecovery = () => {
-        if (recoveryMode === 'pass') {
-            if(recoverPassword(recoveryUsername, recoveryNewPass)) {
-                addNotification(`Password for ${recoveryUsername} has been updated.`, 'success');
-                setRecoveryModalOpen(false);
-            } else {
-                addNotification(`User ${recoveryUsername} not found.`, 'error');
-            }
-        } else {
-            const foundUser = findUsername(recoveryDept, recoveryRole);
-            if(foundUser) {
-                alert(`The username is: ${foundUser.name}`);
-                setRecoveryModalOpen(false);
-            } else {
-                addNotification(`No user found with the specified role and department.`, 'error');
-            }
-        }
-    };
-
 
     return (
         <div className="login-view-container">
@@ -954,125 +705,42 @@ const AuthView = () => {
                 <div className={`login-card-inner ${!isLoginView ? 'is-flipped' : ''}`}>
                     {/* Login Form */}
                     <div className="login-card-front">
-                        <div className="login-header">
-                            <span className="logo">{Icons.logo}</span>
-                            <h1>Welcome Back</h1>
-                        </div>
+                        <div className="login-header"> <span className="logo">{Icons.logo}</span> <h1>Welcome Back</h1> </div>
                         <form onSubmit={handleSubmit}>
-                            <div className="control-group">
-                                <label htmlFor="login-username">Username</label>
-                                <input type="text" id="login-username" className="form-control" value={username} onChange={e => setUsername(e.target.value)} required />
-                            </div>
-                            <div className="control-group">
-                                <label htmlFor="login-password">Password</label>
-                                <input type="password" id="login-password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required />
-                            </div>
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-                                Sign In
-                            </button>
-                            <div className="auth-toggle" style={{display: 'flex', justifyContent: 'space-between', padding: '0 0.5rem'}}>
-                                <button type="button" onClick={() => { setRecoveryMode('pass'); setRecoveryModalOpen(true); }}>Forgot Password?</button>
-                                <button type="button" onClick={() => { setRecoveryMode('user'); setRecoveryModalOpen(true); }}>Forgot Username?</button>
-                            </div>
+                            <div className="control-group"> <label htmlFor="login-username">Username</label> <input type="text" id="login-username" className="form-control" value={username} onChange={e => setUsername(e.target.value)} required /> </div>
+                            <div className="control-group"> <label htmlFor="login-password">Password</label> <input type="password" id="login-password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required /> </div>
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}> Sign In </button>
                         </form>
-                        <div className="auth-toggle">
-                            Don't have an account?
-                            <button onClick={() => setIsLoginView(false)}>Sign Up</button>
-                        </div>
+                        <div className="auth-toggle"> Don't have an account? <button onClick={() => setIsLoginView(false)}>Sign Up</button> </div>
                     </div>
                     {/* Sign Up Form */}
                     <div className="login-card-back">
-                        <div className="login-header">
-                            <span className="logo">{Icons.logo}</span>
-                            <h1>Create Account</h1>
-                        </div>
+                        <div className="login-header"> <span className="logo">{Icons.logo}</span> <h1>Create Account</h1> </div>
                         <form onSubmit={handleSubmit}>
-                            <div className="control-group">
-                                <label htmlFor="signup-username">Username</label>
-                                <input type="text" id="signup-username" className="form-control" value={username} onChange={e => setUsername(e.target.value)} required />
-                            </div>
-                            <div className="control-group">
-                                <label htmlFor="signup-password">Password</label>
-                                <input type="password" id="signup-password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required />
-                            </div>
-                            <div className="control-group">
-                                <label htmlFor="confirmPassword">Confirm Password</label>
-                                <input type="password" id="confirmPassword" className="form-control" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-                            </div>
+                            <div className="control-group"> <label htmlFor="signup-username">Username</label> <input type="text" id="signup-username" className="form-control" value={username} onChange={e => setUsername(e.target.value)} required /> </div>
+                            <div className="control-group"> <label htmlFor="signup-password">Password</label> <input type="password" id="signup-password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required /> </div>
+                            <div className="control-group"> <label htmlFor="confirmPassword">Confirm Password</label> <input type="password" id="confirmPassword" className="form-control" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required /> </div>
                             <div className="form-grid">
-                                <div className="control-group">
-                                    <label htmlFor="role">Role</label>
-                                    <select id="role" className="form-control" value={role} onChange={e => setRole(e.target.value as UserRole)}>
-                                        <option value="student">Student</option>
-                                        <option value="faculty">Faculty</option>
-                                        <option value="hod">HOD</option>
-                                        <option value="class advisor">Class Advisor</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
-                                </div>
-                                {role !== 'admin' && (
-                                    <div className="control-group">
-                                        <label htmlFor="dept">Department</label>
-                                        <select id="dept" className="form-control" value={dept} onChange={e => setDept(e.target.value)}>
-                                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                                        </select>
-                                    </div>
-                                )}
+                                <div className="control-group"> <label htmlFor="role">Role</label> <select id="role" className="form-control" value={role} onChange={e => setRole(e.target.value as UserRole)}> <option value="student">Student</option> <option value="faculty">Faculty</option> <option value="hod">HOD</option> <option value="class advisor">Class Advisor</option> <option value="admin">Admin</option> <option value="principal">Principal</option> </select> </div>
+                                {(role !== 'admin' && role !== 'principal') && (<div className="control-group"> <label htmlFor="dept">Department</label> <select id="dept" className="form-control" value={dept} onChange={e => setDept(e.target.value)}> {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)} </select> </div>)}
                             </div>
-                            {role === 'student' && (
-                                <div className="control-group">
-                                    <label htmlFor="year">Year</label>
-                                    <select id="year" className="form-control" value={year} onChange={e => setYear(e.target.value)}>
-                                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                                    </select>
-                                </div>
-                            )}
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-                                Sign Up
-                            </button>
+                            {role === 'student' && (<div className="control-group"> <label htmlFor="year">Year</label> <select id="year" className="form-control" value={year} onChange={e => setYear(e.target.value)}> {YEARS.map(y => <option key={y} value={y}>{y}</option>)} </select> </div>)}
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}> Sign Up </button>
                         </form>
-                        <div className="auth-toggle">
-                            Already have an account?
-                            <button onClick={() => setIsLoginView(true)}>Sign In</button>
-                        </div>
+                        <div className="auth-toggle"> Already have an account? <button onClick={() => setIsLoginView(true)}>Sign In</button> </div>
                     </div>
                 </div>
             </div>
-            <Modal isOpen={isRecoveryModalOpen} onClose={() => setRecoveryModalOpen(false)} title="Account Recovery">
-                <div className="modal-form">
-                {recoveryMode === 'pass' ? (
-                    <>
-                        <h4>Password Recovery</h4>
-                        <div className="control-group">
-                            <label htmlFor="rec-username">Enter your Username</label>
-                            <input type="text" id="rec-username" className="form-control" value={recoveryUsername} onChange={e => setRecoveryUsername(e.target.value)} />
-                        </div>
-                         <div className="control-group">
-                            <label htmlFor="rec-newpass">Enter New Password</label>
-                            <input type="password" id="rec-newpass" className="form-control" value={recoveryNewPass} onChange={e => setRecoveryNewPass(e.target.value)} />
-                        </div>
-                    </>
-                ) : (
-                     <>
-                        <h4>Username Recovery</h4>
-                        <div className="control-group">
-                            <label htmlFor="rec-role">Select your Role</label>
-                             <select id="rec-role" className="form-control" value={recoveryRole} onChange={e => setRecoveryRole(e.target.value as UserRole)}>
-                                {['student', 'faculty', 'hod', 'admin', 'class advisor'].map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                        </div>
-                         <div className="control-group">
-                            <label htmlFor="rec-dept">Select your Department</label>
-                            <select id="rec-dept" className="form-control" value={recoveryDept} onChange={e => setRecoveryDept(e.target.value)}>
-                                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                        </div>
-                    </>
-                )}
-                <div className="form-actions">
-                    <button className="btn btn-secondary" onClick={() => setRecoveryModalOpen(false)}>Cancel</button>
-                    <button className="btn btn-primary" onClick={handleRecovery}>Recover</button>
-                </div>
+             <button className="ai-help-fab" onClick={() => setAiHelpOpen(true)}>{Icons.sparkles}</button>
+             <Modal isOpen={isAiHelpOpen} onClose={() => setAiHelpOpen(false)} title="AI Sign-Up Assistant">
+                <div className="ai-assistant-content">
+                    <h4>Hello! How can I help you?</h4>
+                    <p>Here are some common questions:</p>
+                    <ul>
+                        <li><b>What is the 'HOD' role?</b><br />HOD stands for Head of Department. They manage a specific academic department.</li>
+                        <li><b>What is the 'Principal' role?</b><br />The Principal oversees the entire institution, with access to high-level summaries and management tools.</li>
+                        <li><b>Can you suggest a strong password?</b><br />Certainly! How about: `Tr@vel!ngD#sk88`</li>
+                    </ul>
                 </div>
             </Modal>
         </div>
@@ -1080,31 +748,34 @@ const AuthView = () => {
 };
 
 const DashboardView = () => {
-    const { currentUser } = useAppContext();
+    const { currentUser, users, courseFiles } = useAppContext();
+
+    if (currentUser?.role === 'principal') {
+        return (
+            <div className="dashboard-container">
+                <h2 className="dashboard-greeting">Welcome, Principal {currentUser?.name}!</h2>
+                <div className="principal-stats-grid">
+                    <div className="dashboard-card stat-card"><h3>Total Users</h3><p>{users.length}</p></div>
+                    <div className="dashboard-card stat-card"><h3>Students</h3><p>{users.filter(u=>u.role==='student').length}</p></div>
+                    <div className="dashboard-card stat-card"><h3>Faculty</h3><p>{users.filter(u=>u.role==='faculty').length}</p></div>
+                    <div className="dashboard-card stat-card"><h3>Pending Course Files</h3><p>{courseFiles.filter(cf=>cf.status==='pending_review').length}</p></div>
+                </div>
+                 <div className="dashboard-card">
+                    <h3>Recent Activity</h3>
+                    <p>A summary of recent announcements and submissions will be shown here.</p>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="dashboard-container">
             <h2 className="dashboard-greeting">Welcome, {currentUser?.name}!</h2>
-            <div className="dashboard-card">
-                <h3>Today's Schedule</h3>
-                <p>You have 4 classes and 1 meeting today.</p>
-            </div>
-            <div className="dashboard-card">
-                <h3>Activity Feed</h3>
+            <div className="dashboard-card"> <h3>Today's Schedule</h3> <p>You have 4 classes and 1 meeting today.</p> </div>
+            <div className="dashboard-card"> <h3>Activity Feed</h3>
                 <div className="feed-list">
-                    <div className="feed-item-card class stagger-item" style={{ animationDelay: '100ms' }}>
-                        <div className="feed-item-icon">{Icons.timetable}</div>
-                        <div>
-                            <p className="feed-item-title">Next Class: Data Structures</p>
-                            <p className="feed-item-meta">10:50 AM in CS-101 with Dr. Smith</p>
-                        </div>
-                    </div>
-                    <div className="feed-item-card announcement stagger-item" style={{ animationDelay: '200ms' }}>
-                        <div className="feed-item-icon">{Icons.announcement}</div>
-                        <div>
-                            <p className="feed-item-title">New Announcement: Symposium '24</p>
-                            <p className="feed-item-meta">Posted by HOD (CSE) - 2 hours ago</p>
-                        </div>
-                    </div>
+                    <div className="feed-item-card class stagger-item" style={{ animationDelay: '100ms' }}> <div className="feed-item-icon">{Icons.timetable}</div> <div> <p className="feed-item-title">Next Class: Data Structures</p> <p className="feed-item-meta">10:50 AM in CS-101 with Dr. Smith</p> </div> </div>
+                    <div className="feed-item-card announcement stagger-item" style={{ animationDelay: '200ms' }}> <div className="feed-item-icon">{Icons.announcement}</div> <div> <p className="feed-item-title">New Announcement: Symposium '24</p> <p className="feed-item-meta">Posted by HOD (CSE) - 2 hours ago</p> </div> </div>
                 </div>
             </div>
         </div>
@@ -1116,52 +787,37 @@ const TimetableView = () => {
     const [department, setDepartment] = useState(currentUser?.dept || DEPARTMENTS[0]);
     const [year, setYear] = useState(currentUser?.role === 'student' ? currentUser.year || YEARS[0] : YEARS[0]);
 
-    const filteredEntries = useMemo(() => {
-        return timetableEntries.filter(e => e.department === department && e.year === year);
-    }, [timetableEntries, department, year]);
-
     const grid = useMemo(() => {
+        const filteredEntries = timetableEntries.filter(e => e.department === department && e.year === year);
         const newGrid: (TimetableEntry | null)[][] = Array(settings.timeSlots.length).fill(0).map(() => Array(5).fill(null));
         filteredEntries.forEach(entry => {
             const dayIndex = DAYS.indexOf(entry.day);
-            if (dayIndex >= 0 && dayIndex < 5) { // Only Monday to Friday
-                if (entry.timeIndex >= 0 && entry.timeIndex < settings.timeSlots.length) {
-                    newGrid[entry.timeIndex][dayIndex] = entry;
-                }
+            if (dayIndex >= 0 && dayIndex < 5 && entry.timeIndex >= 0 && entry.timeIndex < settings.timeSlots.length) {
+                newGrid[entry.timeIndex][dayIndex] = entry;
             }
         });
         return newGrid;
-    }, [filteredEntries, settings.timeSlots]);
+    }, [timetableEntries, department, year, settings.timeSlots]);
 
     return (
         <div className="timetable-container">
             <div className="timetable-header">
                 <h3>Class Timetable</h3>
                 <div className="timetable-controls">
-                    <select className="form-control" value={department} onChange={e => setDepartment(e.target.value)}>
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <select className="form-control" value={year} onChange={e => setYear(e.target.value)}>
-                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
+                    <select className="form-control" value={department} onChange={e => setDepartment(e.target.value)}>{DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}</select>
+                    <select className="form-control" value={year} onChange={e => setYear(e.target.value)}>{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
                 </div>
             </div>
             <div className="timetable-wrapper">
                 <div className="timetable-grid">
                     <div className="grid-header">Time</div>
                     {DAYS.slice(0, 5).map(day => <div key={day} className="grid-header">{day}</div>)}
-
                     {settings.timeSlots.map((slot, timeIndex) => (
                         <React.Fragment key={timeIndex}>
                             <div className="time-slot">{slot}</div>
                             {grid[timeIndex].map((entry, dayIndex) => (
                                 <div key={`${timeIndex}-${dayIndex}`} className={`grid-cell ${entry?.type || ''}`}>
-                                    {entry && (
-                                        <>
-                                            <span className="subject">{entry.subject}</span>
-                                            {entry.faculty && <span className="faculty">{entry.faculty}</span>}
-                                        </>
-                                    )}
+                                    {entry && (<> <span className="subject">{entry.subject}</span> {entry.faculty && <span className="faculty">{entry.faculty}</span>} </>)}
                                 </div>
                             ))}
                         </React.Fragment>
@@ -1173,43 +829,21 @@ const TimetableView = () => {
 };
 
 const ManageTimetableView = () => {
-    const { timetableEntries } = useAppContext();
+    const { timetableEntries, settings } = useAppContext();
     return (
         <div className="manage-timetable-container">
-            <div className="entry-form">
-                <h3>Add/Edit Timetable Entry</h3>
-                {/* Form would go here */}
-            </div>
-            <div className="entry-list-container">
-                <h3>Current Entries</h3>
+            <div className="dashboard-card"> <h3>Add/Edit Timetable Entry</h3> {/* Form would go here */} </div>
+            <div className="dashboard-card"> <h3>Current Entries</h3>
                 <div className="table-wrapper">
                     <table className="entry-list-table">
-                        <thead>
-                            <tr>
-                                <th>Dept</th>
-                                <th>Year</th>
-                                <th>Day</th>
-                                <th>Time</th>
-                                <th>Subject</th>
-                                <th>Faculty</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
+                        <thead> <tr> <th>Dept</th> <th>Year</th> <th>Day</th> <th>Time</th> <th>Subject</th> <th>Faculty</th> <th>Actions</th> </tr> </thead>
                         <tbody>
                             {timetableEntries.map(entry => (
                                 <tr key={entry.id}>
-                                    <td data-label="Dept">{entry.department}</td>
-                                    <td data-label="Year">{entry.year}</td>
-                                    <td data-label="Day">{entry.day}</td>
-                                    <td data-label="Time">{TIME_SLOTS_DEFAULT[entry.timeIndex]}</td>
-                                    <td data-label="Subject">{entry.subject}</td>
+                                    <td data-label="Dept">{entry.department}</td> <td data-label="Year">{entry.year}</td> <td data-label="Day">{entry.day}</td>
+                                    <td data-label="Time">{settings.timeSlots[entry.timeIndex]}</td> <td data-label="Subject">{entry.subject}</td>
                                     <td data-label="Faculty">{entry.faculty || '-'}</td>
-                                    <td data-label="Actions">
-                                        <div className="entry-actions">
-                                            <button>{Icons.editPencil}</button>
-                                            <button className="delete-btn">{Icons.delete}</button>
-                                        </div>
-                                    </td>
+                                    <td data-label="Actions"> <div className="entry-actions"> <button>{Icons.editPencil}</button> <button className="delete-btn">{Icons.delete}</button> </div> </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -1221,119 +855,26 @@ const ManageTimetableView = () => {
 };
 
 const StudentDirectoryView = () => {
-    const { users, addNotification } = useAppContext();
+    const { users } = useAppContext();
     const [searchQuery, setSearchQuery] = useState('');
-    const [isAiSearching, setIsAiSearching] = useState(false);
     const [filters, setFilters] = useState({ department: 'all', year: 'all' });
     const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
-    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-
-    const students = useMemo(() => users.filter(u => u.role === 'student'), [users]);
 
     const filteredStudents = useMemo(() => {
-        return students.filter(student => {
-            const departmentMatch = filters.department === 'all' || student.dept === filters.department;
-            const yearMatch = filters.year === 'all' || student.year === filters.year;
-            const searchMatch = student.name.toLowerCase().includes(searchQuery.toLowerCase());
-            return departmentMatch && yearMatch && searchMatch;
-        });
-    }, [students, filters, searchQuery]);
+        return users.filter(student => student.role === 'student' &&
+            (filters.department === 'all' || student.dept === filters.department) &&
+            (filters.year === 'all' || student.year === filters.year) &&
+            student.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [users, filters, searchQuery]);
     
-    const handleAiSearch = async () => {
-        if (!ai) {
-            addNotification("AI features are disabled.", "warning");
-            return;
-        }
-        if (!searchQuery) return;
-
-        setIsAiSearching(true);
-        try {
-            const prompt = `Parse the following user query to filter a list of students.
-            Query: "${searchQuery}"
-            Available filters are 'department' (values: ${DEPARTMENTS.join(', ')}), and 'year' (values: ${YEARS.join(', ')}).
-            Also, interpret qualitative terms like "low attendance" (less than 75%), "good attendance" (>= 75%), "excellent attendance" (>=90%), "top performers" (grade score > 90), or "poor performers" (grade score < 60).
-            Respond ONLY with a JSON object containing the identified filters. For example: {"department": "CSE", "year": "II"}. If no filters are found, respond with an empty JSON object.`;
-
-            const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: prompt,
-                config: { responseMimeType: "application/json" }
-            });
-
-            const resultJson = JSON.parse(response.text);
-            const newFilters = { department: 'all', year: 'all' };
-            if (resultJson.department && DEPARTMENTS.includes(resultJson.department)) {
-                newFilters.department = resultJson.department;
-            }
-             if (resultJson.year && YEARS.includes(resultJson.year)) {
-                newFilters.year = resultJson.year;
-            }
-            setFilters(newFilters);
-            addNotification("AI search applied.", "info");
-
-        } catch (error) {
-            console.error("AI Search Error:", error);
-            addNotification("AI search failed. Please try a simpler query.", "error");
-        } finally {
-            setIsAiSearching(false);
-        }
-    };
-
-    const handleGenerateSummary = async () => {
-        if(!ai || !selectedStudent) return;
-        setIsGeneratingSummary(true);
-        try {
-            const studentData = {
-                name: selectedStudent.name,
-                department: selectedStudent.dept,
-                year: selectedStudent.year,
-                attendance: selectedStudent.attendance,
-                grades: selectedStudent.grades
-            };
-            const prompt = `Generate a brief, analytical academic summary for the following student. Highlight their strengths and potential areas for improvement based on their grades and attendance.
-            Student Data: ${JSON.stringify(studentData)}`;
-            
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            
-            const summary = response.text;
-            // This would normally be saved back to the user object
-            setSelectedStudent(prev => prev ? {...prev, aiSummary: summary} : null);
-
-        } catch(e) {
-            console.error(e);
-            addNotification("Failed to generate AI summary.", "error");
-        } finally {
-            setIsGeneratingSummary(false);
-        }
-    }
-
     return (
         <div className="directory-container">
             <div className="directory-header">
-                <div className="search-bar" style={{ flexGrow: 1 }}>
-                    {Icons.search}
-                    <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Search by name or use AI..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                         onKeyDown={e => e.key === 'Enter' && handleAiSearch()}
-                    />
-                     {isAiSearching && <div className="search-spinner"><div className="spinner-sm"></div></div>}
-                </div>
+                <div className="search-bar" style={{ flexGrow: 1 }}> {Icons.search} <input type="text" className="form-control" placeholder="Search by name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /> </div>
                 <div className="directory-controls">
-                     <button className="btn btn-secondary" onClick={handleAiSearch} disabled={isAiSearching}>
-                        {isAiSearching ? "Thinking..." : "AI Search"}
-                    </button>
-                    <select className="form-control" value={filters.department} onChange={e => setFilters(f => ({...f, department: e.target.value}))}>
-                        <option value="all">All Departments</option>
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <select className="form-control" value={filters.year} onChange={e => setFilters(f => ({...f, year: e.target.value}))}>
-                        <option value="all">All Years</option>
-                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
+                    <select className="form-control" value={filters.department} onChange={e => setFilters(f => ({...f, department: e.target.value}))}> <option value="all">All Departments</option> {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)} </select>
+                    <select className="form-control" value={filters.year} onChange={e => setFilters(f => ({...f, year: e.target.value}))}> <option value="all">All Years</option> {YEARS.map(y => <option key={y} value={y}>{y}</option>)} </select>
                 </div>
             </div>
             <div className="student-grid">
@@ -1341,195 +882,46 @@ const StudentDirectoryView = () => {
                     <div className="student-card stagger-item" key={student.id} onClick={() => setSelectedStudent(student)} style={{ animationDelay: `${index * 50}ms` }}>
                         <div className="student-card-avatar">{student.name.charAt(0)}</div>
                         <div className="student-card-info">
-                            <h4>{student.name}</h4>
-                            <p>{student.dept} - Year {student.year}</p>
-                            {student.attendance && (
-                                <div className="attendance-bar-container">
-                                    <div
-                                        className={`attendance-bar ${student.attendance.present / student.attendance.total > 0.9 ? 'good' : student.attendance.present / student.attendance.total > 0.75 ? 'fair' : 'poor'}`}
-                                        style={{ width: `${(student.attendance.present / student.attendance.total) * 100}%` }}
-                                        title={`Attendance: ${student.attendance.present}%`}
-                                    ></div>
-                                </div>
-                            )}
+                            <h4>{student.name}</h4> <p>{student.dept} - Year {student.year}</p>
+                            {student.attendance && ( <div className="attendance-bar-container"> <div className={`attendance-bar ${student.attendance.present / student.attendance.total > 0.9 ? 'good' : student.attendance.present / student.attendance.total > 0.75 ? 'fair' : 'poor'}`} style={{ width: `${(student.attendance.present / student.attendance.total) * 100}%` }} title={`Attendance: ${student.attendance.present}%`}></div> </div> )}
                         </div>
                     </div>
                 ))}
             </div>
             {selectedStudent && (
-                <Modal isOpen={!!selectedStudent} onClose={() => setSelectedStudent(null)} title={`Student Details: ${selectedStudent.name}`}>
+                 <FloatingWindow isOpen={!!selectedStudent} onClose={() => setSelectedStudent(null)} title={`Student Details: ${selectedStudent.name}`} initialSize={{ w: 600, h: 500 }}>
                     <div className="student-details-content">
-                        <div className="student-details-section">
-                            <h5>AI Academic Summary</h5>
-                            {selectedStudent.aiSummary ? (
-                                <p className="ai-assessment">{selectedStudent.aiSummary}</p>
-                            ) : (
-                                <p>No AI summary generated yet.</p>
-                            )}
-                            <button className="btn btn-sm btn-secondary" onClick={handleGenerateSummary} disabled={isGeneratingSummary}>
-                                {isGeneratingSummary ? <div className="spinner-sm"></div> : null}
-                                {selectedStudent.aiSummary ? 'Regenerate' : 'Generate Summary'}
-                            </button>
-                        </div>
-                         <div className="student-details-section">
-                             <h5>Details</h5>
-                             <p><strong>Department:</strong> {selectedStudent.dept}</p>
-                             <p><strong>Year:</strong> {selectedStudent.year}</p>
-                         </div>
-                         <div className="student-details-section">
-                             <h5>Performance</h5>
-                             <p><strong>Attendance:</strong> {selectedStudent.attendance?.present || 'N/A'}%</p>
-                             <p><strong>Latest Grade:</strong> {selectedStudent.grades?.[0]?.subject} - {selectedStudent.grades?.[0]?.score || 'N/A'}</p>
-                         </div>
+                         <div className="student-details-section"> <h5>Details</h5> <p><strong>Department:</strong> {selectedStudent.dept}</p> <p><strong>Year:</strong> {selectedStudent.year}</p> </div>
+                         <div className="student-details-section"> <h5>Performance</h5> <p><strong>Attendance:</strong> {selectedStudent.attendance?.present || 'N/A'}%</p> <p><strong>Latest Grade:</strong> {selectedStudent.grades?.[0]?.subject} - {selectedStudent.grades?.[0]?.score || 'N/A'}</p> </div>
                     </div>
-                </Modal>
+                </FloatingWindow>
             )}
         </div>
     );
 };
 
 const SecurityView = () => {
-    const { auditLogs, securityAlerts, resolveSecurityAlert, addNotification } = useAppContext();
-    const [selectedAlert, setSelectedAlert] = useState<SecurityAlert | null>(null);
-    const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysisResult, setAnalysisResult] = useState('');
-
-    const handleSelectLog = (logId: string) => {
-        setSelectedLogs(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(logId)) {
-                newSet.delete(logId);
-            } else {
-                newSet.add(logId);
-            }
-            return newSet;
-        });
-    };
-    
-    const analyzeSelectedLogs = async () => {
-        if (!ai) {
-            addNotification("AI features are disabled.", "warning");
-            return;
-        }
-        if (selectedLogs.size === 0) {
-            addNotification("Please select at least one log to analyze.", "info");
-            return;
-        }
-
-        setIsAnalyzing(true);
-        setAnalysisResult('');
-
-        const logsToAnalyze = auditLogs.filter(log => selectedLogs.has(log.id));
-        const prompt = `As a cybersecurity expert, analyze the following security audit logs for potential threats, suspicious patterns, or coordinated malicious activity. Provide a brief, actionable summary of your findings and recommend a course of action.
-        
-        Logs:
-        ${JSON.stringify(logsToAnalyze, null, 2)}`;
-
-        try {
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setAnalysisResult(response.text);
-        } catch (error) {
-            console.error("AI Analysis Error:", error);
-            setAnalysisResult("An error occurred during AI analysis. Please try again.");
-            addNotification("AI analysis failed.", "error");
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
-
+    const { auditLogs, securityAlerts, resolveSecurityAlert } = useAppContext();
     const unresolvedAlerts = securityAlerts.filter(a => !a.isResolved);
-
     return (
         <div className="security-center-container">
-            <div className="guardian-dashboard-grid">
-                 <div className="status-card severity-medium">
-                    <div className="status-indicator">{Icons.security}</div>
-                    <div className="status-text">
-                        <h4>System Status</h4>
-                        <p>All Systems Go</p>
-                    </div>
-                 </div>
-                 <div className="status-card severity-high">
-                     <div className="status-indicator">{Icons.announcement}</div>
-                    <div className="status-text">
-                        <h4>Unresolved Alerts</h4>
-                        <p>{unresolvedAlerts.length}</p>
-                    </div>
-                 </div>
-            </div>
-            
-            <div className="alert-list-container">
-                <h3>Active Security Alerts</h3>
+            <div className="dashboard-card"><h3>Active Security Alerts</h3>
                 <ul className="alert-list">
                     {unresolvedAlerts.map((alert, index) => (
-                        <li key={alert.id} className={`alert-item severity-${alert.severity} stagger-item`} onClick={() => setSelectedAlert(alert.id === selectedAlert?.id ? null : alert)} style={{ animationDelay: `${index * 50}ms` }}>
-                           <div className="alert-item-header">
-                                <span className="alert-title"><strong>{alert.title}</strong></span>
-                                <span className="alert-meta">{getRelativeTime(alert.timestamp)}</span>
-                           </div>
+                        <li key={alert.id} className={`alert-item severity-${alert.severity} stagger-item`} style={{ animationDelay: `${index * 50}ms` }}>
+                           <div className="alert-item-header"> <span className="alert-title"><strong>{alert.title}</strong></span> <span className="alert-meta">{getRelativeTime(alert.timestamp)}</span> </div>
                            <p className="alert-description">{alert.description}</p>
-                            {selectedAlert?.id === alert.id && (
-                                <div className="alert-details">
-                                    {alert.responsePlan && (
-                                        <div className="response-plan">
-                                            <h4>Recommended Response</h4>
-                                            <p className="response-plan-section"><strong>Containment:</strong> {alert.responsePlan.containment}</p>
-                                            <p className="response-plan-section"><strong>Investigation:</strong> {alert.responsePlan.investigation}</p>
-                                            <p className="response-plan-section"><strong>Recovery:</strong> {alert.responsePlan.recovery}</p>
-                                        </div>
-                                    )}
-                                    <div className="alert-item-actions">
-                                        <button className="btn btn-sm btn-success" onClick={(e) => { e.stopPropagation(); resolveSecurityAlert(alert.id); setSelectedAlert(null); }}>Mark as Resolved</button>
-                                        {alert.responsePlan?.recommendedAction === 'LOCK_USER' && <button className="btn btn-sm btn-danger">Lock User Account</button>}
-                                    </div>
-                                </div>
-                            )}
+                            <div className="alert-item-actions"> <button className="btn btn-sm btn-success" onClick={(e) => { e.stopPropagation(); resolveSecurityAlert(alert.id); }}>Mark as Resolved</button> </div>
                         </li>
                     ))}
                     {unresolvedAlerts.length === 0 && <p>No active alerts.</p>}
                 </ul>
             </div>
-            
-            <div className="entry-list-container">
-                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
-                    <h3>Audit Log</h3>
-                    <button className="btn btn-primary" onClick={analyzeSelectedLogs} disabled={isAnalyzing || selectedLogs.size === 0}>
-                        {isAnalyzing ? <div className="spinner-sm"></div> : null}
-                        Analyze Selected ({selectedLogs.size})
-                    </button>
-                </div>
-                {analysisResult && (
-                    <div className="ai-change-summary" style={{marginBottom: '1rem'}}>
-                         <h4>AI Analysis Result:</h4>
-                         <p>{analysisResult}</p>
-                    </div>
-                )}
+            <div className="dashboard-card"><h3>Audit Log</h3>
                 <div className="table-wrapper">
                     <table className="entry-list-table">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                <th>Timestamp</th>
-                                <th>User</th>
-                                <th>Action</th>
-                                <th>Status</th>
-                                <th>IP Address</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {auditLogs.map((log, index) => (
-                                <tr key={log.id} className="stagger-item" style={{ animationDelay: `${index * 30}ms` }}>
-                                    <td><input type="checkbox" checked={selectedLogs.has(log.id)} onChange={() => handleSelectLog(log.id)} /></td>
-                                    <td data-label="Timestamp">{new Date(log.timestamp).toLocaleString()}</td>
-                                    <td data-label="User">{log.userName}</td>
-                                    <td data-label="Action">{log.action}</td>
-                                    <td data-label="Status"><span className={`status-pill ${log.status === 'success' ? 'active' : log.status === 'failure' ? 'rejected' : ''}`}>{log.status}</span></td>
-                                    <td data-label="IP">{log.ip}</td>
-                                </tr>
-                            ))}
-                        </tbody>
+                        <thead> <tr> <th>Timestamp</th> <th>User</th> <th>Action</th> <th>Status</th> <th>IP Address</th> </tr> </thead>
+                        <tbody> {auditLogs.map((log, index) => ( <tr key={log.id} className="stagger-item" style={{ animationDelay: `${index * 30}ms` }}> <td data-label="Timestamp">{new Date(log.timestamp).toLocaleString()}</td> <td data-label="User">{log.userName}</td> <td data-label="Action">{log.action}</td> <td data-label="Status"><span className={`status-pill ${log.status}`}>{log.status}</span></td> <td data-label="IP">{log.ip}</td> </tr> ))} </tbody>
                     </table>
                 </div>
             </div>
@@ -1537,94 +929,206 @@ const SecurityView = () => {
     );
 };
 
-const SettingsView = () => {
-    const { settings, setSettings, resetAllData, importData, addNotification } = useAppContext();
-    const [timeSlotsText, setTimeSlotsText] = useState(settings.timeSlots.join('\n'));
-    const fileInputRef = useRef<HTMLInputElement>(null);
+const AnnouncementCard = ({ announcement }: { announcement: Announcement }) => {
+    const { currentUser, toggleAnnouncementReaction } = useAppContext();
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const pickerRef = useRef<HTMLDivElement>(null);
 
-    const handleTimeSlotsSave = () => {
-        const newSlots = timeSlotsText.split('\n').filter(slot => slot.trim() !== '');
-        setSettings(prev => ({ ...prev, timeSlots: newSlots }));
-        addNotification("Time slots updated successfully!", "success");
-    };
+    const handleReaction = (emoji: string) => { toggleAnnouncementReaction(announcement.id, emoji); setPickerOpen(false); };
 
-    const handleAccentColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSettings(prev => ({...prev, accentColor: e.target.value}));
-    };
-    
-    const handleExport = () => {
-        const dataToExport = {
-            app_users: JSON.parse(localStorage.getItem('app_users') || '[]'),
-            app_timetable: JSON.parse(localStorage.getItem('app_timetable') || '[]'),
-            app_auditLogs: JSON.parse(localStorage.getItem('app_auditLogs') || '[]'),
-            app_securityAlerts: JSON.parse(localStorage.getItem('app_securityAlerts') || '[]'),
-            app_settings: JSON.parse(localStorage.getItem('app_settings') || '{}'),
-        };
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `academia_ai_backup_${new Date().toISOString().split('T')[0]}.json`);
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-        addNotification("Data exported successfully.", "success");
-    };
-    
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const text = e.target?.result;
-                if(typeof text === 'string') {
-                    importData(text);
-                }
-            };
-            reader.readAsText(file);
-        }
-    };
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => { if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) setPickerOpen(false); };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [pickerRef]);
 
     return (
-        <div className="dashboard-container">
-            <div className="dashboard-card">
-                <h3>General Settings</h3>
-                 <div className="control-group">
-                    <label htmlFor="accent-color">Accent Color</label>
-                    <input type="color" id="accent-color" value={settings.accentColor} onChange={handleAccentColorChange} style={{padding: 0, border: 'none', height: '40px', width: '100px', background: 'none'}}/>
-                </div>
-            </div>
-             <div className="dashboard-card">
-                <h3>Timetable Configuration</h3>
-                <div className="control-group">
-                    <label htmlFor="time-slots">Time Slots (one per line)</label>
-                    <textarea 
-                        id="time-slots" 
-                        className="form-control" 
-                        rows={10} 
-                        value={timeSlotsText}
-                        onChange={e => setTimeSlotsText(e.target.value)}
-                    ></textarea>
-                </div>
-                <button className="btn btn-primary" onClick={handleTimeSlotsSave}>Save Time Slots</button>
-            </div>
-            <div className="dashboard-card">
-                <h3>Data Management</h3>
-                <p>Manage the application's data. Be careful, these actions can be destructive.</p>
-                <div style={{display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-                    <button className="btn btn-secondary" onClick={handleExport}>{Icons.download} Export Data</button>
-                     <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".json" />
-                    <button className="btn btn-secondary" onClick={handleImportClick}>{Icons.upload} Import Data</button>
-                    <button className="btn btn-danger" onClick={resetAllData}>{Icons.delete} Reset All Data</button>
+        <div className="announcement-card stagger-item">
+            <div className="announcement-item-header"><h3>{announcement.title}</h3><div className="announcement-item-meta"><span>{announcement.author}</span><span>{getRelativeTime(announcement.timestamp)}</span></div></div>
+            <div className="announcement-item-targets"><span className="target-pill">{announcement.targetDept}</span><span className="target-pill">{announcement.targetRole}</span></div>
+            <p className="announcement-item-content">{announcement.content}</p>
+            <div className="announcement-footer">
+                 <div className="announcement-reactions">{Object.entries(announcement.reactions || {}).map(([emoji, userIds]) => userIds.length > 0 && ( <span key={emoji} className={`reaction-pill ${userIds.includes(currentUser?.id || '') ? 'me' : ''}`}> {emoji} {userIds.length} </span> ))}</div>
+                <div className="reaction-container" ref={pickerRef}>
+                    <button className="btn btn-sm btn-secondary" onClick={() => setPickerOpen(p => !p)}>{Icons.react}</button>
+                    {pickerOpen && ( <div className="reaction-picker"> {['👍', '❤️', '🎉', '🤔'].map(emoji => ( <button key={emoji} onClick={() => handleReaction(emoji)}>{emoji}</button> ))} </div> )}
                 </div>
             </div>
         </div>
     );
 };
 
+const AnnouncementsView = () => {
+    const { announcements } = useAppContext();
+    return (
+        <div className="announcements-view-container">
+            <div className="announcements-header"> <h3>Latest Announcements</h3> <button className="btn btn-primary">{Icons.add} New Announcement</button> </div>
+            <div className="announcement-list"> {announcements.sort((a,b) => b.timestamp - a.timestamp).map((ann) => ( <AnnouncementCard key={ann.id} announcement={ann} /> ))} </div>
+        </div>
+    );
+};
+
+const CloudFilePicker = ({ onClose }: { onClose: () => void }) => {
+    const { addCloudResource } = useAppContext();
+    const [activeTab, setActiveTab] = useState<'gdrive' | 'onedrive'>('gdrive');
+    const fakeFiles = { gdrive: [{ id: 'g1', name: 'AI_Ethics_Lecture.pdf', type: 'file' }, { id: 'g2', name: 'Project_Submissions', type: 'folder' }], onedrive: [{ id: 'o1', name: 'Syllabus_Fall2024.docx', type: 'file' }, { id: 'o2', name: 'Lab_Manuals', type: 'folder' }] };
+    const handleSelect = (name: string) => { addCloudResource({ name, source: activeTab }); onClose(); };
+
+    return (
+        <div className="cloud-picker-container">
+            <div className="cloud-picker-tabs">
+                <button className={activeTab === 'gdrive' ? 'active' : ''} onClick={() => setActiveTab('gdrive')}>{Icons.googleDrive} Google Drive</button>
+                <button className={activeTab === 'onedrive' ? 'active' : ''} onClick={() => setActiveTab('onedrive')}>{Icons.oneDrive} OneDrive</button>
+            </div>
+            <ul className="cloud-file-list">
+                {fakeFiles[activeTab].map(file => (
+                    <li key={file.id}> <div className="file-info">{file.type === 'folder' ? Icons.folder : Icons.file}<span>{file.name}</span></div> <button className="btn btn-sm btn-secondary" onClick={() => handleSelect(file.name)}>Select</button> </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
+
+const ResourcesView = () => {
+    const { resources, onlineCourses } = useAppContext();
+    const [isCloudPickerOpen, setCloudPickerOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState('library');
+
+    return (
+        <div className="resources-container-view">
+             <div className="resources-view-controls">
+                <div className="tabs">
+                    <button className={`tab-btn ${activeTab === 'library' ? 'active' : ''}`} onClick={() => setActiveTab('library')}>Library Files</button>
+                    <button className={`tab-btn ${activeTab === 'courses' ? 'active' : ''}`} onClick={() => setActiveTab('courses')}>Online Courses</button>
+                </div>
+                {activeTab === 'library' && <button className="btn btn-primary" onClick={() => setCloudPickerOpen(true)}>{Icons.cloud} Add from Cloud</button>}
+            </div>
+
+            {activeTab === 'library' && (
+                <div className="table-wrapper">
+                    <table className="entry-list-table">
+                        <thead><tr><th>Name</th><th>Source</th><th>Uploader</th><th>Date</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            {resources.map(res => (
+                                <tr key={res.id}>
+                                    <td data-label="Name">{res.name}</td>
+                                    <td data-label="Source"><span className="source-pill"> {res.source === 'gdrive' && Icons.googleDrive} {res.source === 'onedrive' && Icons.oneDrive} {res.source === 'local' && Icons.upload} {res.source || 'local'} </span></td>
+                                    <td data-label="Uploader">{res.uploaderName}</td> <td data-label="Date">{new Date(res.timestamp).toLocaleDateString()}</td>
+                                    <td data-label="Actions"><div className="entry-actions"><button>{Icons.download}</button></div></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {activeTab === 'courses' && (
+                <div className="online-courses-grid">
+                    {onlineCourses.map(course => (
+                        <div key={course.id} className="course-card stagger-item">
+                            <h4>{course.title}</h4>
+                            <p className="platform">{course.platform}</p>
+                            <p className="description">{course.description}</p>
+                            <div className="tags">{course.tags.map(tag => <span key={tag} className="tag-pill">{tag}</span>)}</div>
+                            <a href={course.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary">Go to Course</a>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <Modal isOpen={isCloudPickerOpen} onClose={() => setCloudPickerOpen(false)} title="Add from Cloud Storage" size="md">
+                <CloudFilePicker onClose={() => setCloudPickerOpen(false)} />
+            </Modal>
+        </div>
+    );
+};
+
+const CourseFilesView = () => {
+    const { currentUser, courseFiles, triggerCourseFileAiReview } = useAppContext();
+    const [selectedFile, setSelectedFile] = useState<CourseFile | null>(null);
+
+    const relevantFiles = courseFiles.filter(cf => 
+        currentUser?.role === 'faculty' ? cf.facultyId === currentUser.id :
+        currentUser?.role === 'hod' || currentUser?.role === 'class advisor' ? cf.department === currentUser.dept :
+        true // Admin and Principal see all
+    );
+
+    const handleReviewClick = (e: React.MouseEvent, file: CourseFile) => {
+        e.stopPropagation();
+        triggerCourseFileAiReview(file.id);
+    }
+    
+    return (
+        <div className="course-files-container">
+            <div className="course-files-header">
+                <h3>Course File Submissions</h3>
+                {currentUser?.role === 'faculty' && <button className="btn btn-primary">{Icons.upload} Submit New File</button>}
+            </div>
+            <div className="table-wrapper">
+                <table className="entry-list-table">
+                    <thead><tr><th>Faculty</th><th>Subject</th><th>Semester</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {relevantFiles.map(file => (
+                            <tr key={file.id} onClick={() => setSelectedFile(file)} style={{cursor: 'pointer'}}>
+                                <td data-label="Faculty">{file.facultyName}</td>
+                                <td data-label="Subject">{file.subject}</td>
+                                <td data-label="Semester">{file.semester}</td>
+                                <td data-label="Submitted">{new Date(file.submittedAt).toLocaleDateString()}</td>
+                                <td data-label="Status"><span className={`status-pill ${file.status}`}>{file.status.replace('_', ' ')}</span></td>
+                                <td data-label="Actions"><div className="entry-actions"><button className="btn btn-sm btn-secondary" onClick={(e) => {e.stopPropagation(); setSelectedFile(file)}}>View</button></div></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <Modal isOpen={!!selectedFile} onClose={() => setSelectedFile(null)} title={`Review: ${selectedFile?.subject}`} size="lg">
+                {selectedFile && (
+                    <div className="course-file-details">
+                        <h4>Files Submitted</h4>
+                        <ul>{selectedFile.files.map(f => <li key={f.name}>{f.name} ({f.type})</li>)}</ul>
+                        <hr />
+                        <h4>AI-Powered Review</h4>
+                        {selectedFile.aiReview?.status === 'pending' && <div className="spinner-container"><div className="spinner"></div><p>AI is analyzing the files...</p></div>}
+                        {selectedFile.aiReview?.status === 'failed' && <p className="text-danger">AI analysis failed.</p>}
+                        {selectedFile.aiReview?.status === 'complete' && (
+                            <div className="ai-review-content">
+                                <div className="ai-review-section"><h5>Summary</h5><p>{selectedFile.aiReview.summary}</p></div>
+                                <div className="ai-review-section"><h5>Suggestions</h5><ul>{selectedFile.aiReview.suggestions?.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+                                {selectedFile.aiReview.corrections && (
+                                     <div className="ai-review-section"><h5>Auto-Corrections</h5>
+                                        {selectedFile.aiReview.corrections.map((c, i) =>(
+                                            <div key={i} className="correction-box">
+                                                <p><strong>Original:</strong> <span className="text-original">{c.original}</span></p>
+                                                <p><strong>Corrected:</strong> <span className="text-corrected">{c.corrected}</span></p>
+                                            </div>
+                                        ))}
+                                     </div>
+                                )}
+                            </div>
+                        )}
+                        {!selectedFile.aiReview && <p>No AI review has been performed yet.</p>}
+                        <div className="form-actions">
+                            <button className="btn btn-secondary" onClick={(e) => handleReviewClick(e, selectedFile)} disabled={selectedFile.aiReview?.status === 'pending'}>
+                                {selectedFile.aiReview?.status === 'pending' ? 'Analyzing...' : 'Re-run AI Review'}
+                            </button>
+                            {(currentUser?.role === 'admin' || currentUser?.role === 'hod' || currentUser?.role === 'principal') && (
+                                <>
+                                <button className="btn btn-danger">Request Revision</button>
+                                <button className="btn btn-success">Approve</button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </Modal>
+        </div>
+    );
+};
+
+
+const PlaceholderView = ({ title }: { title: string }) => (
+    <div className="dashboard-container"> <div className="dashboard-card empty-state"> <h3>{title}</h3> <p>This feature is under construction.</p> </div> </div>
+);
 
 const PageContent = () => {
     const { currentView } = useAppContext();
@@ -1632,20 +1136,25 @@ const PageContent = () => {
     switch (currentView) {
         case 'dashboard': return <DashboardView />;
         case 'timetable': return <TimetableView />;
-        case 'manage': return <ManageTimetableView />;
+        case 'academicCalendar': return <PlaceholderView title="Academic Calendar" />;
+        case 'resources': return <ResourcesView />;
         case 'studentDirectory': return <StudentDirectoryView />;
+        case 'approvals': return <PlaceholderView title="Approvals" />;
+        case 'announcements': return <AnnouncementsView />;
+        case 'courseFiles': return <CourseFilesView />;
+        case 'manage': return <ManageTimetableView />;
+        case 'userManagement': return <PlaceholderView title="User Management" />;
         case 'security': return <SecurityView />;
-        case 'settings': return <SettingsView />;
+        case 'settings': return <PlaceholderView title="Settings" />;
         default: return <DashboardView />;
     }
 };
 
 const App = () => {
     const { currentUser, isSidebarOpen, toggleSidebar } = useAppContext();
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
-    if (!currentUser) {
-        return <AuthView />;
-    }
+    if (!currentUser) return <AuthView />;
 
     return (
         <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
@@ -1653,10 +1162,9 @@ const App = () => {
             <div className="sidebar-overlay" onClick={toggleSidebar}></div>
             <main className="main-content">
                 <Header />
-                <div className="page-content">
-                    <PageContent />
-                </div>
+                <div className="page-content"><PageContent /></div>
             </main>
+            <DraggableBubble onClick={() => setIsChatOpen(!isChatOpen)}>{Icons.chatbot}</DraggableBubble>
         </div>
     );
 };
@@ -1666,9 +1174,7 @@ if (container) {
     const root = createRoot(container);
     root.render(
         <React.StrictMode>
-            <AppProvider>
-                <App />
-            </AppProvider>
+            <AppProvider> <App /> </AppProvider>
         </React.StrictMode>
     );
 }
