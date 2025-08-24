@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createPortal } from 'react-dom';
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { marked } from 'marked';
 
@@ -216,6 +217,7 @@ interface AuditLogEntry {
     id: string;
     timestamp: number;
     userId: string;
+    userName: string;
     action: string;
     ip: string;
     status: 'success' | 'failure' | 'info';
@@ -277,10 +279,16 @@ interface AcademicEvent {
     description: string;
 }
 
+interface AppSettings {
+    timeSlots: string[];
+    accentColor: string;
+    // Add other settings here
+}
+
 
 const DEPARTMENTS = ["CSE", "ECE", "EEE", "MCA", "AI&DS", "CYBERSECURITY", "MECHANICAL", "TAMIL", "ENGLISH", "MATHS", "LIB", "NSS", "NET"];
 const YEARS = ["I", "II", "III", "IV"];
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const TIME_SLOTS_DEFAULT = [
     "9:00 - 9:50",
     "9:50 - 10:35",
@@ -329,6 +337,48 @@ const getRelativeTime = (timestamp: number) => {
     return "Just now";
 };
 
+const sanitizeHtml = (htmlString: string): string => {
+    // Basic sanitizer to prevent XSS. A library like DOMPurify is recommended for production.
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlString;
+
+    // Remove dangerous tags
+    const dangerousTags = ['script', 'style', 'iframe', 'object', 'embed'];
+    dangerousTags.forEach(tagName => {
+        const tags = tempDiv.getElementsByTagName(tagName);
+        while (tags.length > 0) {
+            tags[0].parentNode?.removeChild(tags[0]);
+        }
+    });
+
+    // Remove event handlers and dangerous hrefs
+    const allElements = tempDiv.getElementsByTagName('*');
+    for (const element of Array.from(allElements)) {
+        // Remove on* attributes
+        for (const attr of Array.from(element.attributes)) {
+            if (attr.name.toLowerCase().startsWith('on')) {
+                element.removeAttribute(attr.name);
+            }
+        }
+        // Check href/src for javascript protocol
+        if (element.hasAttribute('href')) {
+            const href = element.getAttribute('href') || '';
+            if (href.toLowerCase().startsWith('javascript:')) {
+                element.removeAttribute('href');
+            }
+        }
+        if (element.hasAttribute('src')) {
+            const src = element.getAttribute('src') || '';
+            if (src.toLowerCase().startsWith('javascript:')) {
+                element.removeAttribute('src');
+            }
+        }
+    }
+
+    return tempDiv.innerHTML;
+};
+
+
 // --- ICONS ---
 const Icons = {
     logo: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 9l4 1.5V17a1 1 0 001 1h12a1 1 0 001-1v-6.5L23 9z"></path></svg>,
@@ -348,635 +398,713 @@ const Icons = {
     add: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd"></path></svg>,
     approvals: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>,
     announcement: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-2.236 9.168-5.584C18.354 1.832 18 3.65 18 5a6 6 0 01-9.372 5.122L5.436 13.683z"></path></svg>,
-    security: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z"></path></svg>,
-    users: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>,
-    login: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>,
-    microphone: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8h-1a6 6 0 11-12 0H3a7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clipRule="evenodd"></path></svg>,
-    speaker: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>,
-    speakerMute: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-3l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>,
-    check: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>,
-    x: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.693a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>,
-    lightbulb: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>,
-    location: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>,
-    transport: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.115 5.19l.319 1.913A6 6 0 008.11 10.36L9.75 12l-.387.775c-.217.433-.132.956.21 1.298l1.348 1.348c.21.21.329.497.329.795v1.089c0 .426.24.815.622 1.006l.153.076c.473.236.884.646.884 1.154v.643c0 .621-.504 1.125-1.125 1.125H9.097c-.621 0-1.125-.504-1.125-1.125v-.643c0-.508.411-.918.884-1.154l.153-.076c.382-.191.622-.58.622-1.006v-1.089c0-.298.119-.585.329-.795l1.348-1.348c.342-.342.427-.865.21-1.298L9.75 12l-1.64-1.64A6 6 0 006.115 5.19zM12 12h3.75M12 9h3.75M12 15h3.75M4.5 12H6m-1.5 6H6m-1.5-12H6m12 12h1.5m-1.5-6h1.5m-1.5-6h1.5M12 6.75v.007v.008v.007v.008v.007v.008H12z"></path></svg>,
-    education: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0l-.332.877m1.699-2.886c.262-.28.58-.515.92-.702m7.854 1.486c.34-.187.678-.398 1.02-.609m-7.854 1.485l-1.699-2.886m1.699 2.886a25.234 25.234 0 001.396-.282m-1.396.282c.262-.28.58-.515.92-.702m-11.082 2.886c.262-.28.58-.515.92-.702"></path></svg>,
-    warning: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" ><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"></path></svg>,
-    checkCircle: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-    shieldCheck: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.745 3.745 0 013.296-1.043A3.745 3.745 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.745 3.745 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>,
-    shieldExclamation: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>,
-    clipboardList: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75c0-.231-.035-.454-.1-.664M6.75 7.5h1.5v.75h-1.5v-.75zM6.75 12h1.5v.75h-1.5v-.75zM6.75 16.5h1.5v.75h-1.5v-.75zM4.5 6.108a2.25 2.25 0 012.25-2.25h3.812a48.424 48.424 0 011.123.08c1.131.094 1.976 1.057 1.976 2.192v12.284c0 1.135-.845 2.098-1.976 2.192a48.424 48.424 0 01-1.123.08H6.75a2.25 2.25 0 01-2.25-2.25V6.108z" /></svg>,
-    lock: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>,
-    unlock: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>,
-    guardian: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c.392 0 .771.045 1.141.131l.314.074c1.13 1.26 2.003 2.74 2.536 4.387.533 1.647.809 3.42.809 5.242a9.75 9.75 0 01-1.222 4.793l-.15.275a2.25 2.25 0 01-3.95 0l-.15-.275a9.75 9.75 0 01-1.222-4.793c0-1.822.276-3.595.81-5.242.532-1.647 1.405-3.127 2.536-4.387l-.314-.074A5.92 5.92 0 0112 2.25zM12 2.25c-.392 0-.771.045-1.141.131l-.314.074c-1.13 1.26-2.003 2.74-2.536 4.387-.533 1.647-.809 3.42-.809 5.242a9.75 9.75 0 001.222 4.793l.15.275a2.25 2.25 0 003.95 0l.15-.275a9.75 9.75 0 001.222-4.793c0-1.822-.276-3.595-.81-5.242-.532-1.647-1.405-3.127-2.536-4.387l-.314-.074A5.92 5.92 0 0012 2.25zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zM12 15.75a.75.75 0 100-1.5.75.75 0 000 1.5z"></path></svg>,
-    calendarDays: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18M-4.5 12h22.5" /></svg>,
-    bookOpen: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-16.512a8.967 8.967 0 016 2.292c1.052.332 2.062.512 3 .512v14.25a8.987 8.987 0 00-3-1.488c-2.305-.9-4.408-2.292-6-2.292m0 0a8.967 8.967 0 00-6 2.292m6-2.292v16.5" /></svg>,
-    upload: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>,
-    download: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>,
-    file: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>,
-    search: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>,
-    viewGrid: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 8.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 018.25 20.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6A2.25 2.25 0 0115.75 3.75h2.25A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25A2.25 2.25 0 0113.5 8.25V6zM13.5 15.75A2.25 2.25 0 0115.75 13.5h2.25a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>,
-    viewList: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>,
-    externalLink: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5 0V6.375c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0110.5 10.5z" /></svg>,
-    beaker: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20.25h4M7.5 7.5h9v7.5a3.75 3.75 0 01-3.75 3.75h-1.5A3.75 3.75 0 017.5 15V7.5zM7.5 7.5V6A2.25 2.25 0 019.75 3.75h4.5A2.25 2.25 0 0116.5 6v1.5" /></svg>,
-    chatBubble: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.158 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l3.652-3.978c.26-.282.687-.534 1.153-.67 1.09-.086 2.17-.206 3.238-.365 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.344 48.344 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>,
-    history: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-    google: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.28-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C41.38,36.43,44,30.686,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>,
-    microsoft: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20px" height="20px"><path fill="#f35325" d="M1 1h10v10H1z"></path><path fill="#81bc06" d="M13 1h10v10H13z"></path><path fill="#05a6f0" d="M1 13h10v10H1z"></path><path fill="#ffba08" d="M13 13h10v10H13z"></path></svg>,
+    security: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm-3 1.502a11.955 11.955 0 018.25 3.286M3 9.75a12.007 12.007 0 001.098 5.093" /></svg>,
+    login: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>,
+    logout: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>,
+    users: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm6-11a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+    calendarDays: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zM4.5 8.5a.75.75 0 000 1.5h.5a.75.75 0 000-1.5h-.5zM6 10a.75.75 0 01.75-.75h.5a.75.75 0 010 1.5h-.5A.75.75 0 016 10zm2.25.75a.75.75 0 000-1.5h.5a.75.75 0 000 1.5h-.5zM11 10a.75.75 0 01.75-.75h.5a.75.75 0 010 1.5h-.5a.75.75 0 01-.75-.75zm2.25.75a.75.75 0 000-1.5h.5a.75.75 0 000 1.5h-.5zM4.5 13.5a.75.75 0 000 1.5h.5a.75.75 0 000-1.5h-.5zM6 15a.75.75 0 01.75-.75h.5a.75.75 0 010 1.5h-.5A.75.75 0 016 15zm2.25.75a.75.75 0 000-1.5h.5a.75.75 0 000 1.5h-.5z" clipRule="evenodd" /></svg>,
+    bookOpen: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M2 5.25A3.25 3.25 0 015.25 2h9.5A3.25 3.25 0 0118 5.25v9.5A3.25 3.25 0 0114.75 18h-9.5A3.25 3.25 0 012 14.75v-9.5zm3.25-.75c-.69 0-1.25.56-1.25 1.25v9.5c0 .69.56 1.25 1.25 1.25h3.5v-12h-3.5zM10 4.5v12h4.75c.69 0 1.25-.56 1.25-1.25v-9.5c0-.69-.56-1.25-1.25-1.25H10z" clipRule="evenodd" /></svg>,
+    search: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" /></svg>,
+    key: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>,
+    userCircle: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.483 6.483 0 0010 16.5a6.483 6.483 0 004.793-2.11A5.99 5.99 0 0010 12z" clipRule="evenodd" /></svg>,
+    lock: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>,
+    check: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z" clipRule="evenodd" /></svg>,
+    download: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>,
+    upload: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9.25 2.75a.75.75 0 011.5 0v8.614l2.955-3.129a.75.75 0 011.09 1.03l-4.25 4.5a.75.75 0 01-1.09 0l-4.25-4.5a.75.75 0 011.09-1.03L9.25 11.364V2.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>,
+    reset: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.312 11.342a1.25 1.25 0 010-1.768l-3.25-3.25a.75.75 0 011.06-1.06l3.25 3.25a2.75 2.75 0 010 3.888l-3.25 3.25a.75.75 0 11-1.06-1.06l3.25-3.25z" clipRule="evenodd" /><path fillRule="evenodd" d="M7.938 3.658a.75.75 0 011.06 1.06l-3.25 3.25a1.25 1.25 0 000 1.768l3.25 3.25a.75.75 0 11-1.06 1.06l-3.25-3.25a2.75 2.75 0 010-3.888l3.25-3.25z" clipRule="evenodd" /></svg>,
+}
 
-};
-
-// --- DEMO DATA & INITIALIZATION ---
-const createInitialState = <T,>(key: string, defaultValue: T): T => {
-    try {
-        const storedValue = localStorage.getItem(key);
-        if (storedValue) {
-            return JSON.parse(storedValue);
+// --- DATA PERSISTENCE HOOK ---
+function usePersistentState<T>(key: string, initialState: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+    const [state, setState] = useState<T>(() => {
+        try {
+            const storageValue = localStorage.getItem(key);
+            return storageValue ? JSON.parse(storageValue) : initialState;
+        } catch (error) {
+            console.warn(`Error reading localStorage key "${key}":`, error);
+            return initialState;
         }
-    } catch (error) {
-        console.error(`Error reading from localStorage for key "${key}":`, error);
-    }
-    return defaultValue;
-};
-const usePersistedState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
-    const [state, setState] = useState<T>(() => createInitialState(key, defaultValue));
+    });
 
     useEffect(() => {
         try {
             localStorage.setItem(key, JSON.stringify(state));
         } catch (error) {
-            console.error(`Error writing to localStorage for key "${key}":`, error);
+            console.error(`Error writing to localStorage key "${key}":`, error);
         }
     }, [key, state]);
 
     return [state, setState];
+}
+
+// --- DEMO DATA GENERATION ---
+const generateDemoData = () => {
+    // Generate an admin user if none exists
+    const users: User[] = [
+        { id: 'admin-01', name: 'Admin', password: 'admin', role: 'admin', dept: 'System', status: 'active' }
+    ];
+
+    // Generate some faculty and students
+    const facultyNames = ["Dr. Smith", "Prof. Jones", "Dr. Williams"];
+    facultyNames.forEach((name, i) => {
+        users.push({
+            id: `faculty-0${i+1}`,
+            name,
+            password: 'password123',
+            role: 'faculty',
+            dept: DEPARTMENTS[i % 3], // Assign to first 3 depts
+            status: 'active'
+        });
+    });
+
+    const studentNames = ["Alice", "Bob", "Charlie", "David", "Eve"];
+    studentNames.forEach((name, i) => {
+        users.push({
+            id: `student-0${i+1}`,
+            name,
+            password: 'password123',
+            role: 'student',
+            dept: DEPARTMENTS[i % 2], // CSE or ECE
+            year: YEARS[i % 4],
+            status: 'active',
+            attendance: { present: Math.floor(Math.random() * 20) + 70, total: 100 },
+            grades: [{ subject: 'Intro to AI', score: Math.floor(Math.random() * 30) + 65 }]
+        });
+    });
+
+    const timetable: TimetableEntry[] = [];
+    timetable.push({
+        id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 0,
+        subject: 'Data Structures', type: 'class', faculty: 'Dr. Smith', room: 'CS-101'
+    });
+    timetable.push({
+        id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 1,
+        subject: 'Algorithms', type: 'class', faculty: 'Dr. Smith', room: 'CS-102'
+    });
+    timetable.push({
+        id: uuidv4(), department: 'ECE', year: 'III', day: 'Tuesday', timeIndex: 3,
+        subject: 'Microprocessors', type: 'class', faculty: 'Prof. Jones', room: 'EC-201'
+    });
+     timetable.push({
+        id: uuidv4(), department: 'CSE', year: 'II', day: 'Monday', timeIndex: 2,
+        subject: 'Break', type: 'break'
+    });
+
+
+    const auditLogs: AuditLogEntry[] = [
+        { id: uuidv4(), timestamp: Date.now() - 50000, userId: 'admin-01', userName: 'Admin', action: 'User Login', ip: '192.168.1.1', status: 'success' },
+        { id: uuidv4(), timestamp: Date.now() - 80000, userId: 'unknown', userName: 'unknown', action: 'Failed Login Attempt', ip: '203.0.113.5', status: 'failure', details: 'Invalid credentials for user: hacker' },
+    ];
+    
+    const securityAlerts: SecurityAlert[] = [
+        {
+            id: uuidv4(), type: 'Anomaly', title: 'Multiple Failed Logins',
+            description: 'Detected 5 failed login attempts for user "Admin" from IP 203.0.113.5.',
+            timestamp: Date.now() - 75000, severity: 'high', relatedUserId: 'admin-01',
+            isResolved: false,
+            responsePlan: {
+                containment: "Temporarily block IP address 203.0.113.5.",
+                investigation: "Verify if the attempts were made by the legitimate user.",
+                recovery: "If legitimate, assist user with password reset. If malicious, maintain block.",
+                recommendedAction: 'MONITOR'
+            }
+        },
+    ];
+    
+    const settings: AppSettings = {
+        timeSlots: TIME_SLOTS_DEFAULT,
+        accentColor: '#3B82F6'
+    };
+
+    return { users, timetable, auditLogs, securityAlerts, settings };
 };
-
-const INITIAL_USERS: User[] = [
-    { id: 'admin', name: 'Administrator', password: 'password', role: 'admin', dept: 'SYSTEM', status: 'active' },
-    { id: 'hod-jane-smith', name: 'Jane Smith', password: 'password', role: 'hod', dept: 'CSE', status: 'active', specialization: ['AI/ML', 'Data Structures'], officeHours: [{day: 'Monday', time: '2:00 PM - 3:00 PM'}] },
-    { id: 'advisor-anitha-m', name: 'Mrs. ANITHA M', password: 'password', role: 'class advisor', dept: 'CSE', year: 'II', status: 'active', specialization: ['Data Science', 'Web Technologies'] },
-    { id: 'advisor-deepak-mr', name: 'Mr. Deepak', password: 'password', role: 'class advisor', dept: 'CSE', year: 'IV', status: 'active', specialization: ['Advanced Algorithms', 'Compiler Design'] },
-    { id: 'faculty-yuvasri', name: 'Ms. YUVASRI', password: 'password', role: 'faculty', dept: 'MATHS', status: 'active', specialization: ['Discrete Mathematics'] },
-    { id: 'faculty-ranjani-j', name: 'Ms. RANJANI J', password: 'password', role: 'faculty', dept: 'ECE', status: 'active', specialization: ['Digital Principles', 'Computer Organization'] },
-    { id: 'faculty-soundhur', name: 'Mr. SOUNDHUR', password: 'password', role: 'faculty', dept: 'CSE', status: 'active', specialization: ['Data Structures'] },
-    { id: 'faculty-myshree-b', name: 'Ms. MYSHREE B', password: 'password', role: 'faculty', dept: 'CSE', status: 'active', specialization: ['Object Oriented Programming'] },
-    { id: 'faculty-chithambaram', name: 'Mr. CHITHAMBARAM', password: 'password', role: 'faculty', dept: 'NSS', status: 'active', specialization: ['NSS Coordinator'] },
-    { id: 'student-alice', name: 'Alice', password: 'password', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, {subject: 'AI/ML', score: 91}], attendance: { present: 70, total: 75 }, hasCompletedOnboarding: false },
-    { id: 'student-bob', name: 'Bob', password: 'password', role: 'student', dept: 'ECE', year: 'II', status: 'active', grades: [{ subject: 'Digital Circuits', score: 92 }], attendance: { present: 68, total: 75 }, hasCompletedOnboarding: true },
-    { id: 'student-charlie', name: 'Charlie', password: 'password', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 95 }, {subject: 'AI/ML', score: 98}], attendance: { present: 74, total: 75 }, hasCompletedOnboarding: true },
-    { id: 'student-diana', name: 'Diana', password: 'password', role: 'student', dept: 'CSE', year: 'IV', status: 'active', grades: [{ subject: 'Compiler Design', score: 72 }], attendance: { present: 60, total: 75 }, hasCompletedOnboarding: true },
-    { id: 'pending-user', name: 'Pending User', password: 'password', role: 'faculty', dept: 'EEE', status: 'pending_approval' },
-];
-
-const INITIAL_ANNOUNCEMENTS: Announcement[] = [
-    { id: 'ann-1', title: "Mid-term Examinations Schedule", content: "The mid-term examinations for all departments will commence from the 15th of next month. Detailed schedule will be shared shortly.", author: "Admin", timestamp: new Date().getTime() - 86400000, targetRole: 'all', targetDept: 'all', engagement: { views: 128, reactions: 15 } },
-    { id: 'ann-2', title: "Project Submission Deadline (CSE)", content: "Final year CSE students are reminded that the project submission deadline is this Friday.", author: "HOD (CSE)", timestamp: new Date().getTime() - 172800000, targetRole: 'student', targetDept: 'CSE', engagement: { views: 42, reactions: 5 } }
-];
-
-const INITIAL_TIMETABLE_ENTRIES: TimetableEntry[] = [
-    // --- Common Breaks/Lunch for all ---
-    ...DAYS.flatMap(day => [
-        { id: uuidv4(), department: 'all' as const, year: 'all' as const, day: day as any, timeIndex: 2, subject: 'Break', type: 'break' as const, status: 'normal' as const },
-        { id: uuidv4(), department: 'all' as const, year: 'all' as const, day: day as any, timeIndex: 6, subject: 'Lunch', type: 'break' as const, status: 'normal' as const }
-    ]),
-    
-    // --- CSE II Year Schedule ---
-    // Monday
-    { id: 'cse-ii-mon-oops-myshree', department: 'CSE' as const, year: 'II' as const, day: 'Monday' as const, timeIndex: 1, subject: 'OOPS', type: 'class' as const, faculty: 'Ms. MYSHREE B', room: 'A212', status: 'leave_pending' as const },
-    { id: uuidv4(), department: 'CSE' as const, year: 'II' as const, day: 'Monday' as const, timeIndex: 3, subject: 'FDS', type: 'class' as const, faculty: 'Mrs. ANITHA M', room: 'A212', status: 'normal' as const },
-    { id: 'cse-ii-mon-dst-soundhur', department: 'CSE' as const, year: 'II' as const, day: 'Monday' as const, timeIndex: 4, subject: 'DST', type: 'class' as const, faculty: 'Mr. SOUNDHUR', room: 'A212', status: 'leave_pending' as const },
-    { id: uuidv4(), department: 'CSE' as const, year: 'II' as const, day: 'Monday' as const, timeIndex: 5, subject: 'MAT', type: 'class' as const, faculty: 'Ms. YUVASRI', room: 'A212', status: 'normal' as const },
-    
-    // Tuesday
-    { id: uuidv4(), department: 'CSE' as const, year: 'II' as const, day: 'Tuesday' as const, timeIndex: 0, subject: 'DCCN', type: 'class' as const, faculty: 'Ms. RANJANI J', room: 'A212', status: 'normal' as const },
-    { id: uuidv4(), department: 'CSE' as const, year: 'II' as const, day: 'Tuesday' as const, timeIndex: 1, subject: 'DCCN', type: 'class' as const, faculty: 'Ms. RANJANI J', room: 'A212', status: 'normal' as const },
-    { id: uuidv4(), department: 'CSE' as const, year: 'II' as const, day: 'Tuesday' as const, timeIndex: 3, subject: 'DST', type: 'class' as const, faculty: 'Mr. SOUNDHUR', room: 'A212', status: 'normal' as const },
-    { id: uuidv4(), department: 'CSE' as const, year: 'II' as const, day: 'Tuesday' as const, timeIndex: 4, subject: 'OOPS', type: 'class' as const, faculty: 'Ms. MYSHREE B', room: 'A212', status: 'normal' as const },
-    { id: uuidv4(), department: 'CSE' as const, year: 'II' as const, day: 'Tuesday' as const, timeIndex: 5, subject: 'FDS', type: 'class' as const, faculty: 'Mrs. ANITHA M', room: 'A212', status: 'normal' as const },
-
-    // --- ECE II Year Schedule ---
-    { id: uuidv4(), department: 'ECE' as const, year: 'II' as const, day: 'Monday' as const, timeIndex: 0, subject: 'Digital Circuits', type: 'class' as const, faculty: 'Ms. RANJANI J', room: 'B101', status: 'normal' as const },
-];
-
-const INITIAL_LEAVE_REQUESTS: LeaveRequest[] = [
-    { id: 'leave-1', facultyId: 'faculty-soundhur', facultyName: 'Mr. SOUNDHUR', timetableEntryId: 'cse-ii-mon-dst-soundhur', day: 'Monday', timeIndex: 4, status: 'pending', timestamp: new Date().getTime() - 3600000, reason: 'Personal emergency' },
-    { id: 'leave-2', facultyId: 'faculty-myshree-b', facultyName: 'Ms. MYSHREE B', timetableEntryId: 'cse-ii-mon-oops-myshree', day: 'Monday', timeIndex: 1, status: 'pending', timestamp: new Date().getTime() - 7200000, reason: 'Feeling unwell' }
-];
-
-const INITIAL_RESOURCE_REQUESTS: ResourceRequest[] = [
-    { id: 'res-1', userId: 'faculty-ranjani-j', requestText: 'Requesting access to the new FPGA development boards for the Digital Circuits lab.', status: 'pending', timestamp: new Date().getTime() - 86400000 * 2 }
-];
-
-const INITIAL_RESOURCES: Resource[] = [
-    { id: 'res-001', name: 'Data Structures & Algorithms', type: 'book', department: 'CSE', subject: 'DST', uploaderId: 'admin', uploaderName: 'Admin', timestamp: Date.now() - 86400000 * 5, fileName: 'DSA_Complete.pdf', aiSafetyStatus: 'safe', aiSafetyReason: 'Verified educational content.', aiInsights: null, aiInsightsStatus: 'pending', version: 1 },
-    { id: 'res-002', name: 'OOPs Concepts Lecture Notes', type: 'notes', department: 'CSE', subject: 'OOPS', uploaderId: 'faculty-myshree-b', uploaderName: 'Ms. MYSHREE B', timestamp: Date.now() - 86400000 * 2, fileName: 'OOPS_Notes_Unit1.docx', aiSafetyStatus: 'safe', aiSafetyReason: 'Verified educational content.', aiInsights: null, aiInsightsStatus: 'pending', version: 1 },
-    { id: 'res-003', name: 'Digital Principles Textbook', type: 'book', department: 'ECE', subject: 'Digital Principles', uploaderId: 'faculty-ranjani-j', uploaderName: 'Ms. RANJANI J', timestamp: Date.now() - 86400000 * 10, fileName: 'Digital_Principles.pdf', aiSafetyStatus: 'safe', aiSafetyReason: 'Verified educational content.', aiInsights: null, aiInsightsStatus: 'pending', version: 1 },
-    { id: 'res-004', name: 'Final Year Project - AI Chatbot', type: 'project', department: 'CSE', subject: 'AI/ML', uploaderId: 'admin', uploaderName: 'Admin', timestamp: Date.now() - 86400000 * 3, fileName: 'project_report_chatbot.pdf', aiSafetyStatus: 'safe', aiSafetyReason: 'Verified educational content.', aiInsights: null, aiInsightsStatus: 'pending', version: 1 },
-    { id: 'res-005', name: 'Lab Manual for Digital Signal Processing Lab', type: 'lab', department: 'ECE', subject: 'DSP Lab', uploaderId: 'admin', uploaderName: 'Admin', timestamp: Date.now() - 86400000 * 7, fileName: 'ECE_DSP_Lab_Manual.pdf', aiSafetyStatus: 'safe', aiSafetyReason: 'Verified educational content.', aiInsights: null, aiInsightsStatus: 'pending', version: 1 },
-];
-const INITIAL_RESOURCE_UPDATE_LOGS: ResourceUpdateLog[] = [];
-
-const INITIAL_WEB_RESOURCES: WebResource[] = [
-    { id: 'web-res-1', url: 'https://www.geeksforgeeks.org/data-structures/', title: 'GeeksforGeeks: Data Structures', summary: 'A comprehensive resource for learning about various data structures with examples and tutorials.', department: 'CSE', subject: 'DST', addedById: 'admin', addedByName: 'Admin', timestamp: Date.now() - 86400000 * 4, aiStatus: 'approved', aiReason: 'Relevant and high-quality educational content.' },
-    { id: 'web-res-2', url: 'https://www.tutorialspoint.com/object_oriented_programming/index.htm', title: 'TutorialsPoint: OOPs Concepts', summary: 'An introduction to Object-Oriented Programming concepts, covering topics like inheritance, polymorphism, and encapsulation.', department: 'CSE', subject: 'OOPS', addedById: 'admin', addedByName: 'Admin', timestamp: Date.now() - 86400000 * 3, aiStatus: 'approved', aiReason: 'Relevant and high-quality educational content.' },
-];
-
-const INITIAL_COLLECTIONS: Collection[] = [
-    { id: 'col-1', name: 'Data Structures Essentials', description: 'Core materials for the CSE II Year DST course.', creatorId: 'advisor-anitha-m', creatorName: 'Mrs. ANITHA M', resourceIds: ['res-001', 'web-res-1'], department: 'CSE' },
-    { id: 'col-2', name: 'OOPs Concepts Starter Pack', description: 'Introductory notes and links for Object Oriented Programming.', creatorId: 'faculty-myshree-b', creatorName: 'Ms. MYSHREE B', resourceIds: ['res-002', 'web-res-2'], department: 'CSE' },
-];
-
-const INITIAL_SECURITY_ALERTS: SecurityAlert[] = [
-    { id: 'alert-1', type: 'Anomaly', title: 'Unusual Login Pattern', description: 'User student-alice logged in from an unrecognized IP address (198.51.100.24) at 2:15 AM.', timestamp: Date.now() - 3600000 * 3, severity: 'medium', relatedUserId: 'student-alice', isResolved: false, responsePlan: { containment: 'Monitor user activity for further anomalies.', investigation: 'Verify login with the user.', recovery: 'If malicious, force logout and password reset.', recommendedAction: 'MONITOR' } },
-    { id: 'alert-2', type: 'Threat', title: 'Potential Brute-force Attack', description: 'Detected 25 failed login attempts for user admin in the last 15 minutes.', timestamp: Date.now() - 3600000 * 24, severity: 'high', relatedUserId: 'admin', isResolved: true, responsePlan: { containment: 'Temporarily lock the account.', investigation: 'Analyze source IPs and login attempt patterns.', recovery: 'Unlock account after verification with the administrator.', recommendedAction: 'LOCK_USER' } },
-];
-
-const INITIAL_DEADLINES: Deadline[] = [
-    { id: 'deadline-1', title: 'Internal Assessment Marks Submission', dueDate: Date.now() + 86400000 * 5, audience: ['faculty', 'hod', 'class advisor'] },
-    { id: 'deadline-2', title: 'Course Fee Payment - Final Reminder', dueDate: Date.now() + 86400000 * 10, audience: ['student'] },
-];
-
-const getStartOfDay = (date: Date) => {
-    const newDate = new Date(date);
-    newDate.setHours(0, 0, 0, 0);
-    return newDate.getTime();
-};
-
-const INITIAL_ACADEMIC_EVENTS: AcademicEvent[] = [
-    // August 2025
-    { id: 'evt-25-08-04', title: 'Commencement of Regular Classes', date: getStartOfDay(new Date(2025, 7, 4)), type: 'event', description: 'Regular classes commence for UG (II, III & IV YR) & PG (II YR).' },
-    { id: 'evt-25-08-09', title: 'Thursday Timetable', date: getStartOfDay(new Date(2025, 7, 9)), type: 'event', description: 'The timetable for Thursday will be followed today.' },
-    { id: 'evt-25-08-10', title: 'Holiday', date: getStartOfDay(new Date(2025, 7, 10)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-08-15', title: 'Independence Day', date: getStartOfDay(new Date(2025, 7, 15)), type: 'holiday', description: 'College closed for Independence Day.' },
-    { id: 'evt-25-08-16', title: 'Krishna Jayanthi', date: getStartOfDay(new Date(2025, 7, 16)), type: 'holiday', description: 'College closed for Krishna Jayanthi.' },
-    { id: 'evt-25-08-17', title: 'Holiday', date: getStartOfDay(new Date(2025, 7, 17)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-08-21', title: 'Unit I Completion', date: getStartOfDay(new Date(2025, 7, 21)), type: 'event', description: 'Deadline for Unit I syllabus completion.' },
-    { id: 'evt-25-08-23', title: 'Monday Timetable', date: getStartOfDay(new Date(2025, 7, 23)), type: 'event', description: 'The timetable for Monday will be followed today.' },
-    { id: 'evt-25-08-24', title: 'Holiday', date: getStartOfDay(new Date(2025, 7, 24)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-08-27', title: 'Vinayakar Chathurthi', date: getStartOfDay(new Date(2025, 7, 27)), type: 'holiday', description: 'College closed for Vinayakar Chathurthi.' },
-    { id: 'evt-25-08-30', title: 'Tuesday Timetable', date: getStartOfDay(new Date(2025, 7, 30)), type: 'event', description: 'The timetable for Tuesday will be followed today.' },
-    { id: 'evt-25-08-31', title: 'Holiday', date: getStartOfDay(new Date(2025, 7, 31)), type: 'holiday', description: 'Sunday Holiday.' },
-
-    // September 2025
-    { id: 'evt-25-09-05', title: 'Milad-Un-Nabi', date: getStartOfDay(new Date(2025, 8, 5)), type: 'holiday', description: 'College closed for Milad-Un-Nabi.' },
-    { id: 'evt-25-09-06', title: 'Friday Timetable', date: getStartOfDay(new Date(2025, 8, 6)), type: 'event', description: 'The timetable for Friday will be followed today.' },
-    { id: 'evt-25-09-07', title: 'Holiday', date: getStartOfDay(new Date(2025, 8, 7)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-09-08', title: 'IAT - I Starts', date: getStartOfDay(new Date(2025, 8, 8)), type: 'exam', description: 'Internal Assessment Test I begins.' },
-    { id: 'evt-25-09-09', title: 'IAT - I', date: getStartOfDay(new Date(2025, 8, 9)), type: 'exam', description: 'Internal Assessment Test I.' },
-    { id: 'evt-25-09-10', title: 'IAT - I & Unit II Completion', date: getStartOfDay(new Date(2025, 8, 10)), type: 'exam', description: 'Internal Assessment Test I & Deadline for Unit II syllabus completion.' },
-    { id: 'evt-25-09-11', title: 'IAT - I', date: getStartOfDay(new Date(2025, 8, 11)), type: 'exam', description: 'Internal Assessment Test I.' },
-    { id: 'evt-25-09-12', title: 'IAT - I Ends', date: getStartOfDay(new Date(2025, 8, 12)), type: 'exam', description: 'Internal Assessment Test I ends.' },
-    { id: 'evt-25-09-13', title: 'Wednesday Timetable', date: getStartOfDay(new Date(2025, 8, 13)), type: 'event', description: 'The timetable for Wednesday will be followed today.' },
-    { id: 'evt-25-09-14', title: 'Holiday', date: getStartOfDay(new Date(2025, 8, 14)), type: 'holiday', description: 'Sunday Holiday.' },
-    
-    // October 2025
-    { id: 'evt-25-10-01', title: 'Ayutha Pooja', date: getStartOfDay(new Date(2025, 9, 1)), type: 'holiday', description: 'College closed for Ayutha Pooja.' },
-    { id: 'evt-25-10-02', title: 'Vijaya Dasami / Gandhi Jayanthi', date: getStartOfDay(new Date(2025, 9, 2)), type: 'holiday', description: 'College closed for Vijaya Dasami and Gandhi Jayanthi.' },
-    { id: 'evt-25-10-04', title: 'Tuesday Timetable', date: getStartOfDay(new Date(2025, 9, 4)), type: 'event', description: 'The timetable for Tuesday will be followed today.' },
-    { id: 'evt-25-10-05', title: 'Holiday', date: getStartOfDay(new Date(2025, 9, 5)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-10-06', title: 'IAT - II Starts', date: getStartOfDay(new Date(2025, 9, 6)), type: 'exam', description: 'Internal Assessment Test II begins.' },
-    { id: 'evt-25-10-07', title: 'IAT - II', date: getStartOfDay(new Date(2025, 9, 7)), type: 'exam', description: 'Internal Assessment Test II.' },
-    { id: 'evt-25-10-08', title: 'IAT - II', date: getStartOfDay(new Date(2025, 9, 8)), type: 'exam', description: 'Internal Assessment Test II.' },
-    { id: 'evt-25-10-09', title: 'IAT - II', date: getStartOfDay(new Date(2025, 9, 9)), type: 'exam', description: 'Internal Assessment Test II.' },
-    { id: 'evt-25-10-10', title: 'IAT - II', date: getStartOfDay(new Date(2025, 9, 10)), type: 'exam', description: 'Internal Assessment Test II.' },
-    { id: 'evt-25-10-11', title: 'IAT - II Ends', date: getStartOfDay(new Date(2025, 9, 11)), type: 'exam', description: 'Internal Assessment Test II ends.' },
-    { id: 'evt-25-10-12', title: 'Holiday', date: getStartOfDay(new Date(2025, 9, 12)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-10-14', title: 'Unit IV Completion', date: getStartOfDay(new Date(2025, 9, 14)), type: 'event', description: 'Deadline for Unit IV syllabus completion.' },
-    { id: 'evt-25-10-18', title: 'Wednesday Timetable', date: getStartOfDay(new Date(2025, 9, 18)), type: 'event', description: 'The timetable for Wednesday will be followed today.' },
-    { id: 'evt-25-10-19', title: 'Holiday', date: getStartOfDay(new Date(2025, 9, 19)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-10-20', title: 'Deepavali', date: getStartOfDay(new Date(2025, 9, 20)), type: 'holiday', description: 'College closed for Deepavali.' },
-    { id: 'evt-25-10-25', title: 'Monday Timetable', date: getStartOfDay(new Date(2025, 9, 25)), type: 'event', description: 'The timetable for Monday will be followed today.' },
-    { id: 'evt-25-10-26', title: 'Holiday', date: getStartOfDay(new Date(2025, 9, 26)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-10-30', title: 'Cycle II Experiment Completion', date: getStartOfDay(new Date(2025, 9, 30)), type: 'event', description: 'Deadline for Cycle II Experiment completion.' },
-    { id: 'evt-25-10-31', title: 'Unit V Completion', date: getStartOfDay(new Date(2025, 9, 31)), type: 'event', description: 'Deadline for Unit V syllabus completion.' },
-
-    // November 2025
-    { id: 'evt-25-11-01', title: 'Tuesday Timetable', date: getStartOfDay(new Date(2025, 10, 1)), type: 'event', description: 'The timetable for Tuesday will be followed today.' },
-    { id: 'evt-25-11-02', title: 'Holiday', date: getStartOfDay(new Date(2025, 10, 2)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-11-04', title: 'IAT - III Starts', date: getStartOfDay(new Date(2025, 10, 4)), type: 'exam', description: 'Internal Assessment Test III begins.' },
-    { id: 'evt-25-11-05', title: 'IAT - III', date: getStartOfDay(new Date(2025, 10, 5)), type: 'exam', description: 'Internal Assessment Test III.' },
-    { id: 'evt-25-11-06', title: 'IAT - III', date: getStartOfDay(new Date(2025, 10, 6)), type: 'exam', description: 'Internal Assessment Test III.' },
-    { id: 'evt-25-11-07', title: 'IAT - III', date: getStartOfDay(new Date(2025, 10, 7)), type: 'exam', description: 'Internal Assessment Test III.' },
-    { id: 'evt-25-11-08', title: 'IAT - III Ends', date: getStartOfDay(new Date(2025, 10, 8)), type: 'exam', description: 'Internal Assessment Test III ends.' },
-    { id: 'evt-25-11-09', title: 'Holiday', date: getStartOfDay(new Date(2025, 10, 9)), type: 'holiday', description: 'Sunday Holiday.' },
-    { id: 'evt-25-11-10', title: 'Model Practical Exam', date: getStartOfDay(new Date(2025, 10, 10)), type: 'exam', description: 'Model Practical Examinations.' },
-    { id: 'evt-25-11-11', title: 'Model Practical Exam', date: getStartOfDay(new Date(2025, 10, 11)), type: 'exam', description: 'Model Practical Examinations.' },
-    { id: 'evt-25-11-12', title: 'Model Practical Exam', date: getStartOfDay(new Date(2025, 10, 12)), type: 'exam', description: 'Model Practical Examinations.' },
-    { id: 'evt-25-11-13', title: 'Model Practical Exam', date: getStartOfDay(new Date(2025, 10, 13)), type: 'exam', description: 'Model Practical Examinations.' },
-    { id: 'evt-25-11-14', title: 'Last Working Day', date: getStartOfDay(new Date(2025, 10, 14)), type: 'event', description: 'Last working day for the odd semester.' },
-];
-
 
 // --- APP CONTEXT ---
-const AppContext = createContext<any>(null);
-const useAppContext = () => useContext(AppContext);
+interface AppContextType {
+    currentUser: User | null;
+    currentView: AppView;
+    isSidebarOpen: boolean;
+    theme: 'light' | 'dark';
+    users: User[];
+    timetableEntries: TimetableEntry[];
+    auditLogs: AuditLogEntry[];
+    securityAlerts: SecurityAlert[];
+    settings: AppSettings;
+    login: (username: string, pass: string) => boolean;
+    logout: () => void;
+    signup: (userData: Omit<User, 'id' | 'status'>) => { success: boolean, message: string };
+    recoverPassword: (username: string, newPass: string) => boolean;
+    findUsername: (dept: string, role: UserRole) => User | undefined;
+    setCurrentView: (view: AppView) => void;
+    toggleSidebar: () => void;
+    setTheme: (theme: 'light' | 'dark') => void;
+    addNotification: (message: string, type?: AppNotification['type']) => void;
+    addAuditLog: (log: Omit<AuditLogEntry, 'id' | 'timestamp'>) => void;
+    resolveSecurityAlert: (alertId: string) => void;
+    setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+    updateUser: (updatedUser: User) => void;
+    resetAllData: () => void;
+    importData: (data: string) => boolean;
+}
 
-// --- MAIN APP COMPONENT ---
-const App = () => {
-    // STATE MANAGEMENT
-    const [theme, setTheme] = usePersistedState('theme', 'light');
-    const [appView, setAppView] = useState<AppView>('auth');
-    const [currentUser, setCurrentUser] = usePersistedState<User | null>('currentUser', null);
-    const [users, setUsers] = usePersistedState<User[]>('users', INITIAL_USERS);
-    const [timetableEntries, setTimetableEntries] = usePersistedState<TimetableEntry[]>('timetableEntries', INITIAL_TIMETABLE_ENTRIES);
-    const [timeSlots, setTimeSlots] = usePersistedState<string[]>('timeSlots', TIME_SLOTS_DEFAULT);
-    const [leaveRequests, setLeaveRequests] = usePersistedState<LeaveRequest[]>('leaveRequests', INITIAL_LEAVE_REQUESTS);
-    const [announcements, setAnnouncements] = usePersistedState<Announcement[]>('announcements', INITIAL_ANNOUNCEMENTS);
-    const [resourceRequests, setResourceRequests] = usePersistedState<ResourceRequest[]>('resourceRequests', INITIAL_RESOURCE_REQUESTS);
-    const [resources, setResources] = usePersistedState<Resource[]>('resources', INITIAL_RESOURCES);
-    const [resourceUpdateLogs, setResourceUpdateLogs] = usePersistedState<ResourceUpdateLog[]>('resourceUpdateLogs', INITIAL_RESOURCE_UPDATE_LOGS);
-    const [webResources, setWebResources] = usePersistedState<WebResource[]>('webResources', INITIAL_WEB_RESOURCES);
-    const [collections, setCollections] = usePersistedState<Collection[]>('collections', INITIAL_COLLECTIONS);
-    const [resourceLogs, setResourceLogs] = usePersistedState<ResourceLog[]>('resourceLogs', []);
-    const [userNotes, setUserNotes] = usePersistedState<Record<string, string>>('userNotes', {});
-    const [qnaPosts, setQnaPosts] = usePersistedState<QnAPost[]>('qnaPosts', []);
-    const [notifications, setNotifications] = useState<AppNotification[]>([]);
-    const [securityAlerts, setSecurityAlerts] = usePersistedState<SecurityAlert[]>('securityAlerts', INITIAL_SECURITY_ALERTS);
-    const [deadlines, setDeadlines] = usePersistedState<Deadline[]>('deadlines', INITIAL_DEADLINES);
-    const [academicEvents, setAcademicEvents] = usePersistedState<AcademicEvent[]>('academicEvents', INITIAL_ACADEMIC_EVENTS);
+const AppContext = createContext<AppContextType | null>(null);
+
+const AppProvider = ({ children }: { children: React.ReactNode }) => {
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [currentUser, setCurrentUser] = usePersistentState<User | null>('currentUser', null);
+    const [currentView, setCurrentView] = useState<AppView>(currentUser ? 'dashboard' : 'auth');
     const [isSidebarOpen, setSidebarOpen] = useState(false);
-    const [isChatbotOpen, setChatbotOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [theme, setTheme] = usePersistentState<'light' | 'dark'>('theme', 'light');
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-    // --- EFFECTS ---
+    const [users, setUsers] = usePersistentState<User[]>('app_users', []);
+    const [timetableEntries, setTimetableEntries] = usePersistentState<TimetableEntry[]>('app_timetable', []);
+    const [auditLogs, setAuditLogs] = usePersistentState<AuditLogEntry[]>('app_auditLogs', []);
+    const [securityAlerts, setSecurityAlerts] = usePersistentState<SecurityAlert[]>('app_securityAlerts', []);
+    const [settings, setSettings] = usePersistentState<AppSettings>('app_settings', {
+        timeSlots: TIME_SLOTS_DEFAULT,
+        accentColor: '#3B82F6',
+    });
+    
+    useEffect(() => {
+        // One-time initialization of demo data if the database is empty
+        const isDataInitialized = localStorage.getItem('isDataInitialized');
+        if (!isDataInitialized) {
+            const demoData = generateDemoData();
+            setUsers(demoData.users);
+            setTimetableEntries(demoData.timetable);
+            setAuditLogs(demoData.auditLogs);
+            setSecurityAlerts(demoData.securityAlerts);
+            setSettings(demoData.settings);
+            localStorage.setItem('isDataInitialized', 'true');
+        }
+        setIsInitialized(true);
+    }, []);
+
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
     }, [theme]);
-
+    
     useEffect(() => {
-        // Simulate initial loading
+        // Apply accent color
+        document.documentElement.style.setProperty('--accent-primary', settings.accentColor);
+        // A slightly lighter shade for hover, calculated simply
+        const accentColor = settings.accentColor || '#3B82F6';
+        if (accentColor.startsWith('#')) {
+             let r = parseInt(accentColor.slice(1, 3), 16);
+             let g = parseInt(accentColor.slice(3, 5), 16);
+             let b = parseInt(accentColor.slice(5, 7), 16);
+             r = Math.min(255, r + 20);
+             g = Math.min(255, g + 20);
+             b = Math.min(255, b + 20);
+             const hoverColor = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+             document.documentElement.style.setProperty('--accent-primary-hover', hoverColor);
+        }
+
+    }, [settings.accentColor]);
+
+    const addNotification = (message: string, type: AppNotification['type'] = 'info') => {
+        const newNotif = { id: uuidv4(), message, type };
+        setNotifications(prev => [...prev, newNotif]);
         setTimeout(() => {
-            if (currentUser) {
-                setAppView('dashboard');
-            } else {
-                setAppView('auth');
-            }
-            setIsLoading(false);
-        }, 500);
-    }, []);
-
-    // Background AI Insights Generator
-    useEffect(() => {
-        const processPendingInsights = async () => {
-            if (!isAiEnabled || !ai) return;
-
-            const pendingResource = resources.find(r => r.aiInsightsStatus === 'pending');
-            if (!pendingResource) return;
-
-            // Mark as generating
-            setResources(prev => prev.map(r => r.id === pendingResource.id ? { ...r, aiInsightsStatus: 'generating' } : r));
-
-            const otherResources = resources.filter((r: Resource) => r.id !== pendingResource.id);
-            const prompt = `You are an advanced academic AI assistant. Your task is to analyze a learning resource based on its metadata and generate insightful, helpful content for a student.
-
-                Resource Metadata:
-                - Name: "${pendingResource.name}"
-                - Type: "${pendingResource.type}"
-                - Subject: "${pendingResource.subject}"
-                - Department: "${pendingResource.department}"
-
-                List of all other available resources in the library (for finding related content):
-                ${JSON.stringify(otherResources.map(r => ({ id: r.id, name: r.name, subject: r.subject })))}
-
-                Based on the metadata of the target resource, generate the following content.
-                Response must be a single JSON object.
-
-                JSON Schema:
-                {
-                "summary": "A concise, one-paragraph summary of what this resource is likely about.",
-                "keyConcepts": ["A list of 3-5 key concepts or topics covered.", "List item 2", "List item 3"],
-                "quiz": [
-                    {
-                    "question": "A relevant multiple-choice question based on the key concepts.",
-                    "options": ["Option A", "Option B", "Correct Answer", "Option D"],
-                    "correctAnswer": "Correct Answer"
-                    },
-                    {
-                    "question": "A second multiple-choice question.",
-                    "options": ["Option 1", "Correct Answer", "Option 3", "Option 4"],
-                    "correctAnswer": "Correct Answer"
-                    }
-                ],
-                "relatedResourceIds": ["A list of up to 3 relevant resource IDs from the provided list of other resources.", "res-id-2"]
-                }`;
-            
-            try {
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: { responseMimeType: 'application/json' }
-                });
-                const insights = JSON.parse(response.text);
-                setResources(prev => prev.map(r => r.id === pendingResource.id ? { ...r, aiInsights: insights, aiInsightsStatus: 'complete' } : r));
-            } catch (error) {
-                console.error("Background AI Insights Error:", error);
-                setResources(prev => prev.map(r => r.id === pendingResource.id ? { ...r, aiInsightsStatus: 'failed' } : r));
-            }
-        };
-
-        // Use a timeout to stagger the processing and avoid running on initial load spam
-        const timeoutId = setTimeout(processPendingInsights, 2000);
-        return () => clearTimeout(timeoutId);
-
-    }, [resources, setResources]);
-
-
-    // --- HELPER FUNCTIONS ---
-    const addNotification = (message: string, type: AppNotification['type']) => {
-        const id = uuidv4();
-        setNotifications(prev => [...prev, { id, message, type }]);
-        setTimeout(() => {
-            setNotifications(current => current.filter(n => n.id !== id));
+            setNotifications(prev => prev.filter(n => n.id !== newNotif.id));
         }, 5000);
     };
 
-    const handleLogin = (user: User) => {
-        if (user.isLocked) {
-             addNotification('Account is locked. Please contact an administrator.', 'error');
-             return false;
-        }
-        setCurrentUser(user);
-        setAppView('dashboard');
-        addNotification(`Welcome back, ${user.name}!`, 'success');
-        return true;
-    };
+    const addAuditLog = useCallback((log: Omit<AuditLogEntry, 'id' | 'timestamp'>) => {
+        const newLog = { ...log, id: uuidv4(), timestamp: Date.now() };
+        setAuditLogs(prev => [newLog, ...prev]);
+    }, [setAuditLogs]);
 
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setAppView('auth');
-        addNotification('You have been logged out.', 'info');
+    const login = (username: string, pass: string): boolean => {
+        const user = users.find(u => u.name.toLowerCase() === username.toLowerCase() && u.password === pass);
+        if (user) {
+            if (user.isLocked) {
+                addNotification("Your account is locked. Please contact an administrator.", 'error');
+                addAuditLog({ userId: user.id, userName: user.name, action: 'Login Attempt (Locked Account)', ip: 'local', status: 'failure' });
+                return false;
+            }
+            setCurrentUser(user);
+            setCurrentView('dashboard');
+            addNotification(`Welcome back, ${user.name}!`, 'success');
+            addAuditLog({ userId: user.id, userName: user.name, action: 'User Login', ip: 'local', status: 'success' });
+            return true;
+        }
+        addAuditLog({ userId: 'unknown', userName: username, action: 'Failed Login Attempt', ip: 'local', status: 'failure' });
+        addNotification("Invalid username or password.", 'error');
+        return false;
     };
     
-    // --- CONTEXT VALUE ---
-    const contextValue = {
-        theme, setTheme,
-        appView, setAppView,
-        currentUser, setCurrentUser,
-        users, setUsers,
-        timetableEntries, setTimetableEntries,
-        timeSlots, setTimeSlots,
-        leaveRequests, setLeaveRequests,
-        announcements, setAnnouncements,
-        resourceRequests, setResourceRequests,
-        resources, setResources,
-        resourceUpdateLogs, setResourceUpdateLogs,
-        webResources, setWebResources,
-        collections, setCollections,
-        resourceLogs, setResourceLogs,
-        userNotes, setUserNotes,
-        qnaPosts, setQnaPosts,
-        securityAlerts, setSecurityAlerts,
-        deadlines, setDeadlines,
-        academicEvents, setAcademicEvents,
-        isSidebarOpen, setSidebarOpen,
-        isChatbotOpen, setChatbotOpen,
-        addNotification,
-        handleLogout,
-        handleLogin,
-        notifications, // Pass notifications to context for the portal
-        setNotifications, // Pass setter for the portal
+    const signup = (userData: Omit<User, 'id'|'status'>) => {
+        const existingUser = users.find(u => u.name.toLowerCase() === userData.name.toLowerCase());
+        if (existingUser) {
+            return { success: false, message: "Username already exists." };
+        }
+        const newUser: User = { ...userData, id: uuidv4(), status: 'active' };
+        setUsers(prev => [...prev, newUser]);
+        addAuditLog({ userId: newUser.id, userName: newUser.name, action: 'User Signup', ip: 'local', status: 'success' });
+        return { success: true, message: "Account created successfully!" };
     };
 
-    if (isLoading) {
+    const recoverPassword = (username: string, newPass: string) => {
+        const userIndex = users.findIndex(u => u.name.toLowerCase() === username.toLowerCase());
+        if (userIndex !== -1) {
+            const updatedUsers = [...users];
+            updatedUsers[userIndex].password = newPass;
+            setUsers(updatedUsers);
+            addAuditLog({ userId: updatedUsers[userIndex].id, userName: username, action: 'Password Recovery', ip: 'local', status: 'success' });
+            return true;
+        }
+        return false;
+    };
+
+    const findUsername = (dept: string, role: UserRole) => {
+        return users.find(u => u.dept === dept && u.role === role);
+    };
+
+    const logout = () => {
+        if (currentUser) {
+            addAuditLog({ userId: currentUser.id, userName: currentUser.name, action: 'User Logout', ip: 'local', status: 'info' });
+        }
+        setCurrentUser(null);
+        setCurrentView('auth');
+    };
+
+    const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
+    
+    const resolveSecurityAlert = (alertId: string) => {
+        setSecurityAlerts(prev => prev.map(alert =>
+            alert.id === alertId ? { ...alert, isResolved: true } : alert
+        ));
+        addNotification("Alert has been marked as resolved.", 'info');
+        addAuditLog({ userId: currentUser?.id || 'system', userName: currentUser?.name || 'System', action: `Resolved Security Alert ${alertId}`, ip: 'local', status: 'info' });
+    };
+
+    const updateUser = (updatedUser: User) => {
+        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    };
+
+    const resetAllData = () => {
+        if (window.confirm("Are you sure you want to reset all application data? This action cannot be undone.")) {
+            localStorage.clear();
+            setCurrentUser(null);
+            const demoData = generateDemoData();
+            setUsers(demoData.users);
+            setTimetableEntries(demoData.timetable);
+            setAuditLogs(demoData.auditLogs);
+            setSecurityAlerts(demoData.securityAlerts);
+            setSettings(demoData.settings);
+            localStorage.setItem('isDataInitialized', 'true');
+            addNotification("All application data has been reset to default.", "success");
+            setCurrentView('auth');
+        }
+    };
+
+    const importData = (dataStr: string) => {
+        try {
+            const data = JSON.parse(dataStr);
+            if (data.app_users && data.app_timetable && data.app_settings) {
+                 if (window.confirm("Are you sure you want to import this data? This will overwrite all current application data.")) {
+                    localStorage.setItem('app_users', JSON.stringify(data.app_users));
+                    setUsers(data.app_users);
+                    localStorage.setItem('app_timetable', JSON.stringify(data.app_timetable));
+                    setTimetableEntries(data.app_timetable);
+                    localStorage.setItem('app_auditLogs', JSON.stringify(data.app_auditLogs || []));
+                    setAuditLogs(data.app_auditLogs || []);
+                    localStorage.setItem('app_securityAlerts', JSON.stringify(data.app_securityAlerts || []));
+                    setSecurityAlerts(data.app_securityAlerts || []);
+                    localStorage.setItem('app_settings', JSON.stringify(data.app_settings));
+                    setSettings(data.app_settings);
+                    
+                    localStorage.setItem('isDataInitialized', 'true');
+                    addNotification("Data imported successfully!", "success");
+                    logout(); // Force re-login
+                    return true;
+                }
+            } else {
+                addNotification("Invalid data file format.", "error");
+                return false;
+            }
+        } catch (error) {
+            addNotification("Failed to parse data file.", "error");
+            console.error(error);
+            return false;
+        }
+        return false;
+    };
+
+    if (!isInitialized) {
         return <div className="loading-fullscreen"><div className="spinner"></div></div>;
     }
 
-    if (!currentUser || appView === 'auth') {
-        return (
-            <AppContext.Provider value={contextValue}>
-                <AuthView />
-                 <NotificationPortal />
-            </AppContext.Provider>
-        );
-    }
-    
+    const value = {
+        currentUser,
+        currentView,
+        isSidebarOpen,
+        theme,
+        users,
+        timetableEntries,
+        auditLogs,
+        securityAlerts,
+        settings,
+        login,
+        logout,
+        signup,
+        recoverPassword,
+        findUsername,
+        setCurrentView,
+        toggleSidebar,
+        setTheme,
+        addNotification,
+        addAuditLog,
+        resolveSecurityAlert,
+        setSettings,
+        updateUser,
+        resetAllData,
+        importData,
+    };
+
     return (
-        <AppContext.Provider value={contextValue}>
-            <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
-                <Sidebar />
-                <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
-                <main className="main-content">
-                    <Header />
-                    <div className="page-content">
-                        {appView === 'dashboard' && <DashboardView />}
-                        {appView === 'timetable' && <TimetableView />}
-                        {appView === 'academicCalendar' && <AcademicCalendarView />}
-                        {appView === 'resources' && <ResourcesView />}
-                        {appView === 'manage' && <ManageTimetableView />}
-                        {appView === 'settings' && <SettingsView />}
-                        {appView === 'approvals' && <ApprovalsView />}
-                        {appView === 'announcements' && <AnnouncementsView />}
-                        {appView === 'studentDirectory' && <StudentDirectoryView />}
-                        {appView === 'userManagement' && <UserManagementView />}
-                        {appView === 'security' && <SecurityCenterView />}
-                    </div>
-                </main>
-                <Chatbot />
-                <OnboardingTour />
-                <NotificationPortal />
-            </div>
+        <AppContext.Provider value={value}>
+            {children}
+            <NotificationPortal notifications={notifications} removeNotification={(id) => setNotifications(p => p.filter(n => n.id !== id))} />
         </AppContext.Provider>
     );
 };
 
-// --- Child Components ---
+const useAppContext = () => {
+    const context = useContext(AppContext);
+    if (!context) {
+        throw new Error('useAppContext must be used within an AppProvider');
+    }
+    return context;
+};
+
+// --- COMPONENTS ---
+
+const NotificationPortal = ({ notifications, removeNotification }: { notifications: AppNotification[], removeNotification: (id: string) => void }) => {
+    return createPortal(
+        <div className="notification-container">
+            {notifications.map(notification => (
+                <div key={notification.id} className={`notification-item ${notification.type}`}>
+                    <span>{notification.message}</span>
+                    <button className="notification-dismiss" onClick={() => removeNotification(notification.id)}>&times;</button>
+                </div>
+            ))}
+        </div>,
+        document.body
+    );
+};
+
+const Modal = ({ isOpen, onClose, title, children, size = 'md' }: { isOpen: boolean, onClose: () => void, title: string, children: React.ReactNode, size?: 'md' | 'lg' | 'xl' }) => {
+    if (!isOpen) return null;
+
+    const sizeClasses = {
+        md: 'student-details-modal', // default max-width: 500px
+        lg: 'resource-details-modal', // max-width: 900px
+        xl: 'modal-xl' // You'd need to add a class for this
+    }
+
+    return createPortal(
+        <div className={`modal-overlay ${isOpen ? 'open' : ''}`} onMouseDown={onClose}>
+            <div className={`modal-content ${sizeClasses[size]}`} onMouseDown={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>{title}</h3>
+                    <button className="close-modal-btn" onClick={onClose}>&times;</button>
+                </div>
+                {children}
+            </div>
+        </div>,
+        document.body
+    );
+};
 
 const Sidebar = () => {
-    const { appView, setAppView, currentUser, leaveRequests, users, resourceRequests, isSidebarOpen, setSidebarOpen } = useAppContext();
-
-    const pendingApprovalsCount = useMemo(() => {
-        if (!currentUser || !['hod', 'admin'].includes(currentUser.role)) return 0;
-        const pendingLeaves = leaveRequests.filter((r: LeaveRequest) => r.status === 'pending').length;
-        const pendingUsers = users.filter((u: User) => u.status === 'pending_approval').length;
-        const pendingResources = resourceRequests.filter((r: ResourceRequest) => r.status === 'pending').length;
-        return pendingLeaves + pendingUsers + pendingResources;
-    }, [leaveRequests, users, resourceRequests, currentUser]);
+    const { currentUser, currentView, setCurrentView, logout, isSidebarOpen, toggleSidebar } = useAppContext();
+    const visibleViews = Object.entries(APP_VIEWS_CONFIG).filter(([, config]) =>
+        currentUser && config.roles.includes(currentUser.role)
+    );
 
     return (
         <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
             <div className="sidebar-header">
                 <span className="logo">{Icons.logo}</span>
                 <h1>AcademiaAI</h1>
-                <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
-                    {Icons.close}
+                <button className="sidebar-close" onClick={toggleSidebar}>{Icons.close}</button>
+            </div>
+            <nav className="nav-list">
+                {visibleViews.map(([viewKey, config]) => (
+                    <li className="nav-item" key={viewKey}>
+                        <button
+                            className={currentView === viewKey ? 'active' : ''}
+                            onClick={() => {
+                                setCurrentView(viewKey as AppView);
+                                if (isSidebarOpen) toggleSidebar();
+                            }}
+                        >
+                            {Icons[config.icon]}
+                            <span>{config.title}</span>
+                        </button>
+                    </li>
+                ))}
+            </nav>
+            <div className="sidebar-footer">
+                <button className="nav-item" onClick={logout}>
+                    {Icons.logout}
+                    <span>Logout</span>
                 </button>
             </div>
-            <nav>
-                <ul className="nav-list">
-                    {Object.entries(APP_VIEWS_CONFIG).map(([key, view]) => {
-                        if (view.roles.length === 0 || !currentUser || !view.roles.includes(currentUser.role)) {
-                            return null;
-                        }
-                        const isApprovals = key === 'approvals';
-                        return (
-                            <li key={key} className="nav-item">
-                                <button
-                                    className={appView === key ? 'active' : ''}
-                                    onClick={() => {
-                                        setAppView(key as AppView);
-                                        setSidebarOpen(false);
-                                    }}
-                                    data-tour-id={key}
-                                >
-                                    {Icons[view.icon]}
-                                    <span>{view.title}</span>
-                                    {isApprovals && pendingApprovalsCount > 0 && (
-                                        <span className="notification-badge">{pendingApprovalsCount}</span>
-                                    )}
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
-            </nav>
         </aside>
     );
 };
 
 const Header = () => {
-    const { appView, currentUser, handleLogout, theme, setTheme, setSidebarOpen } = useAppContext();
-    const currentViewConfig = APP_VIEWS_CONFIG[appView];
-
-    const toggleTheme = () => {
-        setTheme(theme === 'light' ? 'dark' : 'light');
-    };
+    const { currentUser, currentView, toggleSidebar, theme, setTheme } = useAppContext();
+    const viewTitle = APP_VIEWS_CONFIG[currentView]?.title || "Dashboard";
 
     return (
         <header className="header">
             <div className="header-left">
-                 <button className="menu-toggle" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">
-                    {Icons.menu}
-                </button>
-                <h2 className="header-title">{currentViewConfig?.title || "Dashboard"}</h2>
+                <button className="menu-toggle" onClick={toggleSidebar}>{Icons.menu}</button>
+                <h2 className="header-title">{viewTitle}</h2>
             </div>
             <div className="header-right">
                 <div className="user-info">
-                    <strong>{currentUser?.name}</strong><br/>
-                    <small>{currentUser?.role}</small>
+                    <strong>{currentUser?.name}</strong><br />
+                    <small>{currentUser?.role} - {currentUser?.dept}</small>
                 </div>
-                <button onClick={toggleTheme} className="theme-toggle" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}>
+                <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
                     {theme === 'light' ? Icons.moon : Icons.sun}
                 </button>
-                <button onClick={handleLogout} className="btn btn-secondary">Logout</button>
             </div>
         </header>
     );
 };
 
-const DashboardView = () => {
-    const { currentUser, announcements, deadlines, leaveRequests, users, resourceRequests, timetableEntries, timeSlots } = useAppContext();
+const AuthView = () => {
+    const { login, signup, addNotification, recoverPassword, findUsername } = useAppContext();
+    const [isLoginView, setIsLoginView] = useState(true);
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [role, setRole] = useState<UserRole>('student');
+    const [dept, setDept] = useState(DEPARTMENTS[0]);
+    const [year, setYear] = useState(YEARS[0]);
 
-    const feedItems = useMemo(() => {
-        let items: any[] = [];
-        const now = Date.now();
-        const today = DAYS[new Date().getDay() -1] || 'Monday';
+    const [isRecoveryModalOpen, setRecoveryModalOpen] = useState(false);
+    const [recoveryMode, setRecoveryMode] = useState<'user' | 'pass'>('pass');
+    const [recoveryUsername, setRecoveryUsername] = useState('');
+    const [recoveryNewPass, setRecoveryNewPass] = useState('');
+    const [recoveryDept, setRecoveryDept] = useState(DEPARTMENTS[0]);
+    const [recoveryRole, setRecoveryRole] = useState<UserRole>('student');
 
-        // Upcoming Classes
-        timetableEntries
-            .filter((e: TimetableEntry) => {
-                const isMyClass = (currentUser.role === 'student' && e.department === currentUser.dept && e.year === currentUser.year) ||
-                                (currentUser.role !== 'student' && e.faculty === currentUser.name);
-                return e.day === today && (isMyClass || e.department === 'all');
-            })
-            .forEach((e: TimetableEntry) => items.push({ type: 'class', data: e, timestamp: now - e.timeIndex }));
 
-        // Announcements
-        announcements
-            .filter((a: Announcement) => (a.targetRole === 'all' || a.targetRole === currentUser.role) && (a.targetDept === 'all' || a.targetDept === currentUser.dept))
-            .forEach((a: Announcement) => items.push({ type: 'announcement', data: a, timestamp: a.timestamp }));
-
-        // Deadlines
-        deadlines
-            .filter((d: Deadline) => d.audience.includes('all') || d.audience.includes(currentUser.role))
-            .forEach((d: Deadline) => items.push({ type: 'deadline', data: d, timestamp: d.dueDate }));
-
-        // Approvals (for hod/admin)
-        if (['hod', 'admin'].includes(currentUser.role)) {
-            leaveRequests.filter((r: LeaveRequest) => r.status === 'pending').forEach((r: LeaveRequest) => items.push({ type: 'approval', subType: 'Leave', data: r, timestamp: r.timestamp }));
-            users.filter((u: User) => u.status === 'pending_approval').forEach((u: User) => items.push({ type: 'approval', subType: 'New User', data: u, timestamp: now }));
-            resourceRequests.filter((r: ResourceRequest) => r.status === 'pending').forEach((r: ResourceRequest) => items.push({ type: 'approval', subType: 'Resource', data: r, timestamp: r.timestamp }));
-        }
-
-        return items.sort((a, b) => b.timestamp - a.timestamp);
-
-    }, [currentUser, announcements, deadlines, leaveRequests, users, resourceRequests, timetableEntries]);
-
-    const renderFeedItem = (item: any) => {
-        switch (item.type) {
-            case 'class':
-                const entry = item.data;
-                const isBreakOrCommon = entry.type === 'break' || entry.type === 'common';
-                const title = isBreakOrCommon ? `Upcoming Schedule: ${entry.subject}` : `Upcoming Class: ${entry.subject}`;
-                
-                return (
-                    <div className="feed-item-card class">
-                        <div className="feed-item-icon">{Icons.timetable}</div>
-                        <div className="feed-item-content">
-                            <p className="feed-item-title">{title}</p>
-                            <p className="feed-item-meta">
-                                {timeSlots[entry.timeIndex]} {entry.faculty && `with ${entry.faculty}`}
-                            </p>
-                        </div>
-                    </div>
-                );
-            case 'announcement':
-                const ann = item.data;
-                return (
-                    <div className="feed-item-card announcement">
-                        <div className="feed-item-icon">{Icons.announcement}</div>
-                        <div className="feed-item-content">
-                            <p className="feed-item-title">{ann.title}</p>
-                            <p className="feed-item-meta">
-                                New announcement from {ann.author} &bull; {getRelativeTime(ann.timestamp)}
-                            </p>
-                        </div>
-                    </div>
-                );
-            case 'deadline':
-                const d = item.data;
-                return (
-                    <div className="feed-item-card deadline">
-                        <div className="feed-item-icon">{Icons.calendarDays}</div>
-                        <div className="feed-item-content">
-                            <p className="feed-item-title">Upcoming Deadline: {d.title}</p>
-                            <p className="feed-item-meta">
-                                Due on {new Date(d.dueDate).toLocaleDateString()}
-                            </p>
-                        </div>
-                    </div>
-                );
-            case 'approval':
-                 return (
-                    <div className="feed-item-card approval">
-                        <div className="feed-item-icon">{Icons.approvals}</div>
-                        <div className="feed-item-content">
-                            <p className="feed-item-title">New Approval Request</p>
-                            <p className="feed-item-meta">
-                                A new "{item.subType}" request is awaiting your review.
-                            </p>
-                        </div>
-                    </div>
-                );
-            default:
-                return null;
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isLoginView) {
+            login(username, password);
+        } else {
+            if (password !== confirmPassword) {
+                addNotification("Passwords do not match.", 'error');
+                return;
+            }
+            const signupData: Omit<User, 'id' | 'status'> = {
+                name: username,
+                password,
+                role,
+                dept: role === 'admin' ? 'System' : dept,
+                year: role === 'student' ? year : undefined,
+            };
+            const { success, message } = signup(signupData);
+            if (success) {
+                addNotification(message, 'success');
+                setIsLoginView(true); // Flip back to login view
+                // Optionally clear password fields
+                setPassword('');
+                setConfirmPassword('');
+            } else {
+                addNotification(message, 'error');
+            }
         }
     };
     
+    const handleRecovery = () => {
+        if (recoveryMode === 'pass') {
+            if(recoverPassword(recoveryUsername, recoveryNewPass)) {
+                addNotification(`Password for ${recoveryUsername} has been updated.`, 'success');
+                setRecoveryModalOpen(false);
+            } else {
+                addNotification(`User ${recoveryUsername} not found.`, 'error');
+            }
+        } else {
+            const foundUser = findUsername(recoveryDept, recoveryRole);
+            if(foundUser) {
+                alert(`The username is: ${foundUser.name}`);
+                setRecoveryModalOpen(false);
+            } else {
+                addNotification(`No user found with the specified role and department.`, 'error');
+            }
+        }
+    };
+
+
+    return (
+        <div className="login-view-container">
+            <div className="login-card">
+                <div className={`login-card-inner ${!isLoginView ? 'is-flipped' : ''}`}>
+                    {/* Login Form */}
+                    <div className="login-card-front">
+                        <div className="login-header">
+                            <span className="logo">{Icons.logo}</span>
+                            <h1>Welcome Back</h1>
+                        </div>
+                        <form onSubmit={handleSubmit}>
+                            <div className="control-group">
+                                <label htmlFor="login-username">Username</label>
+                                <input type="text" id="login-username" className="form-control" value={username} onChange={e => setUsername(e.target.value)} required />
+                            </div>
+                            <div className="control-group">
+                                <label htmlFor="login-password">Password</label>
+                                <input type="password" id="login-password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required />
+                            </div>
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+                                Sign In
+                            </button>
+                            <div className="auth-toggle" style={{display: 'flex', justifyContent: 'space-between', padding: '0 0.5rem'}}>
+                                <button type="button" onClick={() => { setRecoveryMode('pass'); setRecoveryModalOpen(true); }}>Forgot Password?</button>
+                                <button type="button" onClick={() => { setRecoveryMode('user'); setRecoveryModalOpen(true); }}>Forgot Username?</button>
+                            </div>
+                        </form>
+                        <div className="auth-toggle">
+                            Don't have an account?
+                            <button onClick={() => setIsLoginView(false)}>Sign Up</button>
+                        </div>
+                    </div>
+                    {/* Sign Up Form */}
+                    <div className="login-card-back">
+                        <div className="login-header">
+                            <span className="logo">{Icons.logo}</span>
+                            <h1>Create Account</h1>
+                        </div>
+                        <form onSubmit={handleSubmit}>
+                            <div className="control-group">
+                                <label htmlFor="signup-username">Username</label>
+                                <input type="text" id="signup-username" className="form-control" value={username} onChange={e => setUsername(e.target.value)} required />
+                            </div>
+                            <div className="control-group">
+                                <label htmlFor="signup-password">Password</label>
+                                <input type="password" id="signup-password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required />
+                            </div>
+                            <div className="control-group">
+                                <label htmlFor="confirmPassword">Confirm Password</label>
+                                <input type="password" id="confirmPassword" className="form-control" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+                            </div>
+                            <div className="form-grid">
+                                <div className="control-group">
+                                    <label htmlFor="role">Role</label>
+                                    <select id="role" className="form-control" value={role} onChange={e => setRole(e.target.value as UserRole)}>
+                                        <option value="student">Student</option>
+                                        <option value="faculty">Faculty</option>
+                                        <option value="hod">HOD</option>
+                                        <option value="class advisor">Class Advisor</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                {role !== 'admin' && (
+                                    <div className="control-group">
+                                        <label htmlFor="dept">Department</label>
+                                        <select id="dept" className="form-control" value={dept} onChange={e => setDept(e.target.value)}>
+                                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                            {role === 'student' && (
+                                <div className="control-group">
+                                    <label htmlFor="year">Year</label>
+                                    <select id="year" className="form-control" value={year} onChange={e => setYear(e.target.value)}>
+                                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+                                Sign Up
+                            </button>
+                        </form>
+                        <div className="auth-toggle">
+                            Already have an account?
+                            <button onClick={() => setIsLoginView(true)}>Sign In</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <Modal isOpen={isRecoveryModalOpen} onClose={() => setRecoveryModalOpen(false)} title="Account Recovery">
+                <div className="modal-form">
+                {recoveryMode === 'pass' ? (
+                    <>
+                        <h4>Password Recovery</h4>
+                        <div className="control-group">
+                            <label htmlFor="rec-username">Enter your Username</label>
+                            <input type="text" id="rec-username" className="form-control" value={recoveryUsername} onChange={e => setRecoveryUsername(e.target.value)} />
+                        </div>
+                         <div className="control-group">
+                            <label htmlFor="rec-newpass">Enter New Password</label>
+                            <input type="password" id="rec-newpass" className="form-control" value={recoveryNewPass} onChange={e => setRecoveryNewPass(e.target.value)} />
+                        </div>
+                    </>
+                ) : (
+                     <>
+                        <h4>Username Recovery</h4>
+                        <div className="control-group">
+                            <label htmlFor="rec-role">Select your Role</label>
+                             <select id="rec-role" className="form-control" value={recoveryRole} onChange={e => setRecoveryRole(e.target.value as UserRole)}>
+                                {['student', 'faculty', 'hod', 'admin', 'class advisor'].map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                        </div>
+                         <div className="control-group">
+                            <label htmlFor="rec-dept">Select your Department</label>
+                            <select id="rec-dept" className="form-control" value={recoveryDept} onChange={e => setRecoveryDept(e.target.value)}>
+                                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                        </div>
+                    </>
+                )}
+                <div className="form-actions">
+                    <button className="btn btn-secondary" onClick={() => setRecoveryModalOpen(false)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={handleRecovery}>Recover</button>
+                </div>
+                </div>
+            </Modal>
+        </div>
+    );
+};
+
+const DashboardView = () => {
+    const { currentUser } = useAppContext();
     return (
         <div className="dashboard-container">
-            <h2 className="dashboard-greeting">Welcome back, {currentUser.name}!</h2>
-            <div className="dashboard-card for-you-feed">
-                <h3>Here's what's new for you:</h3>
+            <h2 className="dashboard-greeting">Welcome, {currentUser?.name}!</h2>
+            <div className="dashboard-card">
+                <h3>Today's Schedule</h3>
+                <p>You have 4 classes and 1 meeting today.</p>
+            </div>
+            <div className="dashboard-card">
+                <h3>Activity Feed</h3>
                 <div className="feed-list">
-                    {feedItems.length > 0 ? (
-                        feedItems.map((item, index) => (
-                           <React.Fragment key={index}>
-                               {renderFeedItem(item)}
-                           </React.Fragment>
-                        ))
-                    ) : (
-                        <p>No new updates for you right now.</p>
-                    )}
+                    <div className="feed-item-card class stagger-item" style={{ animationDelay: '100ms' }}>
+                        <div className="feed-item-icon">{Icons.timetable}</div>
+                        <div>
+                            <p className="feed-item-title">Next Class: Data Structures</p>
+                            <p className="feed-item-meta">10:50 AM in CS-101 with Dr. Smith</p>
+                        </div>
+                    </div>
+                    <div className="feed-item-card announcement stagger-item" style={{ animationDelay: '200ms' }}>
+                        <div className="feed-item-icon">{Icons.announcement}</div>
+                        <div>
+                            <p className="feed-item-title">New Announcement: Symposium '24</p>
+                            <p className="feed-item-meta">Posted by HOD (CSE) - 2 hours ago</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -984,387 +1112,425 @@ const DashboardView = () => {
 };
 
 const TimetableView = () => {
-    const { currentUser, timetableEntries, timeSlots, leaveRequests } = useAppContext();
-    const [selectedDept, setSelectedDept] = useState(currentUser?.dept || DEPARTMENTS[0]);
-    const [selectedYear, setSelectedYear] = useState(currentUser?.year || YEARS[0]);
-    const [popover, setPopover] = useState<{ x: number, y: number, entry: TimetableEntry } | null>(null);
+    const { currentUser, timetableEntries, settings } = useAppContext();
+    const [department, setDepartment] = useState(currentUser?.dept || DEPARTMENTS[0]);
+    const [year, setYear] = useState(currentUser?.role === 'student' ? currentUser.year || YEARS[0] : YEARS[0]);
 
     const filteredEntries = useMemo(() => {
-        let entries = timetableEntries.map((entry: TimetableEntry) => {
-            const pendingRequest = leaveRequests.find((req: LeaveRequest) => req.timetableEntryId === entry.id && req.status === 'pending');
-            return {
-                ...entry,
-                status: pendingRequest ? 'leave_pending' : entry.status || 'normal',
-            };
+        return timetableEntries.filter(e => e.department === department && e.year === year);
+    }, [timetableEntries, department, year]);
+
+    const grid = useMemo(() => {
+        const newGrid: (TimetableEntry | null)[][] = Array(settings.timeSlots.length).fill(0).map(() => Array(5).fill(null));
+        filteredEntries.forEach(entry => {
+            const dayIndex = DAYS.indexOf(entry.day);
+            if (dayIndex >= 0 && dayIndex < 5) { // Only Monday to Friday
+                if (entry.timeIndex >= 0 && entry.timeIndex < settings.timeSlots.length) {
+                    newGrid[entry.timeIndex][dayIndex] = entry;
+                }
+            }
         });
-
-        return entries.filter((entry: TimetableEntry) =>
-            (entry.department === 'all') ||
-            (entry.department === selectedDept && entry.year === selectedYear)
-        );
-    }, [timetableEntries, leaveRequests, selectedDept, selectedYear]);
-
-    const handleCellClick = (e: React.MouseEvent, entry: TimetableEntry) => {
-        if (entry.type !== 'class') return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        setPopover({ x: rect.left, y: rect.bottom, entry });
-    };
+        return newGrid;
+    }, [filteredEntries, settings.timeSlots]);
 
     return (
         <div className="timetable-container">
             <div className="timetable-header">
                 <h3>Class Timetable</h3>
                 <div className="timetable-controls">
-                    <select className="form-control" value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>
+                    <select className="form-control" value={department} onChange={e => setDepartment(e.target.value)}>
                         {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
-                    <select className="form-control" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+                    <select className="form-control" value={year} onChange={e => setYear(e.target.value)}>
                         {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                 </div>
             </div>
             <div className="timetable-wrapper">
                 <div className="timetable-grid">
-                    {/* Headers */}
                     <div className="grid-header">Time</div>
-                    {DAYS.map(day => <div key={day} className="grid-header">{day}</div>)}
+                    {DAYS.slice(0, 5).map(day => <div key={day} className="grid-header">{day}</div>)}
 
-                    {/* Time Slots and Cells */}
-                    {timeSlots.map((slot, timeIndex) => (
+                    {settings.timeSlots.map((slot, timeIndex) => (
                         <React.Fragment key={timeIndex}>
                             <div className="time-slot">{slot}</div>
-                            {DAYS.map(day => {
-                                const entry = filteredEntries.find((e: TimetableEntry) => e.day === day && e.timeIndex === timeIndex);
-                                if (!entry) return <div key={day} className="grid-cell"></div>;
-
-                                const isUserClass = currentUser.role === 'faculty' && entry.faculty === currentUser.name;
-                                const cellClass = `grid-cell ${entry.type} ${isUserClass ? 'is-user-class' : ''} ${entry.status || 'normal'}`;
-
-                                return (
-                                    <div key={entry.id} className={cellClass} onClick={(e) => handleCellClick(e, entry)}>
-                                        <span className="subject">{entry.subject}</span>
-                                        {entry.faculty && <span className="faculty">{entry.faculty}</span>}
-                                        {entry.room && <span className="faculty">{entry.room}</span>}
-                                    </div>
-                                );
-                            })}
+                            {grid[timeIndex].map((entry, dayIndex) => (
+                                <div key={`${timeIndex}-${dayIndex}`} className={`grid-cell ${entry?.type || ''}`}>
+                                    {entry && (
+                                        <>
+                                            <span className="subject">{entry.subject}</span>
+                                            {entry.faculty && <span className="faculty">{entry.faculty}</span>}
+                                        </>
+                                    )}
+                                </div>
+                            ))}
                         </React.Fragment>
                     ))}
                 </div>
             </div>
-            {popover && <TimetablePopover popover={popover} onClose={() => setPopover(null)} />}
         </div>
     );
 };
 
-const TimetablePopover = ({ popover, onClose }: { popover: { x: number, y: number, entry: TimetableEntry }, onClose: () => void }) => {
-    const { setAppView } = useAppContext();
-    const popoverRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-                onClose();
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [onClose]);
-
-    const { entry, x, y } = popover;
-    const style = {
-        top: `${y + 8}px`,
-        left: `${x}px`,
-    };
-
+const ManageTimetableView = () => {
+    const { timetableEntries } = useAppContext();
     return (
-        <div className="timetable-popover" style={style} ref={popoverRef}>
-            <div className="popover-header">
-                <h4>{entry.subject}</h4>
-                <button onClick={onClose} className="close-btn">{Icons.close}</button>
+        <div className="manage-timetable-container">
+            <div className="entry-form">
+                <h3>Add/Edit Timetable Entry</h3>
+                {/* Form would go here */}
             </div>
-            <div className="popover-content">
-                <p><strong>Faculty:</strong> {entry.faculty || 'N/A'}</p>
-                <p><strong>Room:</strong> {entry.room || 'N/A'}</p>
-                <p><strong>Department:</strong> {entry.department}, Year {entry.year}</p>
-            </div>
-            <div className="popover-actions">
-                <button className="btn btn-secondary btn-sm" onClick={() => { setAppView('resources'); onClose(); }}>
-                    {Icons.bookOpen} Study Material
-                </button>
+            <div className="entry-list-container">
+                <h3>Current Entries</h3>
+                <div className="table-wrapper">
+                    <table className="entry-list-table">
+                        <thead>
+                            <tr>
+                                <th>Dept</th>
+                                <th>Year</th>
+                                <th>Day</th>
+                                <th>Time</th>
+                                <th>Subject</th>
+                                <th>Faculty</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {timetableEntries.map(entry => (
+                                <tr key={entry.id}>
+                                    <td data-label="Dept">{entry.department}</td>
+                                    <td data-label="Year">{entry.year}</td>
+                                    <td data-label="Day">{entry.day}</td>
+                                    <td data-label="Time">{TIME_SLOTS_DEFAULT[entry.timeIndex]}</td>
+                                    <td data-label="Subject">{entry.subject}</td>
+                                    <td data-label="Faculty">{entry.faculty || '-'}</td>
+                                    <td data-label="Actions">
+                                        <div className="entry-actions">
+                                            <button>{Icons.editPencil}</button>
+                                            <button className="delete-btn">{Icons.delete}</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
 };
 
-const AcademicCalendarView = () => {
-    const { academicEvents } = useAppContext();
+const StudentDirectoryView = () => {
+    const { users, addNotification } = useAppContext();
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isAiSearching, setIsAiSearching] = useState(false);
+    const [filters, setFilters] = useState({ department: 'all', year: 'all' });
+    const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
-    const getInitialCalendarDate = () => {
-        if (academicEvents.length > 0) {
-            const sortedEvents = [...academicEvents].sort((a: AcademicEvent, b: AcademicEvent) => a.date - b.date);
-            const firstEventDate = new Date(sortedEvents[0].date);
-            const now = new Date();
-            
-            // If the first event is in a future year, or a future month of the current year, start the calendar there.
-            if (firstEventDate.getFullYear() > now.getFullYear() || 
-                (firstEventDate.getFullYear() === now.getFullYear() && firstEventDate.getMonth() > now.getMonth())) {
-                return firstEventDate;
-            }
-        }
-        return new Date(); // Otherwise, default to today
-    };
+    const students = useMemo(() => users.filter(u => u.role === 'student'), [users]);
 
-    const [currentDate, setCurrentDate] = useState(getInitialCalendarDate());
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    const daysInMonth = lastDayOfMonth.getDate();
-    const startDayOfWeek = firstDayOfMonth.getDay();
-
-    const eventsByDate = useMemo(() => {
-        const map = new Map<number, AcademicEvent[]>();
-        academicEvents.forEach((event: AcademicEvent) => {
-            const dateKey = getStartOfDay(new Date(event.date));
-            if (!map.has(dateKey)) {
-                map.set(dateKey, []);
-            }
-            map.get(dateKey)!.push(event);
+    const filteredStudents = useMemo(() => {
+        return students.filter(student => {
+            const departmentMatch = filters.department === 'all' || student.dept === filters.department;
+            const yearMatch = filters.year === 'all' || student.year === filters.year;
+            const searchMatch = student.name.toLowerCase().includes(searchQuery.toLowerCase());
+            return departmentMatch && yearMatch && searchMatch;
         });
-        return map;
-    }, [academicEvents]);
+    }, [students, filters, searchQuery]);
+    
+    const handleAiSearch = async () => {
+        if (!ai) {
+            addNotification("AI features are disabled.", "warning");
+            return;
+        }
+        if (!searchQuery) return;
 
-    const calendarCells = [];
-    // Previous month's days
-    for (let i = 0; i < startDayOfWeek; i++) {
-        calendarCells.push(<div key={`prev-${i}`} className="calendar-date-cell is-other-month"></div>);
-    }
-    // Current month's days
-    for (let day = 1; day <= daysInMonth; day++) {
-        const cellDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-        const cellTimestamp = getStartOfDay(cellDate);
-        const todayTimestamp = getStartOfDay(new Date());
-        const isToday = cellTimestamp === todayTimestamp;
-        const eventsForDay = eventsByDate.get(cellTimestamp) || [];
+        setIsAiSearching(true);
+        try {
+            const prompt = `Parse the following user query to filter a list of students.
+            Query: "${searchQuery}"
+            Available filters are 'department' (values: ${DEPARTMENTS.join(', ')}), and 'year' (values: ${YEARS.join(', ')}).
+            Also, interpret qualitative terms like "low attendance" (less than 75%), "good attendance" (>= 75%), "excellent attendance" (>=90%), "top performers" (grade score > 90), or "poor performers" (grade score < 60).
+            Respond ONLY with a JSON object containing the identified filters. For example: {"department": "CSE", "year": "II"}. If no filters are found, respond with an empty JSON object.`;
 
-        calendarCells.push(
-            <div
-                key={day}
-                className={`calendar-date-cell ${isToday ? 'is-today' : ''}`}
-                onClick={() => setSelectedDate(cellDate)}
-            >
-                <span className="date-number">{day}</span>
-                {eventsForDay.length > 0 && (
-                    <div className="event-dots-container">
-                        {eventsForDay.slice(0, 3).map(event => (
-                            <div key={event.id} className={`event-dot event-${event.type}`}></div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    }
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: { responseMimeType: "application/json" }
+            });
 
-    const changeMonth = (delta: number) => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1));
-        setSelectedDate(null);
+            const resultJson = JSON.parse(response.text);
+            const newFilters = { department: 'all', year: 'all' };
+            if (resultJson.department && DEPARTMENTS.includes(resultJson.department)) {
+                newFilters.department = resultJson.department;
+            }
+             if (resultJson.year && YEARS.includes(resultJson.year)) {
+                newFilters.year = resultJson.year;
+            }
+            setFilters(newFilters);
+            addNotification("AI search applied.", "info");
+
+        } catch (error) {
+            console.error("AI Search Error:", error);
+            addNotification("AI search failed. Please try a simpler query.", "error");
+        } finally {
+            setIsAiSearching(false);
+        }
     };
 
-    const selectedDayEvents = selectedDate ? eventsByDate.get(getStartOfDay(selectedDate)) || [] : [];
-    
+    const handleGenerateSummary = async () => {
+        if(!ai || !selectedStudent) return;
+        setIsGeneratingSummary(true);
+        try {
+            const studentData = {
+                name: selectedStudent.name,
+                department: selectedStudent.dept,
+                year: selectedStudent.year,
+                attendance: selectedStudent.attendance,
+                grades: selectedStudent.grades
+            };
+            const prompt = `Generate a brief, analytical academic summary for the following student. Highlight their strengths and potential areas for improvement based on their grades and attendance.
+            Student Data: ${JSON.stringify(studentData)}`;
+            
+            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+            
+            const summary = response.text;
+            // This would normally be saved back to the user object
+            setSelectedStudent(prev => prev ? {...prev, aiSummary: summary} : null);
+
+        } catch(e) {
+            console.error(e);
+            addNotification("Failed to generate AI summary.", "error");
+        } finally {
+            setIsGeneratingSummary(false);
+        }
+    }
+
     return (
-        <div className="calendar-view-container">
-            <div className="calendar-main-content">
-                <div className="calendar-header">
-                    <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(-1)}>&lt;</button>
-                    <h2>{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h2>
-                    <button className="btn btn-secondary btn-sm" onClick={() => changeMonth(1)}>&gt;</button>
-                    <button className="btn btn-secondary" onClick={() => setCurrentDate(new Date())}>Today</button>
+        <div className="directory-container">
+            <div className="directory-header">
+                <div className="search-bar" style={{ flexGrow: 1 }}>
+                    {Icons.search}
+                    <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Search by name or use AI..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                         onKeyDown={e => e.key === 'Enter' && handleAiSearch()}
+                    />
+                     {isAiSearching && <div className="search-spinner"><div className="spinner-sm"></div></div>}
                 </div>
-                <div className="calendar-grid">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d} className="calendar-day-header">{d}</div>)}
-                    {calendarCells}
+                <div className="directory-controls">
+                     <button className="btn btn-secondary" onClick={handleAiSearch} disabled={isAiSearching}>
+                        {isAiSearching ? "Thinking..." : "AI Search"}
+                    </button>
+                    <select className="form-control" value={filters.department} onChange={e => setFilters(f => ({...f, department: e.target.value}))}>
+                        <option value="all">All Departments</option>
+                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <select className="form-control" value={filters.year} onChange={e => setFilters(f => ({...f, year: e.target.value}))}>
+                        <option value="all">All Years</option>
+                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
                 </div>
             </div>
-            {selectedDate && (
-                 <div className="calendar-details-panel">
-                    <h3>{selectedDate.toLocaleDateString('default', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
-                    <div className="event-list">
-                        {selectedDayEvents.length > 0 ? (
-                            selectedDayEvents.map(event => (
-                                <div key={event.id} className={`event-item event-${event.type}`}>
-                                    <div className="event-item-title">{event.title}</div>
-                                    <p className="event-item-description">{event.description}</p>
+            <div className="student-grid">
+                {filteredStudents.map((student, index) => (
+                    <div className="student-card stagger-item" key={student.id} onClick={() => setSelectedStudent(student)} style={{ animationDelay: `${index * 50}ms` }}>
+                        <div className="student-card-avatar">{student.name.charAt(0)}</div>
+                        <div className="student-card-info">
+                            <h4>{student.name}</h4>
+                            <p>{student.dept} - Year {student.year}</p>
+                            {student.attendance && (
+                                <div className="attendance-bar-container">
+                                    <div
+                                        className={`attendance-bar ${student.attendance.present / student.attendance.total > 0.9 ? 'good' : student.attendance.present / student.attendance.total > 0.75 ? 'fair' : 'poor'}`}
+                                        style={{ width: `${(student.attendance.present / student.attendance.total) * 100}%` }}
+                                        title={`Attendance: ${student.attendance.present}%`}
+                                    ></div>
                                 </div>
-                            ))
-                        ) : (
-                            <p className="no-events">No events scheduled for this day.</p>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
+                ))}
+            </div>
+            {selectedStudent && (
+                <Modal isOpen={!!selectedStudent} onClose={() => setSelectedStudent(null)} title={`Student Details: ${selectedStudent.name}`}>
+                    <div className="student-details-content">
+                        <div className="student-details-section">
+                            <h5>AI Academic Summary</h5>
+                            {selectedStudent.aiSummary ? (
+                                <p className="ai-assessment">{selectedStudent.aiSummary}</p>
+                            ) : (
+                                <p>No AI summary generated yet.</p>
+                            )}
+                            <button className="btn btn-sm btn-secondary" onClick={handleGenerateSummary} disabled={isGeneratingSummary}>
+                                {isGeneratingSummary ? <div className="spinner-sm"></div> : null}
+                                {selectedStudent.aiSummary ? 'Regenerate' : 'Generate Summary'}
+                            </button>
+                        </div>
+                         <div className="student-details-section">
+                             <h5>Details</h5>
+                             <p><strong>Department:</strong> {selectedStudent.dept}</p>
+                             <p><strong>Year:</strong> {selectedStudent.year}</p>
+                         </div>
+                         <div className="student-details-section">
+                             <h5>Performance</h5>
+                             <p><strong>Attendance:</strong> {selectedStudent.attendance?.present || 'N/A'}%</p>
+                             <p><strong>Latest Grade:</strong> {selectedStudent.grades?.[0]?.subject} - {selectedStudent.grades?.[0]?.score || 'N/A'}</p>
+                         </div>
+                    </div>
+                </Modal>
             )}
         </div>
     );
 };
 
+const SecurityView = () => {
+    const { auditLogs, securityAlerts, resolveSecurityAlert, addNotification } = useAppContext();
+    const [selectedAlert, setSelectedAlert] = useState<SecurityAlert | null>(null);
+    const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analysisResult, setAnalysisResult] = useState('');
 
-const ManageTimetableView = () => {
-    const { timetableEntries, setTimetableEntries, timeSlots, addNotification } = useAppContext();
-    const [formData, setFormData] = useState<ManageFormData>({
-        department: DEPARTMENTS[0],
-        year: YEARS[0],
-        day: DAYS[0],
-        timeIndex: 0,
-        subject: '',
-        type: 'class',
-        faculty: '',
-        room: '',
-    });
-    const [editingId, setEditingId] = useState<string | null>(null);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: name === 'timeIndex' ? parseInt(value) : value }));
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!formData.subject) {
-            addNotification('Subject cannot be empty.', 'error');
-            return;
-        }
-
-        if (editingId) {
-            // Update
-            setTimetableEntries((prev: TimetableEntry[]) => prev.map(entry =>
-                entry.id === editingId ? { ...entry, ...formData, id: editingId, status: 'normal' } : entry
-            ));
-            addNotification('Entry updated successfully.', 'success');
-        } else {
-            // Create
-            const newEntry: TimetableEntry = { ...formData, id: uuidv4(), status: 'normal' };
-            setTimetableEntries((prev: TimetableEntry[]) => [...prev, newEntry]);
-            addNotification('Entry added successfully.', 'success');
-        }
-        resetForm();
-    };
-
-    const handleEdit = (entry: TimetableEntry) => {
-        setEditingId(entry.id);
-        setFormData({
-            department: entry.department,
-            year: entry.year,
-            day: entry.day,
-            timeIndex: entry.timeIndex,
-            subject: entry.subject,
-            type: entry.type,
-            faculty: entry.faculty || '',
-            room: entry.room || '',
+    const handleSelectLog = (logId: string) => {
+        setSelectedLogs(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(logId)) {
+                newSet.delete(logId);
+            } else {
+                newSet.add(logId);
+            }
+            return newSet;
         });
     };
     
-    const handleDelete = (id: string) => {
-        if (window.confirm('Are you sure you want to delete this entry?')) {
-            setTimetableEntries((prev: TimetableEntry[]) => prev.filter(entry => entry.id !== id));
-            addNotification('Entry deleted.', 'info');
+    const analyzeSelectedLogs = async () => {
+        if (!ai) {
+            addNotification("AI features are disabled.", "warning");
+            return;
+        }
+        if (selectedLogs.size === 0) {
+            addNotification("Please select at least one log to analyze.", "info");
+            return;
+        }
+
+        setIsAnalyzing(true);
+        setAnalysisResult('');
+
+        const logsToAnalyze = auditLogs.filter(log => selectedLogs.has(log.id));
+        const prompt = `As a cybersecurity expert, analyze the following security audit logs for potential threats, suspicious patterns, or coordinated malicious activity. Provide a brief, actionable summary of your findings and recommend a course of action.
+        
+        Logs:
+        ${JSON.stringify(logsToAnalyze, null, 2)}`;
+
+        try {
+            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+            setAnalysisResult(response.text);
+        } catch (error) {
+            console.error("AI Analysis Error:", error);
+            setAnalysisResult("An error occurred during AI analysis. Please try again.");
+            addNotification("AI analysis failed.", "error");
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
-    const resetForm = () => {
-        setEditingId(null);
-        setFormData({
-            department: DEPARTMENTS[0],
-            year: YEARS[0],
-            day: DAYS[0],
-            timeIndex: 0,
-            subject: '',
-            type: 'class',
-            faculty: '',
-            room: '',
-        });
-    };
+
+    const unresolvedAlerts = securityAlerts.filter(a => !a.isResolved);
 
     return (
-        <div className="manage-timetable-container">
-            <form className="entry-form" onSubmit={handleSubmit}>
-                <h3>{editingId ? 'Edit Timetable Entry' : 'Add New Entry'}</h3>
-                <div className="form-grid">
-                    {/* Form Controls */}
-                    <div className="control-group">
-                        <label>Department</label>
-                        <select name="department" value={formData.department} onChange={handleInputChange} className="form-control">
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
+        <div className="security-center-container">
+            <div className="guardian-dashboard-grid">
+                 <div className="status-card severity-medium">
+                    <div className="status-indicator">{Icons.security}</div>
+                    <div className="status-text">
+                        <h4>System Status</h4>
+                        <p>All Systems Go</p>
                     </div>
-                     <div className="control-group">
-                        <label>Year</label>
-                        <select name="year" value={formData.year} onChange={handleInputChange} className="form-control">
-                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
+                 </div>
+                 <div className="status-card severity-high">
+                     <div className="status-indicator">{Icons.announcement}</div>
+                    <div className="status-text">
+                        <h4>Unresolved Alerts</h4>
+                        <p>{unresolvedAlerts.length}</p>
                     </div>
-                     <div className="control-group">
-                        <label>Day</label>
-                        <select name="day" value={formData.day} onChange={handleInputChange} className="form-control">
-                            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                    </div>
-                    <div className="control-group">
-                        <label>Time Slot</label>
-                        <select name="timeIndex" value={formData.timeIndex} onChange={handleInputChange} className="form-control">
-                            {timeSlots.map((ts: string, i: number) => <option key={i} value={i}>{ts}</option>)}
-                        </select>
-                    </div>
-                    <div className="control-group">
-                        <label>Subject</label>
-                        <input type="text" name="subject" value={formData.subject} onChange={handleInputChange} className="form-control" />
-                    </div>
-                    <div className="control-group">
-                        <label>Faculty</label>
-                        <input type="text" name="faculty" value={formData.faculty} onChange={handleInputChange} className="form-control" />
-                    </div>
-                    <div className="control-group">
-                        <label>Room</label>
-                        <input type="text" name="room" value={formData.room} onChange={handleInputChange} className="form-control" />
-                    </div>
-                     <div className="control-group">
-                        <label>Type</label>
-                        <select name="type" value={formData.type} onChange={handleInputChange} className="form-control">
-                            <option value="class">Class</option>
-                            <option value="break">Break</option>
-                            <option value="common">Common</option>
-                        </select>
-                    </div>
-                </div>
-                <div className="form-actions">
-                    {editingId && <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel Edit</button>}
-                    <button type="submit" className="btn btn-primary">{editingId ? 'Update Entry' : 'Add Entry'}</button>
-                </div>
-            </form>
-
+                 </div>
+            </div>
+            
+            <div className="alert-list-container">
+                <h3>Active Security Alerts</h3>
+                <ul className="alert-list">
+                    {unresolvedAlerts.map((alert, index) => (
+                        <li key={alert.id} className={`alert-item severity-${alert.severity} stagger-item`} onClick={() => setSelectedAlert(alert.id === selectedAlert?.id ? null : alert)} style={{ animationDelay: `${index * 50}ms` }}>
+                           <div className="alert-item-header">
+                                <span className="alert-title"><strong>{alert.title}</strong></span>
+                                <span className="alert-meta">{getRelativeTime(alert.timestamp)}</span>
+                           </div>
+                           <p className="alert-description">{alert.description}</p>
+                            {selectedAlert?.id === alert.id && (
+                                <div className="alert-details">
+                                    {alert.responsePlan && (
+                                        <div className="response-plan">
+                                            <h4>Recommended Response</h4>
+                                            <p className="response-plan-section"><strong>Containment:</strong> {alert.responsePlan.containment}</p>
+                                            <p className="response-plan-section"><strong>Investigation:</strong> {alert.responsePlan.investigation}</p>
+                                            <p className="response-plan-section"><strong>Recovery:</strong> {alert.responsePlan.recovery}</p>
+                                        </div>
+                                    )}
+                                    <div className="alert-item-actions">
+                                        <button className="btn btn-sm btn-success" onClick={(e) => { e.stopPropagation(); resolveSecurityAlert(alert.id); setSelectedAlert(null); }}>Mark as Resolved</button>
+                                        {alert.responsePlan?.recommendedAction === 'LOCK_USER' && <button className="btn btn-sm btn-danger">Lock User Account</button>}
+                                    </div>
+                                </div>
+                            )}
+                        </li>
+                    ))}
+                    {unresolvedAlerts.length === 0 && <p>No active alerts.</p>}
+                </ul>
+            </div>
+            
             <div className="entry-list-container">
-                 <h3>Existing Entries</h3>
-                 <div className="table-wrapper">
-                     <table className="entry-list-table">
+                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                    <h3>Audit Log</h3>
+                    <button className="btn btn-primary" onClick={analyzeSelectedLogs} disabled={isAnalyzing || selectedLogs.size === 0}>
+                        {isAnalyzing ? <div className="spinner-sm"></div> : null}
+                        Analyze Selected ({selectedLogs.size})
+                    </button>
+                </div>
+                {analysisResult && (
+                    <div className="ai-change-summary" style={{marginBottom: '1rem'}}>
+                         <h4>AI Analysis Result:</h4>
+                         <p>{analysisResult}</p>
+                    </div>
+                )}
+                <div className="table-wrapper">
+                    <table className="entry-list-table">
                         <thead>
-                            <tr><th>Day</th><th>Time</th><th>Dept/Year</th><th>Subject</th><th>Faculty</th><th>Actions</th></tr>
+                            <tr>
+                                <th></th>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Status</th>
+                                <th>IP Address</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            {timetableEntries.filter((e: TimetableEntry) => e.type === 'class').sort((a,b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.timeIndex - b.timeIndex).map((entry: TimetableEntry) => (
-                                <tr key={entry.id}>
-                                    <td data-label="Day">{entry.day}</td>
-                                    <td data-label="Time">{timeSlots[entry.timeIndex]}</td>
-                                    <td data-label="Dept/Year">{entry.department} / {entry.year}</td>
-                                    <td data-label="Subject">{entry.subject}</td>
-                                    <td data-label="Faculty">{entry.faculty}</td>
-                                    <td data-label="Actions" className="entry-actions">
-                                        <button onClick={() => handleEdit(entry)}>{Icons.editPencil}</button>
-                                        <button onClick={() => handleDelete(entry.id)} className="delete-btn">{Icons.delete}</button>
-                                    </td>
+                            {auditLogs.map((log, index) => (
+                                <tr key={log.id} className="stagger-item" style={{ animationDelay: `${index * 30}ms` }}>
+                                    <td><input type="checkbox" checked={selectedLogs.has(log.id)} onChange={() => handleSelectLog(log.id)} /></td>
+                                    <td data-label="Timestamp">{new Date(log.timestamp).toLocaleString()}</td>
+                                    <td data-label="User">{log.userName}</td>
+                                    <td data-label="Action">{log.action}</td>
+                                    <td data-label="Status"><span className={`status-pill ${log.status === 'success' ? 'active' : log.status === 'failure' ? 'rejected' : ''}`}>{log.status}</span></td>
+                                    <td data-label="IP">{log.ip}</td>
                                 </tr>
                             ))}
                         </tbody>
-                     </table>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1372,2265 +1538,137 @@ const ManageTimetableView = () => {
 };
 
 const SettingsView = () => {
-    return (
-        <div className="settings-container">
-            <h2>Settings</h2>
-             <div className="settings-card">
-                <h3>System Configuration</h3>
-                <p>Global system settings will be available here in a future update.</p>
-            </div>
-        </div>
-    );
-};
+    const { settings, setSettings, resetAllData, importData, addNotification } = useAppContext();
+    const [timeSlotsText, setTimeSlotsText] = useState(settings.timeSlots.join('\n'));
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-const ApprovalsView = () => {
-    const { leaveRequests, setLeaveRequests, users, setUsers, resourceRequests, setResourceRequests, addNotification, timetableEntries, timeSlots, currentUser } = useAppContext();
-    const [activeTab, setActiveTab] = useState('leave');
-    const [loadingAI, setLoadingAI] = useState<string | null>(null);
-    const [selectedItems, setSelectedItems] = useState<Record<string, Set<string>>>({ leave: new Set(), users: new Set(), resources: new Set() });
+    const handleTimeSlotsSave = () => {
+        const newSlots = timeSlotsText.split('\n').filter(slot => slot.trim() !== '');
+        setSettings(prev => ({ ...prev, timeSlots: newSlots }));
+        addNotification("Time slots updated successfully!", "success");
+    };
 
-    const handleSelection = (id: string) => {
-        setSelectedItems(prev => {
-            const newSelection = new Set(prev[activeTab]);
-            if (newSelection.has(id)) {
-                newSelection.delete(id);
-            } else {
-                newSelection.add(id);
-            }
-            return { ...prev, [activeTab]: newSelection };
-        });
+    const handleAccentColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSettings(prev => ({...prev, accentColor: e.target.value}));
     };
     
-    const handleBatchAction = (status: 'approved' | 'rejected' | 'active') => {
-        const selectedIds = selectedItems[activeTab];
-        if (selectedIds.size === 0) return;
-
-        switch (activeTab) {
-            case 'leave':
-                setLeaveRequests((prev: LeaveRequest[]) => prev.map(req => selectedIds.has(req.id) ? { ...req, status: status as 'approved' | 'rejected' } : req));
-                break;
-            case 'users':
-                setUsers((prev: User[]) => prev.map(user => selectedIds.has(user.id) ? { ...user, status: status as 'active' | 'rejected' } : user));
-                break;
-            case 'resources':
-                setResourceRequests((prev: ResourceRequest[]) => prev.map(req => selectedIds.has(req.id) ? { ...req, status: status as 'approved' | 'rejected' } : req));
-                break;
-        }
-        addNotification(`${selectedIds.size} item(s) have been ${status}.`, 'success');
-        setSelectedItems(prev => ({...prev, [activeTab]: new Set()}));
-    };
-
-    const handleGetAiSuggestion = useCallback(async (req: LeaveRequest) => {
-        if (!isAiEnabled || !ai) {
-            addNotification('AI features are disabled.', 'warning');
-            return;
-        }
-        setLoadingAI(req.id);
-        const timetableEntry = timetableEntries.find((e: TimetableEntry) => e.id === req.timetableEntryId);
-        if (!timetableEntry) {
-            addNotification(`AI suggestion failed: Could not find timetable entry.`, 'error');
-            setLoadingAI(null);
-            return;
-        }
-
-        const availableFaculty = users.filter((u: User) => u.role === 'faculty' && u.id !== req.facultyId);
-        const originalFaculty = users.find((u: User) => u.id === req.facultyId);
-        
-        const prompt = `Find a substitute for a leave request.
-        - Requesting Faculty: ${req.facultyName} (Specializations: ${originalFaculty?.specialization?.join(', ') || 'N/A'})
-        - Subject: "${timetableEntry.subject}"
-        - Time: ${req.day} at ${timeSlots[req.timeIndex]}
-        - Reason: "${req.reason || 'Not specified'}"
-        - Available Faculty Pool: ${availableFaculty.map(f => `${f.name} (Specializations: ${f.specialization?.join(', ') || 'N/A'})`).join('; ')}.
-        
-        Analyze the available faculty and provide the single best substitution suggestion. Justify your choice based on specialization and relevance to the subject.`;
-        
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: {
-                    systemInstruction: "You are a highly efficient academic coordinator AI. Your task is to find the most suitable substitute faculty for leave requests, prioritizing subject matter expertise.",
-                }
-            });
-            setLeaveRequests((prev: LeaveRequest[]) => prev.map(r => r.id === req.id ? { ...r, aiSuggestion: response.text } : r));
-        } catch (error) {
-            console.error("AI Suggestion Error:", error);
-            addNotification('Failed to get AI suggestion.', 'error');
-        } finally {
-            setLoadingAI(null);
-        }
-    }, [timetableEntries, users, addNotification, setLeaveRequests, timeSlots]);
-
-
-    const pendingLeave = leaveRequests.filter((r: LeaveRequest) => r.status === 'pending');
-    const pendingUsers = users.filter((u: User) => u.status === 'pending_approval');
-    const pendingResources = resourceRequests.filter((r: ResourceRequest) => r.status === 'pending');
-    const currentSelection = selectedItems[activeTab];
-
-    return (
-        <div className="approvals-container">
-            <div className="tabs">
-                <button className={`tab-button ${activeTab === 'leave' ? 'active' : ''}`} onClick={() => setActiveTab('leave')}>
-                    Leave Requests ({pendingLeave.length})
-                </button>
-                <button className={`tab-button ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-                    New Users ({pendingUsers.length})
-                </button>
-                <button className={`tab-button ${activeTab === 'resources' ? 'active' : ''}`} onClick={() => setActiveTab('resources')}>
-                    Resources ({pendingResources.length})
-                </button>
-            </div>
-
-            {currentSelection.size > 0 && (
-                <div className="batch-actions-bar">
-                    <span>{currentSelection.size} item(s) selected</span>
-                    <div className="batch-actions-buttons">
-                        <button className="btn btn-secondary btn-sm" onClick={() => handleBatchAction(activeTab === 'users' ? 'rejected' : 'rejected')}>Reject</button>
-                        <button className="btn btn-success btn-sm" onClick={() => handleBatchAction(activeTab === 'users' ? 'active' : 'approved')}>Approve</button>
-                    </div>
-                </div>
-            )}
-            
-            <div className="approval-list">
-                {activeTab === 'leave' && pendingLeave.map((req: LeaveRequest) => (
-                    <div key={req.id} className={`approval-card ${currentSelection.has(req.id) ? 'selected' : ''}`} onClick={() => handleSelection(req.id)}>
-                        <div className="approval-card-main">
-                             <h4>Leave Request</h4>
-                             <p><strong>Faculty:</strong> {req.facultyName}</p>
-                             <p><strong>Date:</strong> {req.day}, {timeSlots[req.timeIndex]}</p>
-                             <p><strong>Reason:</strong> {req.reason || 'Not specified'}</p>
-                             <small>Requested {getRelativeTime(req.timestamp)}</small>
-                        </div>
-                        <div className="approval-card-ai">
-                            <h5>{Icons.lightbulb} AI Assistant</h5>
-                            {req.aiSuggestion ? (
-                                <p className="ai-suggestion">{req.aiSuggestion}</p>
-                            ) : (
-                                <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); handleGetAiSuggestion(req); }} disabled={loadingAI === req.id}>
-                                    {loadingAI === req.id ? <span className="spinner-sm"/> : "Get Suggestion"}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ))}
-                
-                 {activeTab === 'users' && pendingUsers.map((user: User) => (
-                    <div key={user.id} className={`approval-card ${currentSelection.has(user.id) ? 'selected' : ''}`} onClick={() => handleSelection(user.id)}>
-                        <div className="approval-card-main">
-                            <h4>New User Registration</h4>
-                            <p><strong>Name:</strong> {user.name}</p>
-                            <p><strong>Username:</strong> {user.id}</p>
-                            <p><strong>Role:</strong> {user.role}</p>
-                            <p><strong>Department:</strong> {user.dept}</p>
-                            {user.year && <p><strong>Year:</strong> {user.year}</p>}
-                        </div>
-                        <div className="approval-card-ai">
-                             <h5>{Icons.lightbulb} AI Assessment</h5>
-                             <p className="ai-assessment">{user.aiAssessment || "No anomalies detected."}</p>
-                        </div>
-                    </div>
-                ))}
-
-                 {activeTab === 'resources' && pendingResources.map((req: ResourceRequest) => (
-                    <div key={req.id} className={`approval-card ${currentSelection.has(req.id) ? 'selected' : ''}`} onClick={() => handleSelection(req.id)}>
-                       <div className="approval-card-main">
-                           <h4>Resource Request</h4>
-                           <p><strong>From:</strong> {users.find((u:User) => u.id === req.userId)?.name || req.userId}</p>
-                           <p><strong>Request:</strong> {req.requestText}</p>
-                           <small>Requested {getRelativeTime(req.timestamp)}</small>
-                       </div>
-                        <div className="approval-card-ai">
-                             <h5>{Icons.lightbulb} AI Recommendation</h5>
-                             <p className="ai-recommendation">{req.aiRecommendation || "AI is analyzing this request..."}</p>
-                        </div>
-                    </div>
-                 ))}
-                 
-                 {activeTab === 'leave' && pendingLeave.length === 0 && <p>No pending leave requests.</p>}
-                 {activeTab === 'users' && pendingUsers.length === 0 && <p>No new user registrations to approve.</p>}
-                 {activeTab === 'resources' && pendingResources.length === 0 && <p>No pending resource requests.</p>}
-            </div>
-        </div>
-    );
-};
-const AnnouncementsView = () => {
-    const { announcements } = useAppContext();
-    const [showCreateForm, setShowCreateForm] = useState(false);
-    const { currentUser } = useAppContext();
-
-    const canCreate = currentUser.role === 'admin' || currentUser.role === 'hod';
-
-    return (
-        <div className="announcements-view-container">
-            <div className="announcements-header">
-                <h2>Announcements</h2>
-                {canCreate && (
-                    <button className="btn btn-primary" onClick={() => setShowCreateForm(s => !s)}>
-                        {showCreateForm ? 'Cancel' : 'Create New'}
-                    </button>
-                )}
-            </div>
-            
-            {showCreateForm && <CreateAnnouncementForm setShowCreateForm={setShowCreateForm} />}
-            
-            <div className="announcement-list">
-                {announcements.sort((a,b) => b.timestamp - a.timestamp).map(ann => (
-                    <div key={ann.id} className="announcement-card">
-                        <div className="announcement-item-header">
-                            <h3>{ann.title}</h3>
-                            <div className="announcement-item-meta">
-                                <span>by {ann.author}</span>
-                                <span>{getRelativeTime(ann.timestamp)}</span>
-                            </div>
-                        </div>
-                        <div className="announcement-item-targets">
-                            <span className="target-pill">{ann.targetRole}</span>
-                            <span className="target-pill">{ann.targetDept}</span>
-                        </div>
-                        <p className="announcement-item-content">{ann.content}</p>
-                        <div className="announcement-item-engagement">
-                            <span>{ann.engagement?.views || 0} views</span>
-                            <span>{ann.engagement?.reactions || 0} reactions</span>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const CreateAnnouncementForm = ({ setShowCreateForm }: { setShowCreateForm: (s: boolean) => void }) => {
-    const { setAnnouncements, currentUser, addNotification } = useAppContext();
-    const [title, setTitle] = useState('');
-    const [content, setContent] = useState('');
-    const [targetRole, setTargetRole] = useState<Announcement['targetRole']>('all');
-    const [targetDept, setTargetDept] = useState<Announcement['targetDept']>('all');
-    const [isRefining, setIsRefining] = useState(false);
-    const [publishDate, setPublishDate] = useState('');
-    const [publishTime, setPublishTime] = useState('');
-
-    const handleRefine = async () => {
-        if (!isAiEnabled || !ai) {
-             addNotification('AI features are disabled.', 'warning');
-             return;
-        }
-        if (!content) {
-            addNotification('Please enter some content to refine.', 'warning');
-            return;
-        }
-        setIsRefining(true);
-        const prompt = `Refine the following announcement for clarity, tone, and professionalism, suitable for a college environment. Keep the core message intact.\n\nAnnouncement: "${content}"`;
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: {
-                    systemInstruction: "You are an expert editor for academic and administrative communications. Your goal is to make announcements clear, professional, and concise."
-                }
-            });
-            setContent(response.text);
-        } catch (error) {
-            console.error("AI Refinement Error:", error);
-            addNotification('Failed to refine content with AI.', 'error');
-        }
-        setIsRefining(false);
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!title || !content) {
-            addNotification('Title and content are required.', 'error');
-            return;
-        }
-
-        let publishTimestamp = Date.now();
-        if (publishDate && publishTime) {
-            publishTimestamp = new Date(`${publishDate}T${publishTime}`).getTime();
-            if (isNaN(publishTimestamp) || publishTimestamp < Date.now()) {
-                addNotification('Please select a valid future date and time for scheduling.', 'error');
-                return;
-            }
-        }
-        
-        const newAnnouncement: Announcement = {
-            id: uuidv4(),
-            title,
-            content,
-            author: currentUser.name,
-            timestamp: Date.now(),
-            publishTimestamp: publishTimestamp > Date.now() ? publishTimestamp : undefined,
-            targetRole,
-            targetDept,
-            engagement: { views: 0, reactions: 0 }
+    const handleExport = () => {
+        const dataToExport = {
+            app_users: JSON.parse(localStorage.getItem('app_users') || '[]'),
+            app_timetable: JSON.parse(localStorage.getItem('app_timetable') || '[]'),
+            app_auditLogs: JSON.parse(localStorage.getItem('app_auditLogs') || '[]'),
+            app_securityAlerts: JSON.parse(localStorage.getItem('app_securityAlerts') || '[]'),
+            app_settings: JSON.parse(localStorage.getItem('app_settings') || '{}'),
         };
-        setAnnouncements((prev: Announcement[]) => [newAnnouncement, ...prev]);
-        addNotification(newAnnouncement.publishTimestamp ? 'Announcement scheduled successfully.' : 'Announcement posted successfully.', 'success');
-        setShowCreateForm(false);
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `academia_ai_backup_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+        addNotification("Data exported successfully.", "success");
     };
     
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target?.result;
+                if(typeof text === 'string') {
+                    importData(text);
+                }
+            };
+            reader.readAsText(file);
+        }
+    };
+
     return (
-        <form className="create-announcement-form" onSubmit={handleSubmit}>
-            <h3>New Announcement</h3>
-            <div className="control-group">
-                <label>Title</label>
-                <input type="text" className="form-control" value={title} onChange={e => setTitle(e.target.value)} />
-            </div>
-            <div className="control-group refine-button-container">
-                <label>Content</label>
-                <textarea className="form-control" value={content} onChange={e => setContent(e.target.value)} />
-                <button type="button" className="btn btn-secondary btn-sm refine-btn" onClick={handleRefine} disabled={isRefining}>
-                    {isRefining ? <span className="spinner-sm"/> : <>{Icons.lightbulb} Refine with AI</>}
-                </button>
-            </div>
-             <div className="form-grid">
-                <div className="control-group">
-                    <label>Target Role</label>
-                    <select className="form-control" value={targetRole} onChange={e => setTargetRole(e.target.value as Announcement['targetRole'])}>
-                        <option value="all">All Users</option>
-                        <option value="student">Students</option>
-                        <option value="faculty">Faculty</option>
-                    </select>
-                </div>
+        <div className="dashboard-container">
+            <div className="dashboard-card">
+                <h3>General Settings</h3>
                  <div className="control-group">
-                    <label>Target Department</label>
-                    <select className="form-control" value={targetDept} onChange={e => setTargetDept(e.target.value as Announcement['targetDept'])}>
-                        <option value="all">All Departments</option>
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
+                    <label htmlFor="accent-color">Accent Color</label>
+                    <input type="color" id="accent-color" value={settings.accentColor} onChange={handleAccentColorChange} style={{padding: 0, border: 'none', height: '40px', width: '100px', background: 'none'}}/>
                 </div>
             </div>
-            <div className="scheduling-options">
-                <h4>Scheduling (Optional)</h4>
-                <div className="form-grid">
-                    <div className="control-group">
-                        <label>Publish Date</label>
-                        <input type="date" className="form-control" value={publishDate} onChange={e => setPublishDate(e.target.value)} />
-                    </div>
-                    <div className="control-group">
-                        <label>Publish Time</label>
-                        <input type="time" className="form-control" value={publishTime} onChange={e => setPublishTime(e.target.value)} />
-                    </div>
+             <div className="dashboard-card">
+                <h3>Timetable Configuration</h3>
+                <div className="control-group">
+                    <label htmlFor="time-slots">Time Slots (one per line)</label>
+                    <textarea 
+                        id="time-slots" 
+                        className="form-control" 
+                        rows={10} 
+                        value={timeSlotsText}
+                        onChange={e => setTimeSlotsText(e.target.value)}
+                    ></textarea>
+                </div>
+                <button className="btn btn-primary" onClick={handleTimeSlotsSave}>Save Time Slots</button>
+            </div>
+            <div className="dashboard-card">
+                <h3>Data Management</h3>
+                <p>Manage the application's data. Be careful, these actions can be destructive.</p>
+                <div style={{display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary" onClick={handleExport}>{Icons.download} Export Data</button>
+                     <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".json" />
+                    <button className="btn btn-secondary" onClick={handleImportClick}>{Icons.upload} Import Data</button>
+                    <button className="btn btn-danger" onClick={resetAllData}>{Icons.delete} Reset All Data</button>
                 </div>
             </div>
-            <div className="form-actions">
-                <button type="submit" className="btn btn-primary">
-                    {publishDate && publishTime ? 'Schedule Announcement' : 'Post Announcement'}
-                </button>
-            </div>
-        </form>
-    )
+        </div>
+    );
 };
 
-const useDebouncedEffect = (effect: () => void, deps: React.DependencyList, delay: number) => {
-    useEffect(() => {
-        const handler = setTimeout(() => effect(), delay);
-        return () => clearTimeout(handler);
-    }, [...deps, delay]);
+
+const PageContent = () => {
+    const { currentView } = useAppContext();
+
+    switch (currentView) {
+        case 'dashboard': return <DashboardView />;
+        case 'timetable': return <TimetableView />;
+        case 'manage': return <ManageTimetableView />;
+        case 'studentDirectory': return <StudentDirectoryView />;
+        case 'security': return <SecurityView />;
+        case 'settings': return <SettingsView />;
+        default: return <DashboardView />;
+    }
 };
 
-const ForYouSection = ({ onSelectResource }: { onSelectResource: (res: Resource) => void }) => {
-    const { currentUser, resources, collections, setAppView } = useAppContext();
+const App = () => {
+    const { currentUser, isSidebarOpen, toggleSidebar } = useAppContext();
 
-    const featuredItems = useMemo(() => {
-        const userCollections = collections.filter((c: Collection) => c.department === currentUser.dept);
-        const userResources = resources.filter((r: Resource) => r.department === currentUser.dept && r.aiInsightsStatus === 'complete');
-        
-        return {
-            collection: userCollections[0],
-            resources: userResources.slice(0, 2),
-        };
-    }, [currentUser, resources, collections]);
-
-    if (!featuredItems.collection && featuredItems.resources.length === 0) {
-        return null; // Don't show if nothing to recommend
+    if (!currentUser) {
+        return <AuthView />;
     }
 
     return (
-        <div className="for-you-section">
-            <h3>{Icons.lightbulb} Curated For You</h3>
-            <div className="for-you-grid">
-                {featuredItems.collection && (
-                    <div className="featured-card featured-collection-card" onClick={() => setAppView('resources')}>
-                        <div className="featured-card-header">
-                            <span>Featured Collection</span>
-                            {Icons.viewGrid}
-                        </div>
-                        <h4>{featuredItems.collection.name}</h4>
-                        <p>{featuredItems.collection.description}</p>
-                        <div className="featured-card-footer">
-                            <span>{featuredItems.collection.resourceIds.length} items</span>
-                            <span>by {featuredItems.collection.creatorName}</span>
-                        </div>
-                    </div>
-                )}
-                {featuredItems.resources.map(res => (
-                    <div key={res.id} className="featured-card featured-resource-card" onClick={() => onSelectResource(res)}>
-                        <div className="featured-card-header">
-                            <span>Recommended Resource</span>
-                            {resourceTypeIcons[res.type]}
-                        </div>
-                        <h4>{res.name}</h4>
-                        <p>{res.aiInsights?.summary.substring(0, 80)}...</p>
-                    </div>
-                ))}
-            </div>
+        <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+            <Sidebar />
+            <div className="sidebar-overlay" onClick={toggleSidebar}></div>
+            <main className="main-content">
+                <Header />
+                <div className="page-content">
+                    <PageContent />
+                </div>
+            </main>
         </div>
     );
 };
 
-
-const ResourcesView = () => {
-    const { resources, webResources, resourceLogs, collections, currentUser, addNotification } = useAppContext();
-    const [isUploadModalOpen, setUploadModalOpen] = useState(false);
-    const [isAddLinkModalOpen, setAddLinkModalOpen] = useState(false);
-    const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
-    const [updatingResource, setUpdatingResource] = useState<Resource | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ department: 'all', type: 'all' });
-    const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    const [isSearchLoading, setIsSearchLoading] = useState(false);
-    const [searchResults, setSearchResults] = useState<string[] | null>(null);
-    const [activeTab, setActiveTab] = useState<'library' | 'web' | 'collections'>('library');
-
-    const downloadCounts = useMemo(() => {
-        const counts = new Map<string, number>();
-        resourceLogs.forEach((log: ResourceLog) => {
-            if (log.action === 'download') {
-                counts.set(log.resourceId, (counts.get(log.resourceId) || 0) + 1);
-            }
-        });
-        return counts;
-    }, [resourceLogs]);
-
-    const handleSemanticSearch = useCallback(async (query: string) => {
-        if (!isAiEnabled || !ai) {
-            addNotification('AI search is disabled.', 'warning');
-            return;
-        }
-        setIsSearchLoading(true);
-        
-        const isSearchingLibrary = activeTab === 'library';
-        const contextSource = isSearchingLibrary ? resources : webResources;
-
-        const resourceContext = contextSource.map((r: Resource | WebResource) => ({
-            id: r.id,
-            name: isSearchingLibrary ? (r as Resource).name : (r as WebResource).title,
-            subject: r.subject,
-            type: isSearchingLibrary ? (r as Resource).type : 'weblink',
-            department: r.department,
-        }));
-
-        const prompt = `You are an intelligent search API for a university's digital library. Your task is to find the most relevant resources based on a user's natural language query.
-        User Query: "${query}"
-        Available Resources (JSON format): ${JSON.stringify(resourceContext)}
-
-        Analyze the user's query and the available resources. Return a JSON array of resource IDs, ordered from most relevant to least relevant. Only include IDs that are a good match for the query. If no resources match, return an empty array.
-        Example response: ["res-001", "res-002"]`;
-
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: { responseMimeType: 'application/json' }
-            });
-            const resultIds = JSON.parse(response.text);
-            setSearchResults(resultIds);
-        } catch (error) {
-            console.error("AI Semantic Search Error:", error);
-            addNotification('AI search failed.', 'error');
-            setSearchResults([]);
-        } finally {
-            setIsSearchLoading(false);
-        }
-    }, [resources, webResources, addNotification, activeTab]);
-
-    useDebouncedEffect(() => {
-        if (searchTerm.trim().length > 2) {
-            handleSemanticSearch(searchTerm);
-        } else {
-            setSearchResults(null);
-        }
-    }, [searchTerm], 500);
-
-    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFilters(prev => ({ ...prev, [name]: value }));
-    };
-
-    const filteredItems = useMemo(() => {
-        let items: (Resource | WebResource)[] = activeTab === 'library' ? [...resources] : [...webResources];
-
-        // 1. Filter by semantic search results if available
-        if (searchResults !== null) {
-            const resultsSet = new Set(searchResults);
-            items = items.filter(res => resultsSet.has(res.id));
-        }
-
-        // 2. Apply standard filters
-        items = items.filter((res: Resource | WebResource) => {
-            const departmentMatch = filters.department === 'all' || res.department === filters.department;
-            if (activeTab === 'library') {
-                const typeMatch = filters.type === 'all' || (res as Resource).type === filters.type;
-                return departmentMatch && typeMatch;
-            }
-            return departmentMatch;
-        });
-
-        // 3. Apply sorting
-        items.sort((a, b) => {
-            const nameA = activeTab === 'library' ? (a as Resource).name : (a as WebResource).title;
-            const nameB = activeTab === 'library' ? (b as Resource).name : (b as WebResource).title;
-            switch (sortBy) {
-                case 'name-asc': return nameA.localeCompare(nameB);
-                case 'name-desc': return nameB.localeCompare(nameA);
-                case 'date-asc': return a.timestamp - b.timestamp;
-                case 'date-desc':
-                default:
-                    return b.timestamp - a.timestamp;
-            }
-        });
-
-        return items;
-    }, [resources, webResources, searchResults, filters, sortBy, activeTab]);
-
-    const filteredCollections = useMemo(() => {
-        return collections.filter((c: Collection) => filters.department === 'all' || c.department === filters.department);
-    }, [collections, filters.department])
-
-    return (
-        <div className="resources-container-view">
-            <ForYouSection onSelectResource={setSelectedResource} />
-            <div className="resources-header">
-                <h2>Digital Library</h2>
-                <div className="resources-controls">
-                    <div className="search-bar">
-                        {Icons.search}
-                        <input
-                            type="search"
-                            name="searchTerm"
-                            placeholder={activeTab === 'library' ? "Ask for resources, e.g., 'notes on algorithms'" : "Search for web links, e.g., 'interactive tutorials for circuits'"}
-                            className="form-control"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-                <div className="resource-tabs">
-                    <button className={activeTab === 'library' ? 'active' : ''} onClick={() => setActiveTab('library')}>
-                        {Icons.clipboardList} Library ({resources.length})
-                    </button>
-                    <button className={activeTab === 'web' ? 'active' : ''} onClick={() => setActiveTab('web')}>
-                        {Icons.externalLink} Web Links ({webResources.length})
-                    </button>
-                    <button className={activeTab === 'collections' ? 'active' : ''} onClick={() => setActiveTab('collections')}>
-                        {Icons.viewGrid} Collections ({collections.length})
-                    </button>
-                </div>
-                <div className="resources-view-controls">
-                    <div className="filters">
-                         <select name="department" className="form-control" value={filters.department} onChange={handleFilterChange}>
-                            <option value="all">All Departments</option>
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                        {activeTab === 'library' && (
-                            <select name="type" className="form-control" value={filters.type} onChange={handleFilterChange}>
-                                <option value="all">All Types</option>
-                                <option value="book">Book</option>
-                                <option value="notes">Notes</option>
-                                <option value="project">Project</option>
-                                <option value="lab">Lab/Practical</option>
-                                <option value="other">Other</option>
-                            </select>
-                        )}
-                        <select name="sortBy" className="form-control" value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
-                            <option value="date-desc">Sort by Newest</option>
-                            <option value="date-asc">Sort by Oldest</option>
-                            <option value="name-asc">Sort by Name (A-Z)</option>
-                            <option value="name-desc">Sort by Name (Z-A)</option>
-                        </select>
-                    </div>
-                    <div className="view-mode-toggle">
-                        <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')}>{Icons.viewGrid}</button>
-                        <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>{Icons.viewList}</button>
-                    </div>
-                     {activeTab === 'library' && (
-                         <button className="btn btn-primary" onClick={() => setUploadModalOpen(true)}>
-                            {Icons.upload} Upload File
-                        </button>
-                     )}
-                     {activeTab === 'web' && currentUser.role === 'admin' && (
-                         <button className="btn btn-primary" onClick={() => setAddLinkModalOpen(true)}>
-                            {Icons.add} Add Link
-                        </button>
-                     )}
-                </div>
-            </div>
-            
-            {isSearchLoading ? (
-                viewMode === 'grid' ? <ResourceGridSkeleton /> : <ResourceListSkeleton />
-            ) : (
-                <>
-                {activeTab === 'library' && (
-                     filteredItems.length > 0 ? (viewMode === 'grid' ? (
-                        <div className="resources-grid">
-                            {(filteredItems as Resource[]).map((res) => (
-                                <ResourceCard key={res.id} resource={res} onSelect={() => setSelectedResource(res)} downloadCount={downloadCounts.get(res.id) || 0} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="resources-list-view">
-                            {(filteredItems as Resource[]).map((res) => (
-                                <ResourceListItem key={res.id} resource={res} onSelect={() => setSelectedResource(res)} downloadCount={downloadCounts.get(res.id) || 0} />
-                            ))}
-                        </div>
-                    )) : <div className="empty-state"><h3>No Resources Found</h3><p>Try adjusting your search or filters.</p></div>
-                )}
-
-                {activeTab === 'web' && (
-                    filteredItems.length > 0 ? (
-                        <div className="web-resource-list">
-                           {(filteredItems as WebResource[]).map((res) => (
-                               <WebResourceCard key={res.id} webResource={res} />
-                           ))}
-                        </div>
-                    ) : <div className="empty-state"><h3>No Web Links Found</h3><p>Try adjusting your search or filters.</p></div>
-                )}
-
-                {activeTab === 'collections' && (
-                     filteredCollections.length > 0 ? (
-                        <div className="resources-grid">
-                             {filteredCollections.map(collection => <CollectionCard key={collection.id} collection={collection} />)}
-                        </div>
-                     ) : <div className="empty-state"><h3>No Collections Found</h3><p>Faculty and admins can create collections to group resources.</p></div>
-                )}
-                </>
-            )}
-
-            {isUploadModalOpen && <UploadResourceModal onClose={() => setUploadModalOpen(false)} />}
-            {selectedResource && <ResourceDetailsModal resource={selectedResource} onClose={() => setSelectedResource(null)} onUpdate={() => {setUpdatingResource(selectedResource); setSelectedResource(null);}} />}
-            {updatingResource && <UpdateResourceModal resource={updatingResource} onClose={() => setUpdatingResource(null)} />}
-            {isAddLinkModalOpen && <AddWebResourceModal onClose={() => setAddLinkModalOpen(false)} />}
-        </div>
-    );
-};
-
-const ResourceGridSkeleton = () => (
-    <div className="resources-grid">
-        {[...Array(6)].map((_, i) => <div key={i} className="skeleton-card"></div>)}
-    </div>
-);
-const ResourceListSkeleton = () => (
-     <div className="resources-list-view">
-        {[...Array(4)].map((_, i) => <div key={i} className="skeleton-list-item"></div>)}
-    </div>
-);
-
-const resourceTypeIcons = {
-    book: Icons.bookOpen,
-    notes: Icons.clipboardList,
-    project: Icons.file,
-    lab: Icons.beaker,
-    other: Icons.file,
-};
-
-const CollectionCard = ({ collection }: { collection: Collection }) => {
-    return (
-        <div className="resource-card collection-card">
-            <div className="resource-card-header">
-                <span className="resource-card-icon">{Icons.viewGrid}</span>
-            </div>
-            <h4 className="resource-card-title">{collection.name}</h4>
-            <p className="resource-card-meta">{collection.description}</p>
-            <div className="resource-card-footer-meta">
-                <span>{collection.resourceIds.length} items</span>
-                <span>By {collection.creatorName}</span>
-            </div>
-        </div>
-    );
-}
-
-const ResourceCard = ({ resource, onSelect, downloadCount }: { resource: Resource, onSelect: () => void, downloadCount: number }) => {
-    const popularity = (downloadCount * 5) + (resource.version > 1 ? 10 : 0); // Dummy popularity
-    return (
-        <div className={`resource-card resource-type-${resource.type}`} onClick={onSelect}>
-            <div className="resource-card-header">
-                <span className="resource-card-icon">{resourceTypeIcons[resource.type]}</span>
-                 <AIStatusPill status={resource.aiSafetyStatus} />
-            </div>
-            <h4 className="resource-card-title" title={resource.name}>{resource.name}</h4>
-            <p className="resource-card-meta">
-                <span>{resource.department}</span> | <span>{resource.subject}</span>
-            </p>
-             <div className="resource-card-stats">
-                <span title={`${downloadCount} downloads`}>{Icons.download} {downloadCount}</span>
-                <span title={`Version ${resource.version}`}>{Icons.history} v{resource.version}</span>
-                {resource.aiInsightsStatus === 'complete' && <span className="ai-insight-available" title="AI Insights Available">{Icons.lightbulb}</span>}
-             </div>
-             <div className="popularity-bar">
-                <div className="popularity-fill" style={{width: `${Math.min(100, popularity)}%`}}></div>
-             </div>
-        </div>
-    );
-};
-
-const ResourceListItem = ({ resource, onSelect, downloadCount }: { resource: Resource, onSelect: () => void, downloadCount: number }) => {
-    return (
-        <div className={`resource-list-item resource-type-${resource.type}`} onClick={onSelect}>
-            <span className="resource-list-item-icon">{resourceTypeIcons[resource.type]}</span>
-            <div className="resource-list-item-info">
-                <h4 className="resource-list-item-title">{resource.name}</h4>
-                <p className="resource-list-item-meta">{resource.department} | {resource.subject} | Uploaded by {resource.uploaderName}</p>
-                 {resource.aiInsightsStatus === 'generating' && <span className="generating-indicator">{Icons.lightbulb} Generating Insights...</span>}
-            </div>
-            <div className="resource-list-item-stats">
-                 <span title={`${downloadCount} downloads`}>{Icons.download} {downloadCount}</span>
-                 <span title={`Version ${resource.version}`}>{Icons.history} v{resource.version}</span>
-                 <span>{getRelativeTime(resource.timestamp)}</span>
-            </div>
-            <AIStatusPill status={resource.aiSafetyStatus} />
-            <button className="btn btn-secondary btn-sm">Details</button>
-        </div>
-    );
-};
-
-const WebResourceCard = ({ webResource }: { webResource: WebResource }) => {
-    return (
-        <div className="web-resource-card">
-            <div className="web-resource-card-content">
-                <h4 className="web-resource-card-title">{webResource.title}</h4>
-                <p className="web-resource-card-meta">{webResource.department} | {webResource.subject}</p>
-                <p className="web-resource-card-summary">{webResource.summary}</p>
-                <p className="web-resource-card-meta">
-                    Added {getRelativeTime(webResource.timestamp)} by {webResource.addedByName}
-                </p>
-            </div>
-            <div className="web-resource-card-actions">
-                 <AIStatusPill status={webResource.aiStatus === 'approved' ? 'safe' : 'irrelevant'} />
-                 <a href={webResource.url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
-                    {Icons.externalLink} Open Link
-                 </a>
-            </div>
-        </div>
-    );
-};
-
-
-const AIStatusPill = ({ status }: { status: Resource['aiSafetyStatus'] | 'safe' | 'irrelevant' }) => {
-    const statusConfig = {
-        safe: { icon: Icons.shieldCheck, label: 'Safe', className: 'safe' },
-        unsafe: { icon: Icons.shieldExclamation, label: 'Unsafe', className: 'unsafe' },
-        irrelevant: { icon: Icons.warning, label: 'Irrelevant', className: 'irrelevant' },
-        pending: { icon: <span className="spinner-sm" />, label: 'Pending', className: 'pending' },
-    };
-    const config = statusConfig[status];
-    return (
-        <span className={`ai-status-pill ${config.className}`}>
-            {config.icon} {config.label}
-        </span>
-    );
-};
-
-const UploadResourceModal = ({ onClose }: { onClose: () => void }) => {
-    const { currentUser, setResources, setResourceLogs, addNotification } = useAppContext();
-    const [formData, setFormData] = useState({ name: '', type: 'notes' as Resource['type'], department: currentUser.dept, subject: '' });
-    const [fileName, setFileName] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            const file = e.target.files[0];
-            setFileName(file.name);
-            setFormData(prev => ({ ...prev, name: file.name.split('.').slice(0, -1).join('.') }));
-        }
-    };
-    
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({...prev, [name]: value}));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!fileName || !formData.name || !formData.subject) {
-            addNotification('Please fill all fields and select a file.', 'error');
-            return;
-        }
-        if (!isAiEnabled || !ai) {
-             addNotification('AI features are disabled. Cannot analyze upload.', 'warning');
-             return;
-        }
-
-        setIsLoading(true);
-        const prompt = `You are a security and academic relevance scanner for a university's digital library. Analyze the following resource details and determine if it's safe and appropriate.
-        File Name: "${fileName}"
-        Resource Type: "${formData.type}"
-        Stated Subject: "${formData.subject}"
-        
-        Based ONLY on this information, provide your analysis. For safety, be cautious about executable-sounding names or suspicious terms. For relevance, ensure it sounds like academic material.
-
-        Respond ONLY with a JSON object in this format:
-        {
-          "isSafe": boolean,
-          "isRelevant": boolean,
-          "reason": "A brief, one-sentence explanation for your decision."
-        }`;
-
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: { responseMimeType: 'application/json' }
-            });
-            const analysis = JSON.parse(response.text);
-
-            const newResource: Resource = {
-                ...formData,
-                id: uuidv4(),
-                uploaderId: currentUser.id,
-                uploaderName: currentUser.name,
-                timestamp: Date.now(),
-                fileName,
-                aiSafetyStatus: !analysis.isSafe ? 'unsafe' : !analysis.isRelevant ? 'irrelevant' : 'safe',
-                aiSafetyReason: analysis.reason,
-                aiInsights: null,
-                aiInsightsStatus: 'pending',
-                version: 1,
-            };
-
-            setResources((prev: Resource[]) => [newResource, ...prev]);
-            setResourceLogs((prev: ResourceLog[]) => [...prev, {
-                id: uuidv4(),
-                resourceId: newResource.id,
-                resourceName: newResource.name,
-                userId: currentUser.id,
-                userName: currentUser.name,
-                action: 'upload',
-                timestamp: Date.now()
-            }]);
-            addNotification(`'${newResource.name}' uploaded. AI analysis will begin shortly.`, 'success');
-            onClose();
-        } catch (error) {
-            console.error("AI Upload Analysis Error:", error);
-            addNotification('Failed to analyze the uploaded resource.', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="modal-overlay open" onMouseDown={onClose}>
-            <div className="modal-content" onMouseDown={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>Upload New Resource</h3>
-                    <button onClick={onClose} className="close-modal-btn">&times;</button>
-                </div>
-                <form onSubmit={handleSubmit} className="modal-form">
-                    <div className="control-group">
-                        <label>File</label>
-                        <button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-                            {Icons.file} {fileName || 'Select a file'}
-                        </button>
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-                    </div>
-                    <div className="control-group">
-                        <label>Resource Name</label>
-                        <input type="text" name="name" className="form-control" value={formData.name} onChange={handleInputChange} required />
-                    </div>
-                     <div className="control-group">
-                        <label>Resource Type</label>
-                        <select name="type" className="form-control" value={formData.type} onChange={handleInputChange}>
-                            <option value="notes">Notes</option>
-                            <option value="book">Book</option>
-                            <option value="project">Project</option>
-                            <option value="lab">Lab/Practical</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                     <div className="control-group">
-                        <label>Department</label>
-                        <select name="department" className="form-control" value={formData.department} onChange={handleInputChange}>
-                             {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                    </div>
-                     <div className="control-group">
-                        <label>Subject</label>
-                        <input type="text" name="subject" className="form-control" value={formData.subject} onChange={handleInputChange} required />
-                    </div>
-                    <div className="form-actions">
-                        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isLoading}>Cancel</button>
-                        <button type="submit" className="btn btn-primary" disabled={isLoading}>
-                            {isLoading ? <span className="spinner-sm" /> : 'Upload & Analyze'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const AddWebResourceModal = ({ onClose }: { onClose: () => void }) => {
-    const { currentUser, setWebResources, addNotification } = useAppContext();
-    const [formData, setFormData] = useState({ url: '', department: currentUser.dept, subject: '' });
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({...prev, [name]: value}));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!formData.url || !formData.subject) {
-            addNotification('Please provide a URL and a subject.', 'error');
-            return;
-        }
-        if (!isAiEnabled || !ai) {
-             addNotification('AI features are disabled. Cannot analyze link.', 'warning');
-             return;
-        }
-        setIsLoading(true);
-
-        const prompt = `You are an AI assistant curating a university's digital library. A user submitted a URL for a specific subject. Your task is to analyze it and provide structured metadata.
-        URL: "${formData.url}"
-        Intended Subject: "${formData.subject}"
-        Intended Department: "${formData.department}"
-        
-        Generate a concise, clear title and a one-paragraph summary for this link, suitable for students and faculty. Also, assess if this link is academically relevant for the given context.
-        
-        Respond ONLY with a JSON object in this format:
-        {
-          "title": "A short, descriptive title",
-          "summary": "A helpful summary of the content.",
-          "isRelevant": true,
-          "reason": "A brief, one-sentence explanation for your relevance decision."
-        }`;
-
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: { responseMimeType: 'application/json' }
-            });
-            const analysis = JSON.parse(response.text);
-
-            const newWebResource: WebResource = {
-                id: uuidv4(),
-                url: formData.url,
-                title: analysis.title,
-                summary: analysis.summary,
-                department: formData.department,
-                subject: formData.subject,
-                addedById: currentUser.id,
-                addedByName: currentUser.name,
-                timestamp: Date.now(),
-                aiStatus: analysis.isRelevant ? 'approved' : 'rejected',
-                aiReason: analysis.reason,
-            };
-
-            setWebResources((prev: WebResource[]) => [newWebResource, ...prev]);
-            addNotification(`Web link added. AI Status: ${newWebResource.aiStatus}.`, 'success');
-            onClose();
-
-        } catch (error) {
-             console.error("AI Web Resource Analysis Error:", error);
-            addNotification('Failed to analyze the web link.', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    return (
-        <div className="modal-overlay open" onMouseDown={onClose}>
-            <div className="modal-content" onMouseDown={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>Add New Web Link</h3>
-                    <button onClick={onClose} className="close-modal-btn">&times;</button>
-                </div>
-                <form onSubmit={handleSubmit} className="modal-form">
-                    <div className="control-group">
-                        <label>URL</label>
-                        <input type="url" name="url" className="form-control" value={formData.url} onChange={handleInputChange} placeholder="https://example.com" required />
-                    </div>
-                    <div className="control-group">
-                        <label>Department</label>
-                        <select name="department" className="form-control" value={formData.department} onChange={handleInputChange}>
-                             {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                    </div>
-                     <div className="control-group">
-                        <label>Subject</label>
-                        <input type="text" name="subject" className="form-control" value={formData.subject} onChange={handleInputChange} required />
-                    </div>
-                    <div className="form-actions">
-                        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isLoading}>Cancel</button>
-                        <button type="submit" className="btn btn-primary" disabled={isLoading}>
-                            {isLoading ? <span className="spinner-sm" /> : 'Add & Analyze'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const UpdateResourceModal = ({ resource, onClose }: { resource: Resource, onClose: () => void }) => {
-    const { currentUser, setResources, setResourceUpdateLogs, addNotification } = useAppContext();
-    const [newFileName, setNewFileName] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            setNewFileName(e.target.files[0].name);
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newFileName) {
-            addNotification('Please select a new file to update.', 'error');
-            return;
-        }
-        if (newFileName === resource.fileName) {
-            addNotification('The new file must be different from the current one.', 'warning');
-            return;
-        }
-        if (!isAiEnabled || !ai) {
-            addNotification('AI features are disabled. Cannot analyze update.', 'warning');
-            return;
-        }
-
-        setIsLoading(true);
-        const prompt = `You are an academic AI assistant. A user is updating a library resource. Generate a concise, one-sentence summary of the likely change based on the file name change.
-        - Previous File: "${resource.fileName}"
-        - New File: "${newFileName}"
-        - Resource Name: "${resource.name}"
-        - Subject: "${resource.subject}"
-
-        Example response: "Updated the lecture notes to the revised version for the current academic year." or "Replaced the project report with a more detailed final version."`;
-
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt
-            });
-            const aiChangeSummary = response.text;
-
-            const updatedResource: Resource = {
-                ...resource,
-                fileName: newFileName,
-                timestamp: Date.now(),
-                version: resource.version + 1,
-                // Reset insights as the content has changed
-                aiInsights: null,
-                aiInsightsStatus: 'pending',
-            };
-
-            const updateLog: ResourceUpdateLog = {
-                id: uuidv4(),
-                resourceId: resource.id,
-                timestamp: Date.now(),
-                updatedByUserId: currentUser.id,
-                updatedByUserName: currentUser.name,
-                version: updatedResource.version,
-                previousFileName: resource.fileName || 'N/A',
-                newFileName: newFileName,
-                aiChangeSummary,
-            };
-
-            setResources((prev: Resource[]) => prev.map(r => r.id === resource.id ? updatedResource : r));
-            setResourceUpdateLogs((prev: ResourceUpdateLog[]) => [updateLog, ...prev]);
-            addNotification(`'${resource.name}' updated successfully to version ${updatedResource.version}.`, 'success');
-            onClose();
-        } catch (error) {
-            console.error("AI Update Analysis Error:", error);
-            addNotification('Failed to analyze the resource update.', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="modal-overlay open" onMouseDown={onClose}>
-            <div className="modal-content" onMouseDown={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>Update: {resource.name}</h3>
-                    <button onClick={onClose} className="close-modal-btn">&times;</button>
-                </div>
-                <form onSubmit={handleSubmit} className="modal-form">
-                    <p>Current file: <strong>{resource.fileName}</strong> (Version {resource.version})</p>
-                    <div className="control-group">
-                        <label>New File</label>
-                        <button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-                            {Icons.upload} {newFileName || 'Select a new file'}
-                        </button>
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-                    </div>
-                    <div className="form-actions">
-                        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isLoading}>Cancel</button>
-                        <button type="submit" className="btn btn-primary" disabled={isLoading || !newFileName}>
-                            {isLoading ? <span className="spinner-sm" /> : 'Update Resource'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-
-const FilePreviewer = ({ resource }: { resource: Resource }) => {
-    const genericText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-    
-    return (
-        <div className="file-preview-container">
-            <h1>{resource.name}</h1>
-            <p className="document-meta">Subject: {resource.subject} | Uploaded by: {resource.uploaderName}</p>
-            
-            <h2>1. Introduction to {resource.subject}</h2>
-            <p>{genericText.substring(0, 400)}.</p>
-            <p>In this document, we will explore the fundamental principles of {resource.subject}, including key definitions, historical context, and practical applications in the modern world. {genericText.substring(400, 650)}.</p>
-            
-            <div className="placeholder-image">
-                <span>Diagram 1.1: Core Concept Flowchart</span>
-            </div>
-
-            <h2>2. Core Methodologies</h2>
-            <p>{genericText.substring(100, 550)}.</p>
-            <ul>
-                <li><strong>Methodology A:</strong> A detailed explanation of the first key concept. {genericText.substring(0, 100)}.</li>
-                <li><strong>Methodology B:</strong> An overview of the second important theory. {genericText.substring(100, 200)}.</li>
-                <li><strong>Methodology C:</strong> Practical applications and examples. {genericText.substring(200, 300)}.</li>
-            </ul>
-
-            <h2>3. Advanced Topics & Conclusion</h2>
-            <p>{genericText.substring(0, 300)}.</p>
-        </div>
-    );
-};
-
-
-const ResourceDetailsModal = ({ resource, onClose, onUpdate }: { resource: Resource, onClose: () => void, onUpdate: () => void }) => {
-    const { currentUser, resources, setResourceLogs, addNotification, userNotes, setUserNotes, resourceUpdateLogs } = useAppContext();
-    const [activeTab, setActiveTab] = useState<'preview' | 'insights' | 'qna' | 'notes' | 'history'>('preview');
-    const currentResource = resources.find((r: Resource) => r.id === resource.id) || resource;
-
-    const handleDownload = () => {
-        setResourceLogs((prev: ResourceLog[]) => [...prev, {
-            id: uuidv4(),
-            resourceId: currentResource.id,
-            resourceName: currentResource.name,
-            userId: currentUser.id,
-            userName: currentUser.name,
-            action: 'download',
-            timestamp: Date.now()
-        }]);
-        addNotification(`Downloading '${currentResource.name}'...`, 'info');
-        onClose();
-    };
-
-    const currentNote = userNotes?.[currentResource.id] || '';
-    const history = resourceUpdateLogs.filter((log: ResourceUpdateLog) => log.resourceId === currentResource.id).sort((a: ResourceUpdateLog, b: ResourceUpdateLog) => b.timestamp - a.timestamp);
-    const canUpdate = ['admin', 'hod', 'faculty'].includes(currentUser.role);
-
-    const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setUserNotes((prev: Record<string, string>) => ({
-            ...prev,
-            [currentResource.id]: e.target.value
-        }));
-    };
-
-    return (
-        <div className="modal-overlay open" onMouseDown={onClose}>
-            <div className="modal-content resource-details-modal" onMouseDown={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>{currentResource.name}</h3>
-                    <button onClick={onClose} className="close-modal-btn">&times;</button>
-                </div>
-
-                <div className="modal-tabs">
-                    <button className={`modal-tab-button ${activeTab === 'preview' ? 'active' : ''}`} onClick={() => setActiveTab('preview')}>Preview</button>
-                    <button className={`modal-tab-button ${activeTab === 'insights' ? 'active' : ''}`} onClick={() => setActiveTab('insights')}>{Icons.lightbulb} AI Insights</button>
-                    <button className={`modal-tab-button ${activeTab === 'qna' ? 'active' : ''}`} onClick={() => setActiveTab('qna')}>{Icons.chatBubble} Q&A Forum</button>
-                    <button className={`modal-tab-button ${activeTab === 'notes' ? 'active' : ''}`} onClick={() => setActiveTab('notes')}>My Notes</button>
-                    <button className={`modal-tab-button ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>{Icons.history} History</button>
-                </div>
-
-                <div className="modal-tab-content">
-                    {activeTab === 'preview' && <FilePreviewer resource={currentResource} />}
-                    {activeTab === 'insights' && (
-                        <AIInsightsView resource={currentResource} />
-                    )}
-                    {activeTab === 'qna' && <QnAForum resourceId={currentResource.id} />}
-                    {activeTab === 'notes' && (
-                        <textarea
-                            className="notes-textarea"
-                            placeholder="Write your personal notes for this resource here. They will be saved automatically and are only visible to you."
-                            value={currentNote}
-                            onChange={handleNoteChange}
-                        />
-                    )}
-                    {activeTab === 'history' && (
-                        <div className="history-log-container">
-                            {history.length > 0 ? history.map(log => (
-                                <div key={log.id} className="history-log-item">
-                                    <div className="history-log-meta">
-                                        <span className="history-log-version">Version {log.version}</span>
-                                        <span className="history-log-author">by {log.updatedByUserName}</span>
-                                        <span className="history-log-time">{getRelativeTime(log.timestamp)}</span>
-                                    </div>
-                                    <div className="history-log-details">
-                                        <p>Updated file to <strong>{log.newFileName}</strong>.</p>
-                                        {log.aiChangeSummary && (
-                                            <blockquote className="ai-change-summary">
-                                                <strong>AI Summary of Changes:</strong> {log.aiChangeSummary}
-                                            </blockquote>
-                                        )}
-                                    </div>
-                                </div>
-                            )) : <p className="empty-state">No update history for this resource.</p>}
-                        </div>
-                    )}
-                </div>
-
-                <div className="form-actions">
-                    <p className="resource-meta"><strong>File:</strong> {currentResource.fileName}</p>
-                     <div className="button-group">
-                        {canUpdate && <button className="btn btn-secondary" onClick={onUpdate}>{Icons.upload} Update File</button>}
-                        <button className="btn btn-primary" onClick={handleDownload} disabled={currentResource.aiSafetyStatus === 'unsafe'}>
-                            {Icons.download} {currentResource.aiSafetyStatus === 'unsafe' ? 'Download Blocked' : 'Download'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const AIInsightsView = ({ resource }: { resource: Resource }) => {
-    const { resources } = useAppContext();
-    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
-    const [showResults, setShowResults] = useState<Record<number, boolean>>({});
-
-    const handleAnswerSelect = (qIndex: number, option: string) => {
-        setSelectedAnswers(prev => ({ ...prev, [qIndex]: option }));
-        setShowResults(prev => ({ ...prev, [qIndex]: true }));
-    };
-
-    if (resource.aiInsightsStatus === 'generating' || resource.aiInsightsStatus === 'pending') {
-        return (
-            <div className="ai-insights-container loading">
-                <div className="spinner"></div>
-                <p>Generating AI Insights... This may take a moment.</p>
-            </div>
-        );
-    }
-
-    if (!resource.aiInsights || resource.aiInsightsStatus === 'failed') {
-        return (
-            <div className="empty-state">
-                <h3>No AI Insights Available</h3>
-                <p>Could not generate insights for this resource.</p>
-            </div>
-        );
-    }
-    
-    const { summary, keyConcepts, quiz, relatedResourceIds } = resource.aiInsights;
-    const relatedResources = resources.filter((r: Resource) => (relatedResourceIds || []).includes(r.id));
-
-    return (
-        <div className="ai-insights-container">
-            <div className="insight-card">
-                <h4>AI Summary</h4>
-                <p>{summary}</p>
-            </div>
-
-            <div className="insight-card">
-                <h4>Key Concepts</h4>
-                <ul>
-                    {keyConcepts.map((concept, i) => <li key={i}>{concept}</li>)}
-                </ul>
-            </div>
-            
-            <div className="insight-card">
-                <h4>Test Your Knowledge</h4>
-                <div className="quiz-container">
-                    {quiz.map((q, i) => (
-                        <div key={i} className="quiz-question">
-                            <p><strong>{i + 1}. {q.question}</strong></p>
-                            <div className="quiz-options">
-                                {q.options.map((option, j) => {
-                                    const isSelected = selectedAnswers[i] === option;
-                                    const isCorrect = q.correctAnswer === option;
-                                    let btnClass = 'quiz-option-btn';
-                                    if (showResults[i]) {
-                                        if (isCorrect) btnClass += ' correct';
-                                        else if (isSelected && !isCorrect) btnClass += ' incorrect';
-                                    }
-
-                                    return (
-                                        <button 
-                                            key={j} 
-                                            className={btnClass}
-                                            onClick={() => handleAnswerSelect(i, option)}
-                                            disabled={showResults[i]}
-                                        >
-                                            {option}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {relatedResources.length > 0 && (
-                <div className="insight-card">
-                    <h4>Related Resources</h4>
-                    <div className="related-resources-list">
-                         {relatedResources.map(res => (
-                            <div key={res.id} className="recommendation-card">
-                                 <div className="recommendation-card-icon">{resourceTypeIcons[res.type]}</div>
-                                 <div>
-                                    <h4 className="recommendation-card-title">{res.name}</h4>
-                                    <p className="recommendation-card-meta">{res.department} | {res.subject}</p>
-                                 </div>
-                            </div>
-                         ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-const QnAForum = ({ resourceId }: { resourceId: string }) => {
-    const { currentUser, qnaPosts, setQnaPosts, addNotification } = useAppContext();
-    const [newQuestion, setNewQuestion] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const mainQuestions = useMemo(() => 
-        qnaPosts.filter((p: QnAPost) => p.resourceId === resourceId && !p.parentId)
-                .sort((a: QnAPost, b: QnAPost) => b.timestamp - a.timestamp), 
-        [qnaPosts, resourceId]
-    );
-
-    const getReplies = useCallback((parentId: string) => 
-        qnaPosts.filter((p: QnAPost) => p.parentId === parentId)
-                .sort((a: QnAPost, b: QnAPost) => a.timestamp - b.timestamp),
-        [qnaPosts]
-    );
-    
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newQuestion.trim()) return;
-
-        setIsSubmitting(true);
-        const post: QnAPost = {
-            id: uuidv4(),
-            resourceId,
-            authorId: currentUser.id,
-            authorName: currentUser.name,
-            text: newQuestion,
-            timestamp: Date.now(),
-        };
-
-        setQnaPosts((prev: QnAPost[]) => [...prev, post]);
-        addNotification("Question posted!", 'success');
-        setNewQuestion("");
-        setIsSubmitting(false);
-    };
-
-    return (
-        <div className="qna-forum">
-            <form onSubmit={handleSubmit} className="qna-form">
-                <textarea 
-                    className="form-control"
-                    placeholder="Have a question about this resource? Ask the community."
-                    value={newQuestion}
-                    onChange={e => setNewQuestion(e.target.value)}
-                    rows={3}
-                />
-                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? <span className="spinner-sm" /> : "Post Question"}
-                </button>
-            </form>
-            <div className="qna-posts-list">
-                {mainQuestions.length > 0 ? mainQuestions.map(post => (
-                    <QnAPostView key={post.id} post={post} replies={getReplies(post.id)} getReplies={getReplies} />
-                )) : (
-                    <div className="empty-state">
-                        <p>No questions yet. Be the first to ask!</p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-const QnAPostView = ({ post, replies, getReplies }: { post: QnAPost, replies: QnAPost[], getReplies: (id: string) => QnAPost[] }) => {
-    return (
-        <div className="qna-post">
-            <div className="qna-post-header">
-                <span className="qna-author">{post.authorName}</span>
-                <span className="qna-timestamp">{getRelativeTime(post.timestamp)}</span>
-            </div>
-            <p className="qna-text">{post.text}</p>
-            <div className="qna-replies">
-                {replies.map(reply => (
-                    <QnAPostView key={reply.id} post={reply} replies={getReplies(reply.id)} getReplies={getReplies} />
-                ))}
-            </div>
-        </div>
-    )
-};
-
-
-const StudentDirectoryView = () => {
-    const { users, addNotification } = useAppContext();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ department: 'all', year: 'all' });
-    const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
-    const [isAiSearching, setIsAiSearching] = useState(false);
-    const [aiSearchResults, setAiSearchResults] = useState<string[] | null>(null);
-
-    const handleSemanticSearch = useCallback(async (query: string) => {
-        if (!isAiEnabled || !ai) {
-            addNotification('AI search is disabled.', 'warning');
-            return;
-        }
-        setIsAiSearching(true);
-        const studentData = users.filter(u => u.role === 'student').map(u => ({
-            id: u.id,
-            name: u.name,
-            dept: u.dept,
-            year: u.year,
-            grades: u.grades,
-            attendance: u.attendance
-        }));
-
-        const prompt = `You are a search API for a student directory. Analyze the user's query and the provided student data. Return a JSON array of student IDs that best match the query.
-        User Query: "${query}"
-        Student Data: ${JSON.stringify(studentData)}
-        
-        Interpret natural language queries about performance (e.g., "top performers", "low grades"), attendance ("good attendance", "poor attendance"), and demographics. Return only the matching student IDs.`;
-
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' }
-            });
-            const resultIds = JSON.parse(response.text);
-            setAiSearchResults(resultIds);
-        } catch (error) {
-            console.error("AI Student Search Error:", error);
-            addNotification('AI search failed.', 'error');
-            setAiSearchResults([]);
-        } finally {
-            setIsAiSearching(false);
-        }
-    }, [users, addNotification]);
-    
-    const isSemanticQuery = useMemo(() => {
-        const semanticKeywords = ['show', 'find', 'who', 'with', 'good', 'bad', 'top', 'low', 'poor', 'high'];
-        return semanticKeywords.some(keyword => searchTerm.toLowerCase().includes(keyword));
-    }, [searchTerm]);
-
-    useDebouncedEffect(() => {
-        if (searchTerm.trim().length > 3 && isSemanticQuery) {
-            handleSemanticSearch(searchTerm);
-        } else {
-            setAiSearchResults(null);
-        }
-    }, [searchTerm], 500);
-
-    const students = useMemo(() => {
-        let studentList = users.filter((u: User) => u.role === 'student');
-
-        if (aiSearchResults !== null) {
-            const resultsSet = new Set(aiSearchResults);
-            studentList = studentList.filter(u => resultsSet.has(u.id));
-        } else if (searchTerm) {
-            studentList = studentList.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        }
-
-        return studentList
-            .filter((u: User) => (filters.department === 'all' || u.dept === filters.department))
-            .filter((u: User) => (filters.year === 'all' || u.year === filters.year))
-            .sort((a: User, b: User) => a.name.localeCompare(b.name));
-    }, [users, searchTerm, filters, aiSearchResults]);
-    
-    const getAttendanceStatus = (attendance: User['attendance']) => {
-        if (!attendance || attendance.total === 0) return { percent: 0, status: 'fair' };
-        const percent = (attendance.present / attendance.total) * 100;
-        let status = 'poor';
-        if (percent >= 90) status = 'good';
-        else if (percent >= 75) status = 'fair';
-        return { percent, status };
-    };
-
-    return (
-        <div className="directory-container">
-            <div className="directory-header">
-                <h2>Student Directory</h2>
-                <div className="directory-controls">
-                    <div className="search-bar">
-                        {Icons.search}
-                        <input
-                            type="search"
-                            placeholder="Search by name or ask AI, e.g., 'top performers in CSE'"
-                            className="form-control"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
-                         {isAiSearching && <span className="spinner-sm search-spinner"></span>}
-                    </div>
-                    <div className="directory-filters">
-                         <select className="form-control" value={filters.department} onChange={e => setFilters(f => ({...f, department: e.target.value}))}>
-                            <option value="all">All Departments</option>
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                        <select className="form-control" value={filters.year} onChange={e => setFilters(f => ({...f, year: e.target.value}))}>
-                            <option value="all">All Years</option>
-                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                    </div>
-                </div>
-            </div>
-            {isAiSearching ? (
-                <div className="student-grid">
-                     {[...Array(6)].map((_, i) => <div key={i} className="skeleton-card" style={{height: '100px'}}></div>)}
-                </div>
-            ) : (
-                <div className="student-grid">
-                    {students.length > 0 ? (
-                        students.map((student: User) => {
-                            const { percent, status } = getAttendanceStatus(student.attendance);
-                            return (
-                                <div key={student.id} className="student-card" onClick={() => setSelectedStudent(student)}>
-                                    <div className="student-card-avatar">{(student.name[0] || '').toUpperCase()}</div>
-                                    <div className="student-card-info">
-                                        <h4>{student.name}</h4>
-                                        <p>{student.dept} - Year {student.year}</p>
-                                        <div className="attendance-bar-container" title={`Attendance: ${percent.toFixed(0)}%`}>
-                                            <div className={`attendance-bar ${status}`} style={{width: `${percent}%`}}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        })
-                    ) : (
-                        <div className="empty-state">
-                            <h3>No Students Found</h3>
-                            <p>Your search or filter criteria did not return any results.</p>
-                        </div>
-                    )}
-                </div>
-            )}
-            {selectedStudent && <StudentDetailsModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />}
-        </div>
-    );
-};
-
-const StudentDetailsModal = ({ student, onClose }: { student: User; onClose: () => void }) => {
-    const [aiSummary, setAiSummary] = useState<string | null>(student.aiSummary || null);
-    const [isLoading, setIsLoading] = useState(false);
-
-    const getAiSummary = async () => {
-        if (!isAiEnabled || !ai) return;
-        setIsLoading(true);
-        const prompt = `Generate a brief, one-paragraph academic performance summary for the following student. Be encouraging but realistic.
-        - Name: ${student.name}
-        - Grades: ${JSON.stringify(student.grades)}
-        - Attendance: ${student.attendance?.present}/${student.attendance?.total} classes
-        
-        Focus on their strengths and areas for potential improvement based on the data.`;
-
-        try {
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setAiSummary(response.text);
-        } catch (error) {
-            console.error("AI Student Summary Error:", error);
-            setAiSummary("Could not generate summary at this time.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="modal-overlay open" onMouseDown={onClose}>
-            <div className="modal-content student-details-modal" onMouseDown={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>{student.name}'s Profile</h3>
-                    <button onClick={onClose} className="close-modal-btn">&times;</button>
-                </div>
-                <div className="student-details-content">
-                    <h4>Academic Records</h4>
-                    <p><strong>Department:</strong> {student.dept}, Year {student.year}</p>
-                    <div className="student-details-section">
-                        <h5>Grades</h5>
-                        <ul>
-                            {(student.grades || []).map(g => <li key={g.subject}>{g.subject}: <strong>{g.score}%</strong></li>)}
-                        </ul>
-                    </div>
-                    <div className="student-details-section">
-                        <h5>Attendance</h5>
-                        <p>{student.attendance?.present || 0} / {student.attendance?.total || 0} classes attended</p>
-                    </div>
-                    <div className="student-details-section">
-                        <h5>AI Performance Summary</h5>
-                        {aiSummary ? (
-                            <blockquote className="ai-change-summary">{aiSummary}</blockquote>
-                        ) : (
-                            <button className="btn btn-secondary" onClick={getAiSummary} disabled={isLoading}>
-                                {isLoading ? <span className="spinner-sm" /> : <>{Icons.lightbulb} Generate Summary</>}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const UserManagementView = () => {
-    const { users, setUsers, addNotification } = useAppContext();
-
-    const handleToggleLock = (userId: string) => {
-        setUsers((prev: User[]) => prev.map(u => {
-            if (u.id === userId) {
-                addNotification(`${u.name}'s account has been ${u.isLocked ? 'unlocked' : 'locked'}.`, 'info');
-                return { ...u, isLocked: !u.isLocked };
-            }
-            return u;
-        }));
-    };
-
-    return (
-        <div className="user-management-container">
-            <div className="directory-header">
-                <h2>User Management</h2>
-            </div>
-            <div className="table-wrapper">
-                <table className="entry-list-table user-management-table">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Role</th>
-                            <th>Department/Year</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {users.map((user: User) => (
-                            <tr key={user.id}>
-                                <td data-label="User">
-                                    <div className="user-name-cell">
-                                        <span>{user.name}</span>
-                                        <small>{user.id}</small>
-                                    </div>
-                                </td>
-                                <td data-label="Role">{user.role}</td>
-                                <td data-label="Dept/Year">{user.dept}{user.year ? ` / ${user.year}`: ''}</td>
-                                <td data-label="Status"><span className={`status-pill ${user.isLocked ? 'locked' : user.status}`}>{user.isLocked ? 'Locked' : user.status.replace('_', ' ')}</span></td>
-                                <td data-label="Actions">
-                                    <div className="item-actions">
-                                        <button className="btn-action" title="Edit User">{Icons.editPencil}</button>
-                                        <button className="btn-action" onClick={() => handleToggleLock(user.id)} title={user.isLocked ? "Unlock Account" : "Lock Account"}>
-                                            {user.isLocked ? Icons.unlock : Icons.lock}
-                                        </button>
-                                        <button className="btn-action delete" title="Delete User">{Icons.delete}</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-};
-
-const SecurityCenterView = () => {
-    const { securityAlerts } = useAppContext();
-    const [activeAlert, setActiveAlert] = useState<string | null>(null);
-
-    const openAlerts = securityAlerts.filter(a => !a.isResolved).length;
-    const criticalAlerts = securityAlerts.filter(a => !a.isResolved && a.severity === 'critical').length;
-    const securityScore = Math.max(0, 100 - (openAlerts * 5) - (criticalAlerts * 20));
-
-    return (
-        <div className="security-center-container">
-            <div className="guardian-dashboard-grid">
-                <div className={`status-card ${securityScore > 80 ? 'severity-low' : securityScore > 50 ? 'severity-medium' : 'severity-high'}`}>
-                    <div className="status-indicator">{Icons.shieldCheck}</div>
-                    <div className="status-text">
-                        <h4>Overall Security Score</h4>
-                        <p>{securityScore} / 100</p>
-                    </div>
-                </div>
-                <div className={`status-card ${openAlerts > 0 ? 'severity-high' : 'severity-low'}`}>
-                    <div className="status-indicator">{Icons.warning}</div>
-                    <div className="status-text">
-                        <h4>Open Alerts</h4>
-                        <p>{openAlerts}</p>
-                    </div>
-                </div>
-                 <div className="guardian-actions">
-                    <button className="btn btn-secondary">{Icons.clipboardList} View Audit Logs</button>
-                    <button className="btn btn-secondary">{Icons.beaker} Run Security Drill</button>
-                </div>
-            </div>
-            <div className="alert-list-container">
-                 <h3>Active Security Alerts</h3>
-                 <ul className="alert-list">
-                    {securityAlerts.filter(a => !a.isResolved).sort((a,b) => b.timestamp - a.timestamp).map(alert => (
-                        <SecurityAlertItem key={alert.id} alert={alert} isActive={activeAlert === alert.id} onToggle={() => setActiveAlert(activeAlert === alert.id ? null : alert.id)} />
-                    ))}
-                 </ul>
-            </div>
-        </div>
-    );
-};
-
-const SecurityAlertItem = ({ alert, isActive, onToggle }: { alert: SecurityAlert, isActive: boolean, onToggle: () => void }) => {
-    const { setSecurityAlerts, addNotification } = useAppContext();
-    const handleResolve = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setSecurityAlerts((prev: SecurityAlert[]) => prev.map(a => a.id === alert.id ? {...a, isResolved: true} : a));
-        addNotification(`Alert "${alert.title}" marked as resolved.`, 'success');
-    };
-
-    return (
-        <li className={`alert-item severity-${alert.severity}`} onClick={onToggle} aria-expanded={isActive}>
-             <div className="alert-item-header">
-                <div className="alert-title">
-                     <span className="severity-icon">{Icons.warning}</span>
-                     <h5>{alert.title}</h5>
-                </div>
-                 <div className="alert-meta">
-                    <span className={`status-pill severity-${alert.severity}`}>{alert.severity}</span>
-                    <span>{getRelativeTime(alert.timestamp)}</span>
-                 </div>
-             </div>
-             <p className="alert-description">{alert.description}</p>
-             {isActive && (
-                <div className="alert-details">
-                    <div className="response-plan">
-                        <h4>{Icons.guardian} AI Guardian Response Plan</h4>
-                        <div className="response-plan-section">
-                            <strong>Containment:</strong>
-                            <p>{alert.responsePlan?.containment}</p>
-                        </div>
-                         <div className="response-plan-section">
-                            <strong>Investigation:</strong>
-                            <p>{alert.responsePlan?.investigation}</p>
-                        </div>
-                         <div className="response-plan-section">
-                            <strong>Recovery:</strong>
-                            <p>{alert.responsePlan?.recovery}</p>
-                        </div>
-                    </div>
-                     <div className="alert-item-actions">
-                         <button className="btn btn-secondary btn-sm">View Related Logs</button>
-                         <button className="btn btn-success btn-sm" onClick={handleResolve}>Mark as Resolved</button>
-                    </div>
-                </div>
-             )}
-        </li>
-    );
-};
-
-const AuthView = () => {
-    const { users, setUsers, handleLogin, addNotification } = useAppContext();
-    const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-    const [error, setError] = useState('');
-    const [loadingProvider, setLoadingProvider] = useState<null | 'credentials' | 'google' | 'microsoft'>(null);
-
-    // Login State
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-
-    // Signup State
-    const [signupName, setSignupName] = useState('');
-    const [signupUsername, setSignupUsername] = useState('');
-    const [signupPassword, setSignupPassword] = useState('');
-    const [signupRole, setSignupRole] = useState<UserRole>('student');
-    const [signupDept, setSignupDept] = useState(DEPARTMENTS[0]);
-    const [signupYear, setSignupYear] = useState(YEARS[0]);
-    const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: '' });
-
-    const handlePasswordChange = (pass: string) => {
-        setSignupPassword(pass);
-        let score = 0;
-        let feedback = '';
-        if (pass.length > 8) score++;
-        if (pass.length > 12) score++;
-        if (/[A-Z]/.test(pass)) score++;
-        if (/[0-9]/.test(pass)) score++;
-        if (/[^A-Za-z0-9]/.test(pass)) score++;
-
-        if (pass.length === 0) {
-            feedback = '';
-        } else if (score < 3) {
-            feedback = 'Weak. Try adding uppercase letters, numbers, or symbols.';
-        } else if (score < 5) {
-            feedback = 'Good. Could be stronger with more length or symbol variation.';
-        } else {
-            feedback = 'Strong password!';
-        }
-        setPasswordStrength({ score, feedback });
-    };
-
-    const handleLoginSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoadingProvider('credentials');
-        setError('');
-
-        setTimeout(() => { // Simulate network delay
-            const user = users.find((u: User) => u.id === username);
-
-            if (user && user.password === password) {
-                if (user.status === 'pending_approval') {
-                     setError('Your account is still pending approval.');
-                } else if (user.status === 'rejected') {
-                     setError('Your registration has been rejected. Please contact an administrator.');
-                } else {
-                    const loginSuccess = handleLogin(user);
-                    if (!loginSuccess) {
-                        setError('This account is currently locked. Please contact an administrator.');
-                    }
-                }
-            } else {
-                setError('Invalid username or password.');
-            }
-            setLoadingProvider(null);
-        }, 500);
-    };
-
-    const handleSignupSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoadingProvider('credentials');
-        setError('');
-
-        if (!signupName || !signupUsername || !signupPassword) {
-            setError('Please fill in all required fields.');
-            setLoadingProvider(null);
-            return;
-        }
-
-        setTimeout(() => { // Simulate network delay
-            if (users.some((u: User) => u.id === signupUsername)) {
-                setError('Username already exists. Please choose another.');
-            } else {
-                // Auto-approve the very first admin account
-                const isAdminRegistration = signupRole === 'admin';
-                const activeAdminExists = users.some((u: User) => u.role === 'admin' && u.status === 'active');
-                const newStatus = (isAdminRegistration && !activeAdminExists) ? 'active' : 'pending_approval';
-
-                const newUser: User = {
-                    id: signupUsername,
-                    name: signupName,
-                    password: signupPassword,
-                    role: signupRole,
-                    dept: signupDept,
-                    year: signupRole === 'student' ? signupYear : undefined,
-                    status: newStatus,
-                    hasCompletedOnboarding: false,
-                    aiAssessment: "Standard user registration. No anomalies detected in provided information.",
-                };
-                setUsers((prevUsers: User[]) => [...prevUsers, newUser]);
-                
-                if (newStatus === 'active') {
-                    addNotification('Admin account created and activated! You can now log in.', 'success');
-                } else {
-                    addNotification('Registration successful! Your account is pending administrator approval.', 'success');
-                }
-
-                setAuthMode('login');
-                setUsername('');
-                setPassword('');
-                setSignupName('');
-                setSignupUsername('');
-                setSignupPassword('');
-            }
-            setLoadingProvider(null);
-        }, 500);
-    };
-    
-    const handleSocialLogin = (provider: 'google' | 'microsoft') => {
-        setLoadingProvider(provider);
-        setError('');
-    
-        setTimeout(() => {
-            // In a real app, this would come from an OAuth provider and you'd get a stable ID.
-            // For this demo, we generate a new user each time to show the approval flow.
-            const socialUserData = {
-                id: `${provider}-user-${Date.now()}`,
-                name: `New ${provider.charAt(0).toUpperCase() + provider.slice(1)} User`,
-                dept: provider === 'google' ? 'CSE' : 'ECE',
-                year: provider === 'google' ? 'I' : 'II',
-            };
-            
-            // This flow simulates a NEW user signing up via social media.
-            // A full implementation would first check if a user with this social ID already exists.
-            const newUser: User = {
-                id: socialUserData.id,
-                name: socialUserData.name,
-                role: 'student', // Defaulting to student for social signups
-                dept: socialUserData.dept,
-                year: socialUserData.year,
-                status: 'pending_approval',
-                hasCompletedOnboarding: false,
-                aiAssessment: `User registered via ${provider}. Standard checks passed.`,
-            };
-    
-            setUsers((prevUsers: User[]) => [...prevUsers, newUser]);
-            addNotification(`Account created with ${provider}. It is now pending administrator approval.`, 'success');
-            setAuthMode('login'); // Go back to login screen to wait for approval
-            setLoadingProvider(null);
-            
-        }, 1000);
-    };
-
-
-    return (
-        <div className="login-view-container">
-            <div className="login-card">
-                <div className="login-header">
-                    <span className="logo">{Icons.logo}</span>
-                    <h1>{authMode === 'login' ? 'Welcome Back' : 'Create Account'}</h1>
-                </div>
-
-                {authMode === 'login' ? (
-                    <form onSubmit={handleLoginSubmit}>
-                        {error && <p className="auth-error">{error}</p>}
-                        <div className="control-group">
-                            <label htmlFor="username">Username</label>
-                            <input
-                                id="username"
-                                type="text"
-                                className="form-control"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                placeholder="e.g., student-alice"
-                                required
-                                autoCapitalize="none"
-                            />
-                        </div>
-                        <div className="control-group">
-                            <label htmlFor="password">Password</label>
-                            <input
-                                id="password"
-                                type="password"
-                                className="form-control"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="password"
-                                required
-                            />
-                        </div>
-                        <button type="submit" className="btn btn-primary" disabled={loadingProvider !== null} style={{marginTop: '0.5rem', width: '100%'}}>
-                            {loadingProvider === 'credentials' ? <span className="spinner-sm"></span> : 'Login'}
-                        </button>
-                    </form>
-                ) : (
-                    <form onSubmit={handleSignupSubmit} className="signup-form">
-                        {error && <p className="auth-error">{error}</p>}
-                        <div className="control-group">
-                            <label htmlFor="signupName">Full Name</label>
-                            <input id="signupName" type="text" className="form-control" value={signupName} onChange={(e) => setSignupName(e.target.value)} required />
-                        </div>
-                        <div className="control-group">
-                            <label htmlFor="signupUsername">Username</label>
-                            <input id="signupUsername" type="text" className="form-control" value={signupUsername} onChange={(e) => setSignupUsername(e.target.value)} required autoCapitalize="none" />
-                        </div>
-                        <div className="control-group">
-                            <label htmlFor="signupPassword">Password</label>
-                            <input id="signupPassword" type="password" className="form-control" value={signupPassword} onChange={(e) => handlePasswordChange(e.target.value)} required />
-                             {signupPassword && (
-                                <div className={`password-strength-meter score-${passwordStrength.score}`}>
-                                    <div className="strength-bar"></div>
-                                    <small className="strength-feedback">{passwordStrength.feedback}</small>
-                                </div>
-                            )}
-                        </div>
-                        <div className="control-group">
-                            <label htmlFor="signupRole">I am a...</label>
-                            <select id="signupRole" className="form-control" value={signupRole} onChange={(e) => setSignupRole(e.target.value as UserRole)}>
-                                <option value="student">Student</option>
-                                <option value="faculty">Faculty</option>
-                                <option value="admin">Administrator</option>
-                            </select>
-                        </div>
-                        <div className="control-group">
-                            <label htmlFor="signupDept">Department</label>
-                            <select id="signupDept" className="form-control" value={signupDept} onChange={(e) => setSignupDept(e.target.value)}>
-                                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                        </div>
-                        {signupRole === 'student' && (
-                            <div className="control-group">
-                                <label htmlFor="signupYear">Year</label>
-                                <select id="signupYear" className="form-control" value={signupYear} onChange={(e) => setSignupYear(e.target.value)}>
-                                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                                </select>
-                            </div>
-                        )}
-                        <button type="submit" className="btn btn-primary" disabled={loadingProvider !== null} style={{width: '100%'}}>
-                            {loadingProvider === 'credentials' ? <span className="spinner-sm"></span> : 'Sign Up'}
-                        </button>
-                    </form>
-                )}
-
-                 <div className="social-login-divider">
-                    <span>OR</span>
-                </div>
-                <div className="social-login-buttons">
-                    <button className="btn btn-secondary social-btn" onClick={() => handleSocialLogin('google')} disabled={loadingProvider !== null}>
-                        {loadingProvider === 'google' ? <span className="spinner-sm" /> : Icons.google} 
-                        <span>Sign in with Google</span>
-                    </button>
-                    <button className="btn btn-secondary social-btn" onClick={() => handleSocialLogin('microsoft')} disabled={loadingProvider !== null}>
-                       {loadingProvider === 'microsoft' ? <span className="spinner-sm" /> : Icons.microsoft} 
-                        <span>Sign in with Microsoft</span>
-                    </button>
-                </div>
-
-                <div className="auth-toggle">
-                    {authMode === 'login' ? (
-                        <>
-                            Don't have an account?{' '}
-                            <button onClick={() => { setAuthMode('signup'); setError(''); }}>Sign Up</button>
-                        </>
-                    ) : (
-                        <>
-                            Already have an account?{' '}
-                            <button onClick={() => { setAuthMode('login'); setError(''); }}>Login</button>
-                        </>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const OracleVisualizer = ({ status }: { status: 'idle' | 'listening' | 'thinking' | 'speaking' }) => {
-    return (
-        <div className="oracle-visualizer" data-status={status}>
-            <div className="oracle-glow"></div>
-            <div className="oracle-orb"></div>
-        </div>
-    );
-};
-
-
-const Chatbot = () => {
-    const { isChatbotOpen, setChatbotOpen, currentUser, addNotification } = useAppContext();
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [input, setInput] = useState('');
-    const [aiStatus, setAiStatus] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
-    const [isMuted, setIsMuted] = useState(true);
-    const historyRef = useRef<HTMLDivElement>(null);
-    const recognitionRef = useRef<any>(null);
-
-    useEffect(() => {
-        historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: 'smooth' });
-    }, [messages]);
-
-    useEffect(() => {
-        // Speech Recognition setup
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = false;
-            recognitionRef.current.interimResults = false;
-
-            recognitionRef.current.onstart = () => {
-                setAiStatus('listening');
-            };
-
-            recognitionRef.current.onend = () => {
-                setAiStatus('idle');
-            };
-
-            recognitionRef.current.onresult = (event: any) => {
-                const transcript = event.results[0][0].transcript;
-                setInput(transcript);
-                handleSend(transcript); 
-            };
-            
-            recognitionRef.current.onerror = (event: any) => {
-                console.error('Speech recognition error:', event.error);
-                addNotification(`Voice error: ${event.error}`, 'error');
-                setAiStatus('idle');
-            };
-
-        }
-    }, [addNotification]);
-    
-    const handleVoiceInput = () => {
-        if (aiStatus === 'listening') {
-            recognitionRef.current?.stop();
-        } else {
-             try {
-                recognitionRef.current?.start();
-            } catch(e) {
-                addNotification('Voice recognition already active.', 'warning');
-            }
-        }
-    };
-
-    const speak = (text: string) => {
-        if (isMuted || !('speechSynthesis' in window)) return;
-        
-        window.speechSynthesis.cancel(); // Cancel any previous speech
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        utterance.onstart = () => setAiStatus('speaking');
-        utterance.onend = () => setAiStatus('idle');
-        utterance.onerror = () => setAiStatus('idle');
-
-        window.speechSynthesis.speak(utterance);
-    };
-
-    const handleSend = async (textToSend?: string) => {
-        const currentInput = textToSend || input;
-        if (!currentInput.trim() || !isAiEnabled || !ai) return;
-
-        const userMessage: ChatMessage = { id: uuidv4(), role: 'user', text: currentInput };
-        setMessages(prev => [...prev, userMessage]);
-        setInput('');
-        setAiStatus('thinking');
-        window.speechSynthesis.cancel();
-
-        const systemInstruction = currentUser?.role === 'admin'
-            ? "You are JARVIS, a hyper-intelligent, witty, and friendly AI personal assistant for the college's Administrator. Address the admin directly and with a touch of personality, like a trusted colleague. Your goal is to provide precise, efficient support for managing the institution. Be proactive and anticipate needs where possible."
-            : "You are AcademiaAI, a helpful assistant for a college management system. Your goal is to provide clear, concise, and relevant information to students, faculty, and administrators about their schedules, campus life, and academic queries. Be friendly and professional.";
-
-        try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: currentInput,
-                config: {
-                    systemInstruction: systemInstruction
-                }
-            });
-            const modelMessage: ChatMessage = { id: uuidv4(), role: 'model', text: response.text };
-            setMessages(prev => [...prev, modelMessage]);
-            speak(response.text);
-
-        } catch (e) {
-            console.error(e);
-            const errorText = 'Sorry, I encountered an error.';
-            const errorMessage: ChatMessage = { id: uuidv4(), role: 'model', text: errorText, isError: true };
-            setMessages(prev => [...prev, errorMessage]);
-            speak(errorText);
-        } finally {
-            if (aiStatus !== 'speaking') {
-                 setAiStatus('idle');
-            }
-        }
-    };
-    
-    return (
-        <>
-            <button className="chatbot-fab" onClick={() => setChatbotOpen(o => !o)} aria-label="Toggle AI Chatbot">
-                {isChatbotOpen ? Icons.close : Icons.chatbot}
-            </button>
-            {isChatbotOpen && (
-                <div className="chatbot-window">
-                    <div className="chatbot-header">
-                        <OracleVisualizer status={aiStatus} />
-                        <h3>AI Voice Assistant</h3>
-                        <button 
-                            className={`speaker-btn ${isMuted ? 'muted' : ''}`}
-                            onClick={() => {
-                                setIsMuted(m => !m);
-                                if (!isMuted) window.speechSynthesis.cancel();
-                            }} 
-                            aria-label={isMuted ? "Unmute voice" : "Mute voice"}
-                        >
-                            {isMuted ? Icons.speakerMute : Icons.speaker}
-                        </button>
-                    </div>
-                    <div className="chatbot-history" ref={historyRef}>
-                        {messages.length === 0 && <p className="no-history-text">Ask me anything about the schedule, faculty, or campus info.</p>}
-                        {messages.map(msg => (
-                             <div key={msg.id} className={`chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}>
-                                <div className="message-content" dangerouslySetInnerHTML={{ __html: marked.parse(msg.text) }}></div>
-                            </div>
-                        ))}
-                         {aiStatus === 'thinking' && (
-                            <div className="chat-message model">
-                                <div className="message-content">
-                                    <span className="thinking-dots"><span>.</span><span>.</span><span>.</span></span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="chatbot-input">
-                         <button 
-                            className={`mic-btn ${aiStatus === 'listening' ? 'listening' : ''}`}
-                            onClick={handleVoiceInput}
-                            disabled={!recognitionRef.current}
-                            aria-label="Use voice input"
-                        >
-                            {Icons.microphone}
-                        </button>
-                        <input
-                            type="text"
-                            placeholder={aiStatus === 'listening' ? "Listening..." : "Ask a question..."}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && aiStatus !== 'thinking' && handleSend()}
-                            disabled={aiStatus === 'thinking' || aiStatus === 'listening'}
-                        />
-                        <button onClick={() => handleSend()} disabled={aiStatus === 'thinking' || !input.trim()}>
-                            {aiStatus === 'thinking' ? <span className="spinner-sm"></span> : Icons.send}
-                        </button>
-                    </div>
-                </div>
-            )}
-        </>
-    );
-};
-
-
-const OnboardingTour = () => {
-    // Basic implementation placeholder
-    return null;
-};
-
-const NotificationPortal = () => {
-    const { notifications, setNotifications } = useAppContext();
-    if (!notifications || notifications.length === 0) return null;
-
-    const removeNotification = (id: string) => {
-         setNotifications((current: AppNotification[]) => current.filter(n => n.id !== id));
-    };
-
-    return (
-        <div className="notification-container">
-            {notifications.map((n: AppNotification) => (
-                 <div key={n.id} className={`notification-item ${n.type}`}>
-                    <p className="notification-message">{n.message}</p>
-                    <button className="notification-dismiss" onClick={() => removeNotification(n.id)}>&times;</button>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-// --- RENDER ---
 const container = document.getElementById('root');
 if (container) {
     const root = createRoot(container);
-    root.render(<App />);
-} else {
-    console.error("Root element not found");
+    root.render(
+        <React.StrictMode>
+            <AppProvider>
+                <App />
+            </AppProvider>
+        </React.StrictMode>
+    );
 }
