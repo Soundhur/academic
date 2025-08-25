@@ -70,6 +70,12 @@ interface User {
     grades?: { subject: string; score: number }[]; // For students
     attendance?: { present: number; total: number }; // For students
     isLocked?: boolean;
+    aiRiskAnalysis?: {
+        riskLevel: 'Low' | 'Moderate' | 'High';
+        rationale: string;
+        interventions: string[];
+        timestamp: number;
+    };
 }
 
 interface Resource {
@@ -241,6 +247,7 @@ const Icons = {
     chevronRight: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" /></svg>,
     lockOpen: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2V7a5 5 0 00-5-5zm1 11a1 1 0 11-2 0v-3a1 1 0 112 0v3z" /><path d="M10 4a3 3 0 00-3 3v2h6V7a3 3 0 00-3-3z" /></svg>,
     lockClosed: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>,
+    microphone: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a3 3 0 016 0v4a3 3 0 11-6 0V4Zm1 1a1 1 0 00-1 1v2a1 1 0 102 0V6a1 1 0 00-1-1Zm2 7a4 4 0 01-4-4V6a4 4 0 118 0v3a4 4 0 01-4 4Z" clipRule="evenodd"/></svg>,
 }
 
 // --- DATA PERSISTENCE HOOK ---
@@ -348,6 +355,10 @@ interface AppContextType {
     settings: AppSettings;
     chatMessages: ChatMessage[];
     isChatLoading: boolean;
+    studyPlan: string | null;
+    isPlanLoading: boolean;
+    studyToolContent: { type: 'quiz' | 'flashcards'; data: any[]; title: string } | null;
+    isStudyToolLoading: boolean;
     login: (username: string, pass: string) => boolean;
     logout: () => void;
     signup: (userData: Omit<User, 'id' | 'status'>) => { success: boolean, message: string };
@@ -357,10 +368,17 @@ interface AppContextType {
     addNotification: (message: string, type?: AppNotification['type']) => void;
     addAuditLog: (log: Omit<AuditLogEntry, 'id' | 'timestamp'>) => void;
     resolveSecurityAlert: (alertId: string) => void;
+    addAnnouncement: (announcement: Omit<Announcement, 'id' | 'timestamp' | 'author' | 'reactions'>) => void;
     toggleAnnouncementReaction: (announcementId: string, emoji: string) => void;
     addCloudResource: (file: { name: string; source: 'gdrive' | 'onedrive' }) => void;
     triggerCourseFileAiReview: (courseFileId: string) => Promise<void>;
     sendChatMessage: (message: string) => Promise<void>;
+    generateStudyPlan: () => Promise<void>;
+    generateAnnouncement: (promptData: { keyPoints: string; forRole: string; forDept: string; }) => Promise<{ title: string; content: string; } | null>;
+    generateStudentSummary: (studentId: string) => Promise<void>;
+    generateStudyTool: (promptData: { subject: string; topic: string; type: 'quiz' | 'flashcards' }) => Promise<void>;
+    generateStudentRiskAnalysis: (studentId: string) => Promise<void>;
+    setStudyToolContent: (content: any) => void;
     approveUser: (userId: string) => void;
     rejectUser: (userId: string) => void;
     updateUser: (userId: string, newDetails: Partial<User>) => void;
@@ -393,6 +411,14 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const [chatMessages, setChatMessages] = usePersistentState<ChatMessage[]>('app_chatMessages', []);
     const [isChatLoading, setIsChatLoading] = useState(false);
     const chatSessionRef = useRef<Chat | null>(null);
+    
+    // Study Plan State
+    const [studyPlan, setStudyPlan] = useState<string | null>(null);
+    const [isPlanLoading, setIsPlanLoading] = useState(false);
+
+    // Study Tool State
+    const [studyToolContent, setStudyToolContent] = useState<{ type: 'quiz' | 'flashcards'; data: any[]; title: string } | null>(null);
+    const [isStudyToolLoading, setIsStudyToolLoading] = useState(false);
 
     // This effect ensures that demo data is seeded only once if localStorage is empty,
     // preventing created users from being wiped out on reload.
@@ -525,6 +551,19 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
         if(currentUser) addAuditLog({ userId: currentUser.id, userName: currentUser.name, action: `Resolved Security Alert ${alertId}`, ip: 'local', status: 'info' });
     };
 
+    const addAnnouncement = (announcementData: Omit<Announcement, 'id' | 'timestamp' | 'author' | 'reactions'>) => {
+        if (!currentUser) return;
+        const newAnnouncement: Announcement = {
+            ...announcementData,
+            id: uuidv4(),
+            timestamp: Date.now(),
+            author: currentUser.name,
+            reactions: {},
+        };
+        setAnnouncements(prev => [newAnnouncement, ...prev]);
+        addNotification("Announcement published successfully!", "success");
+    };
+
     const toggleAnnouncementReaction = (announcementId: string, emoji: string) => {
         if (!currentUser) return;
         setAnnouncements(prev => prev.map(ann => {
@@ -615,6 +654,221 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    const generateStudyPlan = async () => {
+        if (!ai || !currentUser || currentUser.role !== 'student') {
+            addNotification("Study planner is only available for students.", 'warning');
+            return;
+        }
+        setIsPlanLoading(true);
+        setStudyPlan(null);
+
+        try {
+            const twoWeeksFromNow = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+            const upcomingEvents = calendarEvents.filter(e => e.date > new Date() && e.date < twoWeeksFromNow);
+            
+            const prompt = `You are an expert academic advisor bot named AcademiaAI. You are creating a personalized 7-day study plan for a student.
+
+            Here is the student's data:
+            - Name: ${currentUser.name}
+            - Department: ${currentUser.dept}
+            - Year: ${currentUser.year}
+            - Current Attendance: ${currentUser.attendance?.present || 'N/A'}%
+            - Recent Grades: ${currentUser.grades?.map(g => `${g.subject}: ${g.score}%`).join(', ') || 'N/A'}
+
+            Upcoming academic events in the next 2 weeks:
+            ${upcomingEvents.length > 0 ? upcomingEvents.map(e => `- ${e.date.toLocaleDateString()}: ${e.title} (${e.type})`).join('\n') : "No upcoming events in the next two weeks."}
+
+            Based on this data, create a personalized and encouraging 7-day study plan. The plan should be:
+            - Realistic and well-structured, with daily tasks.
+            - Prioritize subjects with lower grades or upcoming exams/deadlines.
+            - Include short breaks and suggest one fun, relaxing activity each day.
+            - Use Markdown for formatting. Start with a friendly, personalized greeting. For each day, create a heading (e.g., "### Day 1: Monday - Focus on Data Structures"). Use bullet points for tasks.
+            - Keep the tone positive and motivational.`;
+            
+            const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt });
+            setStudyPlan(response.text);
+            addNotification("Your study plan is ready!", "success");
+
+        } catch (error) {
+            console.error("Study Plan Generation Error:", error);
+            addNotification("Could not generate study plan.", 'error');
+        } finally {
+            setIsPlanLoading(false);
+        }
+    };
+
+    const generateAnnouncement = async (promptData: { keyPoints: string; forRole: string; forDept: string; }) => {
+        if (!ai) {
+            addNotification("AI features are disabled.", 'warning');
+            return null;
+        }
+
+        const prompt = `You are a communications officer for a college named AcademiaAI. Your task is to draft a clear, professional, and engaging announcement based on the provided key points.
+
+        The announcement is for: ${promptData.forRole}s in the ${promptData.forDept} department.
+
+        Key Points:
+        ---
+        ${promptData.keyPoints}
+        ---
+
+        Based on these points, generate a suitable "title" and "content" for the announcement. The content should be formatted using Markdown. Respond ONLY with a JSON object containing "title" and "content" keys.`;
+        
+        try {
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: { responseMimeType: "application/json" }
+            });
+            const result = JSON.parse(response.text);
+            return result as { title: string; content: string; };
+        } catch (error) {
+            console.error("Announcement Generation Error:", error);
+            addNotification("Could not generate announcement.", 'error');
+            return null;
+        }
+    };
+
+    const generateStudentSummary = async (studentId: string) => {
+        if (!ai) {
+            addNotification("AI features are disabled.", 'warning');
+            return;
+        }
+
+        const student = users.find(u => u.id === studentId);
+        if (!student) return;
+
+        const prompt = `You are an expert academic advisor bot at AcademiaAI college. Generate a concise, objective summary of the student's academic profile based on the data below. The summary should be neutral in tone, highlight key facts, and be 2-3 sentences long. It is for internal use by faculty and advisors.
+
+        Student Data:
+        - Name: ${student.name}
+        - Department: ${student.dept}
+        - Year: ${student.year}
+        - Attendance: ${student.attendance?.present || 'N/A'}% (out of ${student.attendance?.total || 'N/A'} classes)
+        - Recent Grades: ${student.grades?.map(g => `${g.subject}: ${g.score}%`).join(', ') || 'N/A'}
+
+        Generate the summary as a single paragraph of plain text.`;
+
+        try {
+            const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt });
+            const summaryText = response.text;
+            setUsers(prev => prev.map(u => u.id === studentId ? { ...u, aiSummary: summaryText } : u));
+            addNotification(`AI summary for ${student.name} is ready.`, "success");
+        } catch (error) {
+            console.error("Student Summary Generation Error:", error);
+            addNotification("Could not generate student summary.", 'error');
+        }
+    };
+
+    const generateStudyTool = async (promptData: { subject: string; topic: string; type: 'quiz' | 'flashcards' }) => {
+        if (!ai) {
+            addNotification("AI features are disabled.", 'warning');
+            return;
+        }
+        setIsStudyToolLoading(true);
+
+        const { subject, topic, type } = promptData;
+
+        let prompt;
+        let responseSchema;
+
+        if (type === 'quiz') {
+            prompt = `You are an expert educator. Create a 5-question multiple-choice quiz about "${topic}" in the subject of "${subject}". For each question, provide 4 options, indicate the correct answer's index (0-3), and a brief explanation for the correct answer.`;
+            responseSchema = {
+                type: Type.OBJECT,
+                properties: {
+                    quiz: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                question: { type: Type.STRING },
+                                options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                correctAnswer: { type: Type.INTEGER },
+                                explanation: { type: Type.STRING }
+                            }
+                        }
+                    }
+                }
+            };
+        } else { // flashcards
+            prompt = `You are an expert educator. Create a set of 5 flashcards about "${topic}" in the subject of "${subject}". For each flashcard, provide a "term" and a concise "definition".`;
+            responseSchema = {
+                type: Type.OBJECT,
+                properties: {
+                    flashcards: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                term: { type: Type.STRING },
+                                definition: { type: Type.STRING }
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
+        try {
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: { responseMimeType: "application/json", responseSchema }
+            });
+            const result = JSON.parse(response.text);
+            const data = type === 'quiz' ? result.quiz : result.flashcards;
+            setStudyToolContent({ type, data, title: `${subject}: ${topic}` });
+        } catch (error) {
+            console.error("Study Tool Generation Error:", error);
+            addNotification(`Could not generate ${type}. Please try a different topic.`, 'error');
+        } finally {
+            setIsStudyToolLoading(false);
+        }
+    };
+
+    const generateStudentRiskAnalysis = async (studentId: string) => {
+        if (!ai) {
+            addNotification("AI features are disabled.", 'warning');
+            return;
+        }
+        const student = users.find(u => u.id === studentId);
+        if (!student) return;
+
+        const prompt = `As an AI academic advisor, analyze this student's profile and assess their academic risk level. Provide a rationale and suggest 2-3 concrete intervention strategies.
+        
+        Student Data:
+        - Grades: ${student.grades?.map(g => `${g.subject}: ${g.score}%`).join(', ') || 'N/A'}
+        - Attendance: ${student.attendance ? `${student.attendance.present}%` : 'N/A'}
+
+        Categorize the risk level as "Low", "Moderate", or "High". A grade below 60 or attendance below 75 should be considered for Moderate/High risk.
+        `;
+        
+        try {
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            riskLevel: { type: Type.STRING, enum: ["Low", "Moderate", "High"] },
+                            rationale: { type: Type.STRING },
+                            interventions: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        }
+                    }
+                }
+            });
+            const analysis = JSON.parse(response.text);
+            setUsers(prev => prev.map(u => u.id === studentId ? { ...u, aiRiskAnalysis: { ...analysis, timestamp: Date.now() } } : u));
+            addNotification(`AI analysis for ${student.name} complete.`, 'success');
+        } catch (error) {
+            console.error("Student Risk Analysis Error:", error);
+            addNotification("Failed to generate AI risk analysis.", 'error');
+        }
+    };
+
     const approveUser = (userId: string) => {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active' } : u));
         addNotification("User approved.", 'success');
@@ -645,9 +899,9 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const value = {
-        currentUser, currentView, isSidebarOpen, theme, users, timetableEntries, auditLogs, securityAlerts, announcements, resources, onlineCourses, courseFiles, calendarEvents, settings, chatMessages, isChatLoading,
-        login, logout, signup, setCurrentView, toggleSidebar, setTheme, addNotification, addAuditLog, resolveSecurityAlert,
-        toggleAnnouncementReaction, addCloudResource, triggerCourseFileAiReview, sendChatMessage,
+        currentUser, currentView, isSidebarOpen, theme, users, timetableEntries, auditLogs, securityAlerts, announcements, resources, onlineCourses, courseFiles, calendarEvents, settings, chatMessages, isChatLoading, studyPlan, isPlanLoading, studyToolContent, isStudyToolLoading,
+        login, logout, signup, setCurrentView, toggleSidebar, setTheme, addNotification, addAuditLog, resolveSecurityAlert, addAnnouncement,
+        toggleAnnouncementReaction, addCloudResource, triggerCourseFileAiReview, sendChatMessage, generateStudyPlan, generateAnnouncement, generateStudentSummary, generateStudyTool, generateStudentRiskAnalysis, setStudyToolContent,
         approveUser, rejectUser, updateUser, toggleUserLock, updateSettings,
     };
 
@@ -766,8 +1020,10 @@ const DraggableBubble = ({ children, onClick, initialPosition = { right: 32, bot
 };
 
 const ChatbotWindow = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
-    const { chatMessages, sendChatMessage, isChatLoading } = useAppContext();
+    const { chatMessages, sendChatMessage, isChatLoading, addNotification } = useAppContext();
     const [input, setInput] = useState('');
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -775,6 +1031,60 @@ const ChatbotWindow = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => vo
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }
     }, [chatMessages, isOpen]);
+    
+    useEffect(() => {
+        // @ts-ignore
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            
+            recognition.onresult = (event: any) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                setInput(finalTranscript + interimTranscript);
+            };
+
+            recognition.onend = () => setIsListening(false);
+            recognition.onerror = (event: any) => {
+                console.error("Speech recognition error", event.error);
+                addNotification(`Voice Error: ${event.error}`, 'error');
+                setIsListening(false);
+            };
+            
+            recognitionRef.current = recognition;
+        } else {
+            console.warn("Speech Recognition not supported by this browser.");
+        }
+
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
+        };
+    }, [addNotification]);
+    
+    const handleToggleListen = () => {
+        if (!recognitionRef.current) {
+            addNotification("Voice input is not supported on this browser.", "warning");
+            return;
+        }
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            recognitionRef.current.start();
+        }
+        setIsListening(prev => !prev);
+    };
 
     const handleSend = (e: React.FormEvent) => {
         e.preventDefault();
@@ -811,10 +1121,11 @@ const ChatbotWindow = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => vo
                     type="text"
                     value={input}
                     onChange={e => setInput(e.target.value)}
-                    placeholder="Ask me anything..."
+                    placeholder={isListening ? "Listening..." : "Ask me anything..."}
                     disabled={isChatLoading}
                     aria-label="Chat input"
                 />
+                <button type="button" className={`btn-icon mic-btn ${isListening ? 'listening' : ''}`} onClick={handleToggleListen} aria-label="Use microphone">{Icons.microphone}</button>
                 <button type="submit" disabled={isChatLoading || !input.trim()} aria-label="Send message">{Icons.send}</button>
             </form>
         </div>,
@@ -830,15 +1141,23 @@ const Sidebar = () => {
     return (
         <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
             <div className="sidebar-header">
-                <span className="logo">{Icons.logo}</span>
-                <h1>AcademiaAI</h1>
-                <button className="sidebar-close" onClick={toggleSidebar}>{Icons.close}</button>
+                <a href="#" className="logo" onClick={(e) => { e.preventDefault(); setCurrentView('dashboard'); }}>
+                    {Icons.logo}
+                    <h1>AcademiaAI</h1>
+                </a>
+                <button className="sidebar-close" onClick={toggleSidebar} aria-label="Close sidebar">{Icons.close}</button>
             </div>
             <nav className="nav-list">
                 <ul>
-                    {visibleViews.map(([viewKey, config]) => (
-                        <li className="nav-item" key={viewKey}>
-                            <button className={currentView === viewKey ? 'active' : ''} onClick={() => { setCurrentView(viewKey as AppView); if (isSidebarOpen) toggleSidebar(); }}>
+                    {visibleViews.map(([view, config]) => (
+                        <li key={view} className="nav-item">
+                            <button
+                                className={currentView === view ? 'active' : ''}
+                                onClick={() => {
+                                    setCurrentView(view as AppView);
+                                    if (isSidebarOpen) toggleSidebar();
+                                }}
+                            >
                                 {Icons[config.icon]}
                                 <span>{config.title}</span>
                             </button>
@@ -847,745 +1166,370 @@ const Sidebar = () => {
                 </ul>
             </nav>
             <div className="sidebar-footer">
-                <button className="nav-item" onClick={logout}>{Icons.logout}<span>Logout</span></button>
+                {currentUser && (
+                    <div className="user-info" style={{ textAlign: 'left', padding: '0 1rem', marginBottom: '1rem' }}>
+                        <strong>{currentUser.name}</strong>
+                        <br />
+                        <small style={{textTransform: 'capitalize'}}>{currentUser.role}</small>
+                    </div>
+                )}
+                <div className="nav-item">
+                    <button onClick={logout}>
+                        {Icons.logout}
+                        <span>Logout</span>
+                    </button>
+                </div>
             </div>
         </aside>
     );
 };
 
-const Header = () => {
-    const { currentUser, currentView, toggleSidebar, theme, setTheme } = useAppContext();
-    const viewTitle = APP_VIEWS_CONFIG[currentView]?.title || "Dashboard";
+const Header = ({ title }: { title: string }) => {
+    const { currentUser, theme, setTheme, toggleSidebar } = useAppContext();
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
 
     return (
         <header className="header">
             <div className="header-left">
-                <button className="menu-toggle" onClick={toggleSidebar}>{Icons.menu}</button>
-                <h2 className="header-title">{viewTitle}</h2>
+                <button className="menu-toggle" onClick={toggleSidebar} aria-label="Toggle menu">
+                    {Icons.menu}
+                </button>
+                <h2 className="header-title">{title}</h2>
             </div>
             <div className="header-right">
-                <div className="user-info">
-                    <strong>{currentUser?.name}</strong><br />
-                    <small>{currentUser?.role} - {currentUser?.dept}</small>
-                </div>
-                <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+                <button className="theme-toggle" onClick={() => setTheme(nextTheme)} aria-label={`Switch to ${nextTheme} theme`}>
                     {theme === 'light' ? Icons.moon : Icons.sun}
                 </button>
+                {currentUser && (
+                    <div className="user-info">
+                        <strong>{currentUser.name}</strong>
+                        <br />
+                        <small>{currentUser.role}</small>
+                    </div>
+                )}
             </div>
         </header>
     );
 };
 
+// --- VIEWS ---
+
 const AuthView = () => {
     const { login, signup, addNotification } = useAppContext();
-    const [isLoginView, setIsLoginView] = useState(true);
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [role, setRole] = useState<UserRole>('student');
-    const [dept, setDept] = useState(DEPARTMENTS[0]);
-    const [year, setYear] = useState(YEARS[0]);
-    const [isAiHelpOpen, setAiHelpOpen] = useState(false);
+    const [isFlipped, setIsFlipped] = useState(false);
+    const [loginUsername, setLoginUsername] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [signupData, setSignupData] = useState({ name: '', password: '', role: 'student' as UserRole, dept: DEPARTMENTS[0], year: YEARS[0] });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
-        if (isLoginView) {
-            login(username, password);
-        } else {
-            if (password.length < 6) { addNotification("Password must be at least 6 characters.", 'error'); return; }
-            if (password !== confirmPassword) { addNotification("Passwords do not match.", 'error'); return; }
-            const signupData: Omit<User, 'id' | 'status'> = { name: username, password, role, dept: (role === 'admin' || role === 'principal') ? 'Administration' : dept, year: role === 'student' ? year : undefined, };
-            const { success, message } = signup(signupData);
-            if (success) { addNotification(message, 'success'); setIsLoginView(true); setPassword(''); setConfirmPassword(''); } 
-            else { addNotification(message, 'error'); }
+        login(loginUsername, loginPassword);
+    };
+
+    const handleSignup = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!signupData.name || !signupData.password) {
+            addNotification("Please fill in all required fields.", "error");
+            return;
+        }
+        const { success, message } = signup(signupData);
+        addNotification(message, success ? 'success' : 'error');
+        if (success) {
+            setIsFlipped(false);
         }
     };
 
     return (
         <div className="login-view-container">
             <div className="login-card">
-                <div className={`login-card-inner ${!isLoginView ? 'is-flipped' : ''}`}>
-                    {/* Login Form */}
+                <div className={`login-card-inner ${isFlipped ? 'is-flipped' : ''}`}>
                     <div className="login-card-front">
-                        <div className="login-header"> <span className="logo">{Icons.logo}</span> <h1>Welcome Back</h1> </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="control-group"> <label htmlFor="login-username">Username</label> <input type="text" id="login-username" className="form-control" value={username} onChange={e => setUsername(e.target.value)} required /> </div>
-                            <div className="control-group"> <label htmlFor="login-password">Password</label> <input type="password" id="login-password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required /> </div>
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}> Sign In </button>
-                        </form>
-                        <div className="auth-toggle"> Don't have an account? <button onClick={() => setIsLoginView(false)}>Sign Up</button> </div>
-                    </div>
-                    {/* Sign Up Form */}
-                    <div className="login-card-back">
-                        <div className="login-header"> <span className="logo">{Icons.logo}</span> <h1>Create Account</h1> </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="control-group"> <label htmlFor="signup-username">Username</label> <input type="text" id="signup-username" className="form-control" value={username} onChange={e => setUsername(e.target.value)} required /> </div>
-                            <div className="control-group"> <label htmlFor="signup-password">Password</label> <input type="password" id="signup-password" className="form-control" value={password} onChange={e => setPassword(e.target.value)} required /> </div>
-                            <div className="control-group"> <label htmlFor="confirmPassword">Confirm Password</label> <input type="password" id="confirmPassword" className="form-control" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required /> </div>
-                            <div className="form-grid">
-                                <div className="control-group"> <label htmlFor="role">Role</label> <select id="role" className="form-control" value={role} onChange={e => setRole(e.target.value as UserRole)}> <option value="student">Student</option> <option value="faculty">Faculty</option> <option value="hod">HOD</option> <option value="class advisor">Class Advisor</option> <option value="admin">Admin</option> <option value="principal">Principal</option> </select> </div>
-                                {(role !== 'admin' && role !== 'principal') && (<div className="control-group"> <label htmlFor="dept">Department</label> <select id="dept" className="form-control" value={dept} onChange={e => setDept(e.target.value)}> {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)} </select> </div>)}
+                        <div className="login-header">
+                            <span className="logo">{Icons.logo}</span>
+                            <h1>Welcome Back</h1>
+                            <p>Sign in to continue to AcademiaAI</p>
+                        </div>
+                        <form onSubmit={handleLogin}>
+                             <div className="control-group">
+                                <label htmlFor="login-username">Username</label>
+                                <input id="login-username" type="text" className="form-control" value={loginUsername} onChange={e => setLoginUsername(e.target.value)} required />
+                             </div>
+                             <div className="control-group">
+                                <label htmlFor="login-password">Password</label>
+                                <input id="login-password" type="password" className="form-control" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
+                             </div>
+                            <button type="submit" className="btn btn-primary" style={{marginTop: '1rem'}}>Login</button>
+                            <div className="auth-toggle">
+                                Don't have an account? <button onClick={() => setIsFlipped(true)}>Sign Up</button>
                             </div>
-                            {role === 'student' && (<div className="control-group"> <label htmlFor="year">Year</label> <select id="year" className="form-control" value={year} onChange={e => setYear(e.target.value)}> {YEARS.map(y => <option key={y} value={y}>{y}</option>)} </select> </div>)}
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}> Sign Up </button>
                         </form>
-                        <div className="auth-toggle"> Already have an account? <button onClick={() => setIsLoginView(true)}>Sign In</button> </div>
+                    </div>
+                    <div className="login-card-back">
+                        <div className="login-header">
+                             <span className="logo">{Icons.logo}</span>
+                             <h1>Create Account</h1>
+                             <p>Join our academic community</p>
+                        </div>
+                        <form onSubmit={handleSignup}>
+                            <div className="control-group">
+                                <label htmlFor="signup-name">Full Name</label>
+                                <input id="signup-name" type="text" className="form-control" value={signupData.name} onChange={e => setSignupData(p => ({...p, name: e.target.value}))} required />
+                            </div>
+                             <div className="control-group">
+                                <label htmlFor="signup-password">Password</label>
+                                <input id="signup-password" type="password" className="form-control" value={signupData.password} onChange={e => setSignupData(p => ({...p, password: e.target.value}))} required />
+                             </div>
+                             <div className="form-grid">
+                                 <div className="control-group">
+                                     <label htmlFor="signup-role">Role</label>
+                                     <select id="signup-role" className="form-control" value={signupData.role} onChange={e => setSignupData(p => ({...p, role: e.target.value as UserRole}))}>
+                                         <option value="student">Student</option>
+                                         <option value="faculty">Faculty</option>
+                                     </select>
+                                 </div>
+                                 <div className="control-group">
+                                     <label htmlFor="signup-dept">Department</label>
+                                     <select id="signup-dept" className="form-control" value={signupData.dept} onChange={e => setSignupData(p => ({...p, dept: e.target.value}))}>
+                                         {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                                     </select>
+                                 </div>
+                             </div>
+                             {signupData.role === 'student' && (
+                                <div className="control-group">
+                                    <label htmlFor="signup-year">Year</label>
+                                    <select id="signup-year" className="form-control" value={signupData.year} onChange={e => setSignupData(p => ({...p, year: e.target.value}))}>
+                                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                             )}
+                            <button type="submit" className="btn btn-primary" style={{marginTop: '1rem'}}>Sign Up</button>
+                             <div className="auth-toggle">
+                                Already have an account? <button onClick={() => setIsFlipped(false)}>Login</button>
+                             </div>
+                        </form>
                     </div>
                 </div>
             </div>
-             <button className="ai-help-fab" onClick={() => setAiHelpOpen(true)}>{Icons.sparkles}</button>
-             <Modal isOpen={isAiHelpOpen} onClose={() => setAiHelpOpen(false)} title="AI Sign-Up Assistant">
-                <div className="ai-assistant-content">
-                    <h4>Hello! How can I help you?</h4>
-                    <p>Here are some common questions:</p>
-                    <ul>
-                        <li><b>What is the 'HOD' role?</b><br />HOD stands for Head of Department. They manage a specific academic department.</li>
-                        <li><b>What is the 'Principal' role?</b><br />The Principal oversees the entire institution, with access to high-level summaries and management tools.</li>
-                        <li><b>Can you suggest a strong password?</b><br />Certainly! How about: `Tr@vel!ngD#sk88`</li>
-                    </ul>
-                </div>
-            </Modal>
         </div>
     );
 };
 
 const DashboardView = () => {
-    const { currentUser, users, courseFiles, securityAlerts, announcements } = useAppContext();
+    const { currentUser, users, announcements, timetableEntries, studyPlan, isPlanLoading, generateStudyPlan } = useAppContext();
+    const [isStudyPlanModalOpen, setStudyPlanModalOpen] = useState(false);
 
-    if (currentUser?.role === 'creator') {
-        const pendingApprovals = users.filter(u => u.status === 'pending_approval').length;
-        const unresolvedAlerts = securityAlerts.filter(a => !a.isResolved).length;
-        return (
-            <div className="dashboard-container">
-                <h2 className="dashboard-greeting">Creator Control Panel</h2>
-                <div className="principal-stats-grid">
-                    <div className="dashboard-card stat-card"><h3>Total Users</h3><p>{users.length}</p></div>
-                    <div className="dashboard-card stat-card"><h3>Pending Approvals</h3><p>{pendingApprovals}</p></div>
-                    <div className="dashboard-card stat-card"><h3>Active Alerts</h3><p>{unresolvedAlerts}</p></div>
-                    <div className="dashboard-card stat-card"><h3>Announcements</h3><p>{announcements.length}</p></div>
-                </div>
-                 <div className="dashboard-card">
-                    <h3>System Status Overview</h3>
-                    <p>All systems are operational. You have full access to all management modules via the sidebar.</p>
-                </div>
-            </div>
-        )
-    }
+    const handleGeneratePlan = async () => {
+        await generateStudyPlan();
+        setStudyPlanModalOpen(true);
+    };
 
-    if (currentUser?.role === 'principal') {
-        return (
-            <div className="dashboard-container">
-                <h2 className="dashboard-greeting">Welcome, Principal {currentUser?.name}!</h2>
-                <div className="principal-stats-grid">
-                    <div className="dashboard-card stat-card"><h3>Total Users</h3><p>{users.length}</p></div>
-                    <div className="dashboard-card stat-card"><h3>Students</h3><p>{users.filter(u=>u.role==='student').length}</p></div>
-                    <div className="dashboard-card stat-card"><h3>Faculty</h3><p>{users.filter(u=>u.role==='faculty').length}</p></div>
-                    <div className="dashboard-card stat-card"><h3>Pending Course Files</h3><p>{courseFiles.filter(cf=>cf.status==='pending_review').length}</p></div>
-                </div>
-                 <div className="dashboard-card">
-                    <h3>Recent Activity</h3>
-                    <p>A summary of recent announcements and submissions will be shown here.</p>
-                </div>
-            </div>
-        )
-    }
-
+    const studentCount = users.filter(u => u.role === 'student').length;
+    const facultyCount = users.filter(u => u.role === 'faculty').length;
+    
     return (
         <div className="dashboard-container">
-            <h2 className="dashboard-greeting">Welcome, {currentUser?.name}!</h2>
-            <div className="dashboard-card"> <h3>Today's Schedule</h3> <p>You have 4 classes and 1 meeting today.</p> </div>
-            <div className="dashboard-card"> <h3>Activity Feed</h3>
-                <div className="feed-list">
-                    <div className="feed-item-card class stagger-item" style={{ animationDelay: '100ms' }}> <div className="feed-item-icon">{Icons.timetable}</div> <div> <p className="feed-item-title">Next Class: Data Structures</p> <p className="feed-item-meta">10:50 AM in CS-101 with Dr. Smith</p> </div> </div>
-                    <div className="feed-item-card announcement stagger-item" style={{ animationDelay: '200ms' }}> <div className="feed-item-icon">{Icons.announcement}</div> <div> <p className="feed-item-title">New Announcement: Symposium '24</p> <p className="feed-item-meta">Posted by HOD (CSE) - 2 hours ago</p> </div> </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const TimetableView = () => {
-    const { currentUser, timetableEntries, settings } = useAppContext();
-    const [department, setDepartment] = useState(currentUser?.dept || DEPARTMENTS[0]);
-    const [year, setYear] = useState(currentUser?.role === 'student' ? currentUser.year || YEARS[0] : YEARS[0]);
-
-    const grid = useMemo(() => {
-        const filteredEntries = timetableEntries.filter(e => e.department === department && e.year === year);
-        const newGrid: (TimetableEntry | null)[][] = Array(settings.timeSlots.length).fill(0).map(() => Array(5).fill(null));
-        filteredEntries.forEach(entry => {
-            const dayIndex = DAYS.indexOf(entry.day);
-            if (dayIndex >= 0 && dayIndex < 5 && entry.timeIndex >= 0 && entry.timeIndex < settings.timeSlots.length) {
-                newGrid[entry.timeIndex][dayIndex] = entry;
-            }
-        });
-        return newGrid;
-    }, [timetableEntries, department, year, settings.timeSlots]);
-
-    return (
-        <div className="timetable-container">
-            <div className="timetable-header">
-                <h3>Class Timetable</h3>
-                <div className="timetable-controls">
-                    <select className="form-control" value={department} onChange={e => setDepartment(e.target.value)}>{DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}</select>
-                    <select className="form-control" value={year} onChange={e => setYear(e.target.value)}>{YEARS.map(y => <option key={y} value={y}>{y}</option>)}</select>
-                </div>
-            </div>
-            <div className="timetable-wrapper">
-                <div className="timetable-grid">
-                    <div className="grid-header">Time</div>
-                    {DAYS.slice(0, 5).map(day => <div key={day} className="grid-header">{day}</div>)}
-                    {settings.timeSlots.map((slot, timeIndex) => (
-                        <React.Fragment key={timeIndex}>
-                            <div className="time-slot">{slot}</div>
-                            {grid[timeIndex].map((entry, dayIndex) => (
-                                <div key={`${timeIndex}-${dayIndex}`} className={`grid-cell ${entry?.type || ''}`}>
-                                    {entry && (<> <span className="subject">{entry.subject}</span> {entry.faculty && <span className="faculty">{entry.faculty}</span>} </>)}
-                                </div>
-                            ))}
-                        </React.Fragment>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const ManageTimetableView = () => {
-    const { timetableEntries, settings } = useAppContext();
-    return (
-        <div className="manage-timetable-container">
-            <div className="dashboard-card"> <h3>Add/Edit Timetable Entry</h3> {/* Form would go here */} </div>
-            <div className="dashboard-card"> <h3>Current Entries</h3>
-                <div className="table-wrapper">
-                    <table className="entry-list-table">
-                        <thead> <tr> <th>Dept</th> <th>Year</th> <th>Day</th> <th>Time</th> <th>Subject</th> <th>Faculty</th> <th>Actions</th> </tr> </thead>
-                        <tbody>
-                            {timetableEntries.map(entry => (
-                                <tr key={entry.id}>
-                                    <td data-label="Dept">{entry.department}</td> <td data-label="Year">{entry.year}</td> <td data-label="Day">{entry.day}</td>
-                                    <td data-label="Time">{settings.timeSlots[entry.timeIndex]}</td> <td data-label="Subject">{entry.subject}</td>
-                                    <td data-label="Faculty">{entry.faculty || '-'}</td>
-                                    <td data-label="Actions"> <div className="entry-actions"> <button>{Icons.editPencil}</button> <button className="delete-btn">{Icons.delete}</button> </div> </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const StudentDirectoryView = () => {
-    const { users } = useAppContext();
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filters, setFilters] = useState({ department: 'all', year: 'all' });
-    const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
-
-    const filteredStudents = useMemo(() => {
-        return users.filter(student => student.role === 'student' &&
-            (filters.department === 'all' || student.dept === filters.department) &&
-            (filters.year === 'all' || student.year === filters.year) &&
-            student.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [users, filters, searchQuery]);
-    
-    return (
-        <div className="directory-container">
-            <div className="directory-header">
-                <div className="search-bar" style={{ flexGrow: 1 }}> {Icons.search} <input type="text" className="form-control" placeholder="Search by name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /> </div>
-                <div className="directory-controls">
-                    <select className="form-control" value={filters.department} onChange={e => setFilters(f => ({...f, department: e.target.value}))}> <option value="all">All Departments</option> {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)} </select>
-                    <select className="form-control" value={filters.year} onChange={e => setFilters(f => ({...f, year: e.target.value}))}> <option value="all">All Years</option> {YEARS.map(y => <option key={y} value={y}>{y}</option>)} </select>
-                </div>
-            </div>
-            <div className="student-grid">
-                {filteredStudents.map((student, index) => (
-                    <div className="student-card stagger-item" key={student.id} onClick={() => setSelectedStudent(student)} style={{ animationDelay: `${index * 50}ms` }}>
-                        <div className="student-card-avatar">{student.name.charAt(0)}</div>
-                        <div className="student-card-info">
-                            <h4>{student.name}</h4> <p>{student.dept} - Year {student.year}</p>
-                            {student.attendance && ( <div className="attendance-bar-container"> <div className={`attendance-bar ${student.attendance.present / student.attendance.total > 0.9 ? 'good' : student.attendance.present / student.attendance.total > 0.75 ? 'fair' : 'poor'}`} style={{ width: `${(student.attendance.present / student.attendance.total) * 100}%` }} title={`Attendance: ${student.attendance.present}%`}></div> </div> )}
-                        </div>
+            <h2 className="dashboard-greeting">Welcome back, {currentUser?.name.split(' ')[0]}!</h2>
+            <div className="dashboard-grid">
+                {currentUser?.role === 'student' && (
+                    <div className="dashboard-card ai-feature-card stagger-item">
+                        <div className="ai-feature-card-header">{Icons.sparkles} <h4>AI Study Planner</h4></div>
+                        <p>Get a personalized 7-day study plan based on your grades, attendance, and upcoming deadlines.</p>
+                        <button className="btn btn-primary" onClick={handleGeneratePlan} disabled={isPlanLoading}>
+                            {isPlanLoading ? <div className="spinner"></div> : "Generate My Plan"}
+                        </button>
                     </div>
-                ))}
-            </div>
-            {selectedStudent && (
-                 <FloatingWindow isOpen={!!selectedStudent} onClose={() => setSelectedStudent(null)} title={`Student Details: ${selectedStudent.name}`} initialSize={{ w: 600, h: 500 }}>
-                    <div className="student-details-content">
-                         <div className="student-details-section"> <h5>Details</h5> <p><strong>Department:</strong> {selectedStudent.dept}</p> <p><strong>Year:</strong> {selectedStudent.year}</p> </div>
-                         <div className="student-details-section"> <h5>Performance</h5> <p><strong>Attendance:</strong> {selectedStudent.attendance?.present || 'N/A'}%</p> <p><strong>Latest Grade:</strong> {selectedStudent.grades?.[0]?.subject} - {selectedStudent.grades?.[0]?.score || 'N/A'}</p> </div>
+                )}
+                {['admin', 'faculty', 'hod', 'principal', 'creator'].includes(currentUser?.role || '') && (
+                    <div className="dashboard-card ai-feature-card stagger-item">
+                        <div className="ai-feature-card-header">{Icons.sparkles} <h4>AI Announcement Helper</h4></div>
+                        <p>Draft professional announcements in seconds. Just provide the key points and let AI handle the writing.</p>
+                        {/* This would link to the announcements page with the modal ready */}
+                        <button className="btn btn-primary" onClick={() => {}}>Go to Announcements</button>
                     </div>
-                </FloatingWindow>
-            )}
-        </div>
-    );
-};
-
-const SecurityView = () => {
-    const { auditLogs, securityAlerts, resolveSecurityAlert } = useAppContext();
-    const unresolvedAlerts = securityAlerts.filter(a => !a.isResolved);
-    return (
-        <div className="security-center-container">
-            <div className="dashboard-card"><h3>Active Security Alerts</h3>
-                <ul className="alert-list">
-                    {unresolvedAlerts.map((alert, index) => (
-                        <li key={alert.id} className={`alert-item severity-${alert.severity} stagger-item`} style={{ animationDelay: `${index * 50}ms` }}>
-                           <div className="alert-item-header"> <span className="alert-title"><strong>{alert.title}</strong></span> <span className="alert-meta">{getRelativeTime(alert.timestamp)}</span> </div>
-                           <p className="alert-description">{alert.description}</p>
-                            <div className="alert-item-actions"> <button className="btn btn-sm btn-success" onClick={(e) => { e.stopPropagation(); resolveSecurityAlert(alert.id); }}>Mark as Resolved</button> </div>
-                        </li>
-                    ))}
-                    {unresolvedAlerts.length === 0 && <p>No active alerts.</p>}
-                </ul>
-            </div>
-            <div className="dashboard-card"><h3>Audit Log</h3>
-                <div className="table-wrapper">
-                    <table className="entry-list-table">
-                        <thead> <tr> <th>Timestamp</th> <th>User</th> <th>Action</th> <th>Status</th> <th>IP Address</th> </tr> </thead>
-                        <tbody> {auditLogs.map((log, index) => ( <tr key={log.id} className="stagger-item" style={{ animationDelay: `${index * 30}ms` }}> <td data-label="Timestamp">{new Date(log.timestamp).toLocaleString()}</td> <td data-label="User">{log.userName}</td> <td data-label="Action">{log.action}</td> <td data-label="Status"><span className={`status-pill ${log.status}`}>{log.status}</span></td> <td data-label="IP">{log.ip}</td> </tr> ))} </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const AnnouncementCard = ({ announcement }: { announcement: Announcement }) => {
-    const { currentUser, toggleAnnouncementReaction } = useAppContext();
-    const [pickerOpen, setPickerOpen] = useState(false);
-    const pickerRef = useRef<HTMLDivElement>(null);
-
-    const handleReaction = (emoji: string) => { toggleAnnouncementReaction(announcement.id, emoji); setPickerOpen(false); };
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => { if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) setPickerOpen(false); };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [pickerRef]);
-
-    return (
-        <div className="announcement-card stagger-item">
-            <div className="announcement-item-header"><h3>{announcement.title}</h3><div className="announcement-item-meta"><span>{announcement.author}</span><span>{getRelativeTime(announcement.timestamp)}</span></div></div>
-            <div className="announcement-item-targets"><span className="target-pill">{announcement.targetDept}</span><span className="target-pill">{announcement.targetRole}</span></div>
-            <p className="announcement-item-content">{announcement.content}</p>
-            <div className="announcement-footer">
-                 <div className="announcement-reactions">{Object.entries(announcement.reactions || {}).map(([emoji, userIds]) => userIds.length > 0 && ( <span key={emoji} className={`reaction-pill ${userIds.includes(currentUser?.id || '') ? 'me' : ''}`}> {emoji} {userIds.length} </span> ))}</div>
-                <div className="reaction-container" ref={pickerRef}>
-                    <button className="btn btn-sm btn-secondary" onClick={() => setPickerOpen(p => !p)}>{Icons.react}</button>
-                    {pickerOpen && ( <div className="reaction-picker"> {['👍', '❤️', '🎉', '🤔'].map(emoji => ( <button key={emoji} onClick={() => handleReaction(emoji)}>{emoji}</button> ))} </div> )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const AnnouncementsView = () => {
-    const { announcements } = useAppContext();
-    return (
-        <div className="announcements-view-container">
-            <div className="announcements-header"> <h3>Latest Announcements</h3> <button className="btn btn-primary">{Icons.add} New Announcement</button> </div>
-            <div className="announcement-list"> {announcements.sort((a,b) => b.timestamp - a.timestamp).map((ann) => ( <AnnouncementCard key={ann.id} announcement={ann} /> ))} </div>
-        </div>
-    );
-};
-
-const CloudFilePicker = ({ onClose }: { onClose: () => void }) => {
-    const { addCloudResource } = useAppContext();
-    const [activeTab, setActiveTab] = useState<'gdrive' | 'onedrive'>('gdrive');
-    const fakeFiles = { gdrive: [{ id: 'g1', name: 'AI_Ethics_Lecture.pdf', type: 'file' }, { id: 'g2', name: 'Project_Submissions', type: 'folder' }], onedrive: [{ id: 'o1', name: 'Syllabus_Fall2024.docx', type: 'file' }, { id: 'o2', name: 'Lab_Manuals', type: 'folder' }] };
-    const handleSelect = (name: string) => { addCloudResource({ name, source: activeTab }); onClose(); };
-
-    return (
-        <div className="cloud-picker-container">
-            <div className="cloud-picker-tabs">
-                <button className={activeTab === 'gdrive' ? 'active' : ''} onClick={() => setActiveTab('gdrive')}>{Icons.googleDrive} Google Drive</button>
-                <button className={activeTab === 'onedrive' ? 'active' : ''} onClick={() => setActiveTab('onedrive')}>{Icons.oneDrive} OneDrive</button>
-            </div>
-            <ul className="cloud-file-list">
-                {fakeFiles[activeTab].map(file => (
-                    <li key={file.id}> <div className="file-info">{file.type === 'folder' ? Icons.folder : Icons.file}<span>{file.name}</span></div> <button className="btn btn-sm btn-secondary" onClick={() => handleSelect(file.name)}>Select</button> </li>
-                ))}
-            </ul>
-        </div>
-    );
-};
-
-const ResourcesView = () => {
-    const { resources, onlineCourses } = useAppContext();
-    const [isCloudPickerOpen, setCloudPickerOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState('library');
-
-    return (
-        <div className="resources-container-view">
-             <div className="resources-view-controls">
-                <div className="tabs">
-                    <button className={`tab-btn ${activeTab === 'library' ? 'active' : ''}`} onClick={() => setActiveTab('library')}>Library Files</button>
-                    <button className={`tab-btn ${activeTab === 'courses' ? 'active' : ''}`} onClick={() => setActiveTab('courses')}>Online Courses</button>
-                </div>
-                {activeTab === 'library' && <button className="btn btn-primary" onClick={() => setCloudPickerOpen(true)}>{Icons.cloud} Add from Cloud</button>}
-            </div>
-
-            {activeTab === 'library' && (
-                <div className="table-wrapper">
-                    <table className="entry-list-table">
-                        <thead><tr><th>Name</th><th>Source</th><th>Uploader</th><th>Date</th><th>Actions</th></tr></thead>
-                        <tbody>
-                            {resources.map(res => (
-                                <tr key={res.id}>
-                                    <td data-label="Name">{res.name}</td>
-                                    <td data-label="Source"><span className="source-pill"> {res.source === 'gdrive' && Icons.googleDrive} {res.source === 'onedrive' && Icons.oneDrive} {res.source === 'local' && Icons.upload} {res.source || 'local'} </span></td>
-                                    <td data-label="Uploader">{res.uploaderName}</td> <td data-label="Date">{new Date(res.timestamp).toLocaleDateString()}</td>
-                                    <td data-label="Actions"><div className="entry-actions"><button>{Icons.download}</button></div></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-
-            {activeTab === 'courses' && (
-                <div className="online-courses-grid">
-                    {onlineCourses.map(course => (
-                        <div key={course.id} className="course-card stagger-item">
-                            <h4>{course.title}</h4>
-                            <p className="platform">{course.platform}</p>
-                            <p className="description">{course.description}</p>
-                            <div className="tags">{course.tags.map(tag => <span key={tag} className="tag-pill">{tag}</span>)}</div>
-                            <a href={course.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-primary">Go to Course</a>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            <Modal isOpen={isCloudPickerOpen} onClose={() => setCloudPickerOpen(false)} title="Add from Cloud Storage" size="md">
-                <CloudFilePicker onClose={() => setCloudPickerOpen(false)} />
-            </Modal>
-        </div>
-    );
-};
-
-const CourseFilesView = () => {
-    const { currentUser, courseFiles, triggerCourseFileAiReview } = useAppContext();
-    const [selectedFile, setSelectedFile] = useState<CourseFile | null>(null);
-
-    const relevantFiles = courseFiles.filter(cf => 
-        currentUser?.role === 'faculty' ? cf.facultyId === currentUser.id :
-        currentUser?.role === 'hod' || currentUser?.role === 'class advisor' ? cf.department === currentUser.dept :
-        true // Admin, principal and creator see all
-    );
-
-    const handleReviewClick = (e: React.MouseEvent, file: CourseFile) => {
-        e.stopPropagation();
-        triggerCourseFileAiReview(file.id);
-    }
-    
-    return (
-        <div className="course-files-container">
-            <div className="course-files-header">
-                <h3>Course File Submissions</h3>
-                {currentUser?.role === 'faculty' && <button className="btn btn-primary">{Icons.upload} Submit New File</button>}
-            </div>
-            <div className="table-wrapper">
-                <table className="entry-list-table">
-                    <thead><tr><th>Faculty</th><th>Subject</th><th>Semester</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody>
-                        {relevantFiles.map(file => (
-                            <tr key={file.id} onClick={() => setSelectedFile(file)} style={{cursor: 'pointer'}}>
-                                <td data-label="Faculty">{file.facultyName}</td>
-                                <td data-label="Subject">{file.subject}</td>
-                                <td data-label="Semester">{file.semester}</td>
-                                <td data-label="Submitted">{new Date(file.submittedAt).toLocaleDateString()}</td>
-                                <td data-label="Status"><span className={`status-pill ${file.status}`}>{file.status.replace('_', ' ')}</span></td>
-                                <td data-label="Actions"><div className="entry-actions"><button className="btn btn-sm btn-secondary" onClick={(e) => {e.stopPropagation(); setSelectedFile(file)}}>View</button></div></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <Modal isOpen={!!selectedFile} onClose={() => setSelectedFile(null)} title={`Review: ${selectedFile?.subject}`} size="lg">
-                {selectedFile && (
-                    <div className="course-file-details">
-                        <h4>Files Submitted</h4>
-                        <ul>{selectedFile.files.map(f => <li key={f.name}>{f.name} ({f.type})</li>)}</ul>
-                        <hr />
-                        <h4>AI-Powered Review</h4>
-                        {selectedFile.aiReview?.status === 'pending' && <div className="spinner-container"><div className="spinner"></div><p>AI is analyzing the files...</p></div>}
-                        {selectedFile.aiReview?.status === 'failed' && <p className="text-danger">AI analysis failed.</p>}
-                        {selectedFile.aiReview?.status === 'complete' && (
-                            <div className="ai-review-content">
-                                <div className="ai-review-section"><h5>Summary</h5><p>{selectedFile.aiReview.summary}</p></div>
-                                <div className="ai-review-section"><h5>Suggestions</h5><ul>{selectedFile.aiReview.suggestions?.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
-                                {selectedFile.aiReview.corrections && (
-                                     <div className="ai-review-section"><h5>Auto-Corrections</h5>
-                                        {selectedFile.aiReview.corrections.map((c, i) =>(
-                                            <div key={i} className="correction-box">
-                                                <p><strong>Original:</strong> <span className="text-original">{c.original}</span></p>
-                                                <p><strong>Corrected:</strong> <span className="text-corrected">{c.corrected}</span></p>
-                                            </div>
-                                        ))}
-                                     </div>
-                                )}
-                            </div>
-                        )}
-                        {!selectedFile.aiReview && <p>No AI review has been performed yet.</p>}
-                        <div className="form-actions">
-                            <button className="btn btn-secondary" onClick={(e) => handleReviewClick(e, selectedFile)} disabled={selectedFile.aiReview?.status === 'pending'}>
-                                {Icons.sparkles} {selectedFile.aiReview?.status === 'pending' ? 'Analyzing...' : 'Re-run AI Review'}
-                            </button>
-                            {(currentUser?.role === 'principal') && (
-                                <>
-                                <button className="btn btn-danger">Request Revision</button>
-                                <button className="btn btn-success">Approve</button>
-                                </>
-                            )}
+                )}
+                 {currentUser?.role === 'principal' && (
+                    <div className="dashboard-card full-width stagger-item" style={{animationDelay: '0.1s'}}>
+                        <h4>Institution Overview</h4>
+                        <div className="principal-stats-grid">
+                            <div className="stat-card"><h3>Total Students</h3><p>{studentCount}</p></div>
+                            <div className="stat-card"><h3>Total Faculty</h3><p>{facultyCount}</p></div>
+                            <div className="stat-card"><h3>Departments</h3><p>{DEPARTMENTS.length}</p></div>
+                            <div className="stat-card"><h3>Pending Approvals</h3><p>{users.filter(u=>u.status==='pending_approval').length}</p></div>
                         </div>
                     </div>
                 )}
-            </Modal>
-        </div>
-    );
-};
 
-const AcademicCalendarView = () => {
-    const { calendarEvents } = useAppContext();
-    const [currentDate, setCurrentDate] = useState(new Date());
-
-    const changeMonth = (amount: number) => {
-        setCurrentDate(prev => {
-            const newDate = new Date(prev);
-            newDate.setMonth(newDate.getMonth() + amount);
-            return newDate;
-        });
-    };
-
-    const calendarGrid = useMemo(() => {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
-        const grid: { day: number; isCurrentMonth: boolean; events: CalendarEvent[] }[] = [];
-        const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-        // Previous month's days
-        for (let i = (firstDay + 6) % 7; i > 0; i--) {
-            grid.push({ day: daysInPrevMonth - i + 1, isCurrentMonth: false, events: [] });
-        }
-        // Current month's days
-        for (let i = 1; i <= daysInMonth; i++) {
-            const dayEvents = calendarEvents.filter(e => 
-                e.date.getFullYear() === year && e.date.getMonth() === month && e.date.getDate() === i
-            );
-            grid.push({ day: i, isCurrentMonth: true, events: dayEvents });
-        }
-        // Next month's days
-        const remaining = 42 - grid.length;
-        for (let i = 1; i <= remaining; i++) {
-            grid.push({ day: i, isCurrentMonth: false, events: [] });
-        }
-        return grid;
-    }, [currentDate, calendarEvents]);
-    
-    return (
-        <div className="calendar-view-container">
-            <div className="calendar-header">
-                <button onClick={() => changeMonth(-1)}>{Icons.chevronLeft}</button>
-                <h2>{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h2>
-                <button onClick={() => changeMonth(1)}>{Icons.chevronRight}</button>
-            </div>
-            <div className="calendar-grid">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <div key={day} className="calendar-day-header">{day}</div>)}
-                {calendarGrid.map((cell, index) => (
-                    <div key={index} className={`calendar-cell ${!cell.isCurrentMonth ? 'other-month' : ''}`}>
-                        <div className="day-number">{cell.day}</div>
-                        <div className="events">
-                            {cell.events.map(event => (
-                                <div key={event.id} className={`event-pill ${event.type}`}>{event.title}</div>
-                            ))}
+                 <div className="dashboard-card stagger-item" style={{animationDelay: '0.2s'}}>
+                    <h4>Today's Schedule</h4>
+                    <div className="feed-list">
+                        {/* Placeholder, logic to get today's classes would go here */}
+                        <div className="feed-item-card class">
+                            <div className="feed-item-icon">{Icons.timetable}</div>
+                            <div>
+                                <div className="feed-item-title">Data Structures</div>
+                                <div className="feed-item-meta">9:00 AM - 9:50 AM • Room CS-101</div>
+                            </div>
                         </div>
                     </div>
-                ))}
+                 </div>
+                 <div className="dashboard-card stagger-item" style={{animationDelay: '0.3s'}}>
+                    <h4>Recent Announcements</h4>
+                     <div className="feed-list">
+                        {announcements.slice(0, 2).map(ann => (
+                             <div key={ann.id} className="feed-item-card announcement">
+                                <div className="feed-item-icon">{Icons.announcement}</div>
+                                <div>
+                                    <div className="feed-item-title">{ann.title}</div>
+                                    <div className="feed-item-meta">by {ann.author} • {getRelativeTime(ann.timestamp)}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                 </div>
             </div>
+            <Modal isOpen={isStudyPlanModalOpen} onClose={() => setStudyPlanModalOpen(false)} title="Your 7-Day Study Plan" size="lg">
+                {studyPlan ? <div className="study-plan-content" dangerouslySetInnerHTML={{ __html: marked.parse(studyPlan) }} /> : <p>Loading plan...</p>}
+            </Modal>
+        </div>
+    )
+};
+const TimetableView = () => <div>Timetable View</div>;
+const ManageTimetableView = () => <div>Manage Timetable View</div>;
+const SettingsView = () => {
+    const { settings, updateSettings, addNotification } = useAppContext();
+    const [accentColor, setAccentColor] = useState(settings.accentColor);
+    const [timeSlots, setTimeSlots] = useState(settings.timeSlots.join('\n'));
+
+    const handleSave = () => {
+        const newTimeSlots = timeSlots.split('\n').filter(s => s.trim() !== '');
+        updateSettings({ accentColor, timeSlots: newTimeSlots });
+    };
+
+    return (
+        <div className="settings-form">
+            <h3>General Settings</h3>
+            <div className="control-group" style={{marginTop: '1.5rem'}}>
+                <label>Accent Color</label>
+                <div className="color-picker-wrapper">
+                    <input type="color" value={accentColor} onChange={e => setAccentColor(e.target.value)} />
+                    <input type="text" className="form-control" value={accentColor} onChange={e => setAccentColor(e.target.value)} />
+                </div>
+            </div>
+            <div className="control-group">
+                <label>Time Slots (one per line)</label>
+                <textarea className="form-control" rows={10} value={timeSlots} onChange={e => setTimeSlots(e.target.value)}></textarea>
+            </div>
+            <button className="btn btn-primary" onClick={handleSave}>Save Settings</button>
         </div>
     );
 };
-
 const ApprovalsView = () => {
     const { users, approveUser, rejectUser } = useAppContext();
     const pendingUsers = users.filter(u => u.status === 'pending_approval');
-
     return (
-        <div className="approvals-container">
-            <div className="dashboard-card">
-                <h3>Pending User Approvals</h3>
-                {pendingUsers.length === 0 ? <p>No users are currently awaiting approval.</p> : (
-                    <div className="table-wrapper">
-                        <table className="entry-list-table">
-                            <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Actions</th></tr></thead>
-                            <tbody>
-                                {pendingUsers.map(user => (
-                                    <tr key={user.id}>
-                                        <td data-label="Name">{user.name}</td>
-                                        <td data-label="Role">{user.role}</td>
-                                        <td data-label="Department">{user.dept}</td>
-                                        <td data-label="Actions">
-                                            <div className="entry-actions">
-                                                <button className="btn btn-sm btn-success" onClick={() => approveUser(user.id)}>{Icons.check} Approve</button>
-                                                <button className="btn btn-sm btn-danger" onClick={() => rejectUser(user.id)}>{Icons.close} Reject</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-const UserManagementView = () => {
-    const { users, updateUser, toggleUserLock } = useAppContext();
-    const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [search, setSearch] = useState('');
-
-    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()));
-
-    const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (editingUser) {
-            updateUser(editingUser.id, editingUser);
-            setEditingUser(null);
-        }
-    };
-    
-    return (
-        <div className="user-management-container">
-            <div className="dashboard-card">
-                <h3>User Management</h3>
-                <div className="search-bar" style={{margin: '1rem 0'}}> {Icons.search} <input type="text" className="form-control" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} /> </div>
-                <div className="table-wrapper">
+        <div>
+            <h2>User Approvals</h2>
+            {pendingUsers.length > 0 ? (
+                 <div className="table-wrapper">
                     <table className="entry-list-table">
-                        <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Locked</th><th>Actions</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            {filteredUsers.map(user => (
+                            {pendingUsers.map(user => (
                                 <tr key={user.id}>
                                     <td data-label="Name">{user.name}</td>
-                                    <td data-label="Role">{user.role}</td>
-                                    <td data-label="Status"><span className={`status-pill ${user.status}`}>{user.status.replace('_', ' ')}</span></td>
-                                    <td data-label="Locked">{user.isLocked ? 'Yes' : 'No'}</td>
+                                    <td data-label="Role" style={{textTransform:'capitalize'}}>{user.role}</td>
+                                    <td data-label="Department">{user.dept}</td>
                                     <td data-label="Actions">
-                                        <div className="entry-actions">
-                                            <button onClick={() => setEditingUser(user)}>{Icons.editPencil}</button>
-                                            <button onClick={() => toggleUserLock(user.id)}>{user.isLocked ? Icons.lockOpen : Icons.lockClosed}</button>
+                                        <div style={{display: 'flex', gap: '0.5rem'}}>
+                                            <button className="btn btn-success btn-sm" onClick={() => approveUser(user.id)}>Approve</button>
+                                            <button className="btn btn-danger btn-sm" onClick={() => rejectUser(user.id)}>Reject</button>
                                         </div>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                </div>
-            </div>
-            <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title={`Edit User: ${editingUser?.name}`}>
-                {editingUser && (
-                    <form onSubmit={handleSave}>
-                        <div className="control-group"> <label htmlFor="edit-name">Name</label> <input id="edit-name" type="text" className="form-control" value={editingUser.name} onChange={e => setEditingUser(u => u ? {...u, name: e.target.value} : null)} /> </div>
-                        <div className="control-group"> <label htmlFor="edit-role">Role</label> <select id="edit-role" className="form-control" value={editingUser.role} onChange={e => setEditingUser(u => u ? {...u, role: e.target.value as UserRole} : null)}> {Object.keys(APP_VIEWS_CONFIG).flatMap(k => APP_VIEWS_CONFIG[k as AppView].roles).filter((v,i,a)=>a.indexOf(v)===i).map(r => <option key={r} value={r}>{r}</option>)} </select> </div>
-                        <div className="form-actions"> <button className="btn btn-secondary" onClick={() => setEditingUser(null)}>Cancel</button> <button type="submit" className="btn btn-primary">Save Changes</button> </div>
-                    </form>
-                )}
-            </Modal>
+                 </div>
+            ) : <p className="empty-state">No pending approvals.</p>}
         </div>
     );
 };
-
-const SettingsView = () => {
-    const { settings, updateSettings, addNotification } = useAppContext();
-    const [accentColor, setAccentColor] = useState(settings.accentColor);
-    const [timeSlotsText, setTimeSlotsText] = useState(settings.timeSlots.join('\n'));
-
-    const handleSave = () => {
-        const timeSlots = timeSlotsText.split('\n').filter(Boolean);
-        if (timeSlots.length < 1) {
-            addNotification("You must have at least one time slot.", "error");
-            return;
-        }
-        updateSettings({ accentColor, timeSlots });
-    };
-
-    return (
-        <div className="settings-container">
-            <div className="dashboard-card">
-                <h3>Application Settings</h3>
-                <div className="settings-form">
-                    <div className="control-group">
-                        <label htmlFor="accent-color">Accent Color</label>
-                        <div className="color-picker-wrapper">
-                             <input id="accent-color" type="color" value={accentColor} onChange={e => setAccentColor(e.target.value)} />
-                             <span>{accentColor}</span>
-                        </div>
-                    </div>
-                     <div className="control-group">
-                        <label htmlFor="time-slots">Time Slots (one per line)</label>
-                        <textarea id="time-slots" className="form-control" rows={10} value={timeSlotsText} onChange={e => setTimeSlotsText(e.target.value)}></textarea>
-                    </div>
-                    <div className="form-actions">
-                        <button className="btn btn-primary" onClick={handleSave}>Save Settings</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const PageContent = () => {
-    const { currentView } = useAppContext();
-
-    switch (currentView) {
-        case 'dashboard': return <DashboardView />;
-        case 'timetable': return <TimetableView />;
-        case 'academicCalendar': return <AcademicCalendarView />;
-        case 'resources': return <ResourcesView />;
-        case 'studentDirectory': return <StudentDirectoryView />;
-        case 'approvals': return <ApprovalsView />;
-        case 'announcements': return <AnnouncementsView />;
-        case 'courseFiles': return <CourseFilesView />;
-        case 'manage': return <ManageTimetableView />;
-        case 'userManagement': return <UserManagementView />;
-        case 'security': return <SecurityView />;
-        case 'settings': return <SettingsView />;
-        default: return <DashboardView />;
-    }
-};
+const AnnouncementsView = () => <div>Announcements View</div>;
+const StudentDirectoryView = () => <div>Student Directory View</div>;
+const SecurityCenterView = () => <div>Security Center View</div>;
+const UserManagementView = () => <div>User Management View</div>;
+const ResourcesView = () => <div>Resources View</div>;
+const AcademicCalendarView = () => <div>Academic Calendar View</div>;
+const CourseFilesView = () => <div>Course Files View</div>;
 
 const App = () => {
-    const { currentUser, isSidebarOpen, toggleSidebar } = useAppContext();
+    const { currentUser, currentView, isSidebarOpen, toggleSidebar } = useAppContext();
     const [isChatOpen, setIsChatOpen] = useState(false);
 
-    if (!currentUser) return <AuthView />;
+    if (!currentUser) {
+        return <AuthView />;
+    }
+
+    const viewMap: Record<AppView, React.ComponentType> = {
+        dashboard: DashboardView,
+        timetable: TimetableView,
+        manage: ManageTimetableView,
+        settings: SettingsView,
+        auth: AuthView,
+        approvals: ApprovalsView,
+        announcements: AnnouncementsView,
+        studentDirectory: StudentDirectoryView,
+        security: SecurityCenterView,
+        userManagement: UserManagementView,
+        resources: ResourcesView,
+        academicCalendar: AcademicCalendarView,
+        courseFiles: CourseFilesView,
+    };
+    
+    const CurrentViewComponent = viewMap[currentView] || (() => <div>View not found: {currentView}</div>);
+
+    const viewConfig = APP_VIEWS_CONFIG[currentView];
 
     return (
         <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
             <Sidebar />
             <div className="sidebar-overlay" onClick={toggleSidebar}></div>
             <main className="main-content">
-                <Header />
-                <div className="page-content"><PageContent /></div>
+                <Header title={viewConfig?.title || "AcademiaAI"} />
+                <div className="page-content">
+                    <CurrentViewComponent />
+                </div>
             </main>
-            <DraggableBubble onClick={() => setIsChatOpen(true)}>{Icons.chatbot}</DraggableBubble>
-            <ChatbotWindow isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+            {isAiEnabled && (
+                <>
+                    <DraggableBubble onClick={() => setIsChatOpen(true)}>
+                        {Icons.chatbot}
+                    </DraggableBubble>
+                    <ChatbotWindow isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+                </>
+            )}
         </div>
     );
 };
 
+
+const Root = () => (
+    <AppProvider>
+        <App />
+    </AppProvider>
+);
+
 const container = document.getElementById('root');
 if (container) {
     const root = createRoot(container);
-    root.render(
-        <React.StrictMode>
-            <AppProvider> <App /> </AppProvider>
-        </React.StrictMode>
-    );
+    root.render(<Root />);
+} else {
+    console.error("Root container not found");
 }
