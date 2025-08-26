@@ -180,6 +180,13 @@ interface StudyPlan {
     }[];
 }
 
+interface QuizQuestion {
+    question: string;
+    options: string[];
+    correctAnswerIndex: number;
+}
+
+
 const DEPARTMENTS = ["CSE", "ECE", "EEE", "MCA", "AI&DS", "CYBERSECURITY", "MECHANICAL", "TAMIL", "ENGLISH", "MATHS", "LIB", "NSS", "NET"];
 const USER_ROLES: UserRole[] = ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'];
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -204,8 +211,8 @@ const MOCK_USERS_INITIAL: User[] = [
     { id: 'admin', name: 'Admin', role: 'admin', dept: 'System', status: 'active', isLocked: false, password: 'password' },
     { id: 'principal', name: 'Dr. Principal', role: 'principal', dept: 'Management', status: 'active', isLocked: false, password: 'password' },
     { id: 'hod_cse', name: 'HOD (CSE)', role: 'hod', dept: 'CSE', status: 'active', isLocked: false, password: 'password' },
-    { id: 'stud001', name: 'Alice', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, { subject: 'OOPs', score: 72 }], attendance: { present: 78, total: 80 }, isLocked: false, password: 'password' },
-    { id: 'stud003', name: 'Eve', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 65 }, { subject: 'OOPs', score: 55 }], attendance: { present: 60, total: 80 }, isLocked: false, password: 'password', aiRiskAnalysis: { riskLevel: 'High', rationale: 'Low attendance and declining grades in core subjects.', interventions: ['Mandatory counseling session', 'Additional tutoring for OOPs'], timestamp: Date.now() - 86400000 * 3 } },
+    { id: 'stud001', name: 'Alice', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, { subject: 'OOPs', score: 72 }, { subject: 'Maths', score: 91 }, { subject: 'DPCO', score: 78 }], attendance: { present: 78, total: 80 }, isLocked: false, password: 'password' },
+    { id: 'stud003', name: 'Eve', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 65 }, { subject: 'OOPs', score: 55 }, { subject: 'Maths', score: 60 }, { subject: 'DPCO', score: 58 }], attendance: { present: 60, total: 80 }, isLocked: false, password: 'password', aiRiskAnalysis: { riskLevel: 'High', rationale: 'Low attendance and declining grades in core subjects.', interventions: ['Mandatory counseling session', 'Additional tutoring for OOPs'], timestamp: Date.now() - 86400000 * 3 } },
     { id: 'stud002', name: 'Bob', role: 'student', dept: 'ECE', year: 'III', status: 'pending_approval', isLocked: false, password: 'password' },
     { id: 'fac001', name: 'Prof. Charlie', role: 'faculty', dept: 'CSE', status: 'active', isLocked: false, password: 'password' },
     { id: 'fac002', name: 'Prof. Diana', role: 'faculty', dept: 'ECE', status: 'rejected', isLocked: false, password: 'password' },
@@ -243,6 +250,7 @@ const MOCK_TIMETABLE_INITIAL: TimetableEntry[] = [
 const MOCK_COURSE_FILES_INITIAL: CourseFile[] = [
     { id: 'cf001', facultyId: 'fac001', facultyName: 'Prof. Charlie', department: 'CSE', subject: 'Data Structures', semester: 'IV', files: [{ name: 'Syllabus.pdf', type: 'syllabus' }, { name: 'Unit1_Notes.pdf', type: 'notes' }], status: 'pending_review', submittedAt: Date.now() - 86400000 * 2 },
     { id: 'cf002', facultyId: 'fac002', facultyName: 'Prof. Diana', department: 'ECE', subject: 'Circuit Theory', semester: 'III', files: [{ name: 'Syllabus.pdf', type: 'syllabus' }], status: 'approved', submittedAt: Date.now() - 86400000 * 5 },
+    { id: 'cf003', facultyId: 'fac001', facultyName: 'Prof. Charlie', department: 'CSE', subject: 'OOPs', semester: 'III', files: [{ name: 'Syllabus.pdf', type: 'syllabus' }], status: 'needs_revision', submittedAt: Date.now() - 86400000 * 10 },
 ];
 
 const MOCK_RESOURCES_INITIAL: Resource[] = [
@@ -257,13 +265,6 @@ const MOCK_CALENDAR_EVENTS_INITIAL: CalendarEvent[] = [
     { id: 'cal002', date: new Date(Date.now() + 86400000 * 14).toISOString().split('T')[0], title: 'National Science Day Symposium', type: 'event' },
     { id: 'cal003', date: new Date(Date.now() + 86400000 * 20).toISOString().split('T')[0], title: 'Fee Payment Deadline', type: 'deadline' },
     { id: 'cal004', date: new Date(Date.now() + 86400000 * 25).toISOString().split('T')[0], title: 'Summer Holiday Begins', type: 'holiday' },
-];
-
-const MOCK_AUDIT_LOGS: AuditLogEntry[] = [
-    { id: 'al001', timestamp: Date.now() - 10000, userId: 'admin', userName: 'Admin', action: 'LOGIN_SUCCESS', ip: '192.168.1.1', status: 'success' },
-    { id: 'al002', timestamp: Date.now() - 25000, userId: 'stud002', userName: 'Bob', action: 'APPROVAL_REQUEST', ip: '203.0.113.25', status: 'info', details: 'User requested account approval.' },
-    { id: 'al003', timestamp: Date.now() - 35000, userId: 'hod_cse', userName: 'HOD (CSE)', action: 'UPDATE_TIMETABLE', ip: '198.51.100.10', status: 'success', details: 'Updated CSE II Year timetable.' },
-    { id: 'al004', timestamp: Date.now() - 45000, userId: 'unknown', userName: 'N/A', action: 'LOGIN_FAILURE', ip: '192.0.2.14', status: 'failure', details: 'Failed login attempt for user: guest' },
 ];
 
 const MOCK_SECURITY_ALERTS: SecurityAlert[] = [
@@ -328,6 +329,7 @@ const Icons = {
     send: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"></path></svg>,
     microphone: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m12 5.25v-1.5a6 6 0 0 0-12 0v1.5m12 0a9 9 0 1 1-18 0a9 9 0 0 1 18 0Z" /></svg>,
     sparkles: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>,
+    search: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>,
     check: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>,
     xmark: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>,
     lock: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>,
@@ -358,9 +360,11 @@ const App = () => {
     const [courseFiles, setCourseFiles] = useLocalStorage<CourseFile[]>('courseFiles', MOCK_COURSE_FILES_INITIAL);
     const [resources, setResources] = useLocalStorage<Resource[]>('resources', MOCK_RESOURCES_INITIAL);
     const [calendarEvents, setCalendarEvents] = useLocalStorage<CalendarEvent[]>('calendarEvents', MOCK_CALENDAR_EVENTS_INITIAL);
+    const [auditLogs, setAuditLogs] = useLocalStorage<AuditLogEntry[]>('auditLogs', []);
 
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const [isCommandBarOpen, setCommandBarOpen] = useState(false);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -377,11 +381,40 @@ const App = () => {
             setCurrentView('dashboard');
         }
     }, [currentUser, currentView, setCurrentView]);
+    
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setCommandBarOpen(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const addNotification = useCallback((message: string, type: AppNotification['type']) => {
         const id = `notif_${Date.now()}`;
         setNotifications(prev => [...prev, { id, message, type }]);
+        setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== id));
+        }, 5000);
     }, []);
+    
+    const addAuditLog = useCallback((action: string, status: AuditLogEntry['status'], details?: string) => {
+        if (!currentUser) return;
+        const newLog: AuditLogEntry = {
+            id: `log_${Date.now()}`,
+            timestamp: Date.now(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            action,
+            status,
+            details,
+            ip: "127.0.0.1" // Mock IP
+        };
+        setAuditLogs(prev => [newLog, ...prev].slice(0, 100)); // Keep last 100 logs
+    }, [currentUser, setAuditLogs]);
 
     const appContextValue = {
         currentUser, setCurrentUser,
@@ -392,15 +425,19 @@ const App = () => {
         courseFiles, setCourseFiles,
         resources, setResources,
         calendarEvents, setCalendarEvents,
+        auditLogs, setAuditLogs,
+        addAuditLog,
         settings, setSettings,
         addNotification,
-        theme, setTheme
+        theme, setTheme,
+        setCommandBarOpen,
     };
 
     if (!currentUser) {
         return (
             <AppContext.Provider value={appContextValue}>
                 <AuthView />
+                 <NotificationContainer notifications={notifications} setNotifications={setNotifications} />
             </AppContext.Provider>
         );
     }
@@ -413,6 +450,7 @@ const App = () => {
                 <MainContent isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
                 <Chatbot />
             </div>
+            {isCommandBarOpen && <CommandBar onClose={() => setCommandBarOpen(false)} />}
             <NotificationContainer notifications={notifications} setNotifications={setNotifications} />
         </AppContext.Provider>
     );
@@ -470,7 +508,7 @@ const MainContent = ({ isSidebarOpen, setSidebarOpen }) => {
 // --- CORE UI COMPONENTS ---
 
 const Header = ({ title, setSidebarOpen }) => {
-    const { currentUser, theme, setTheme } = useContext(AppContext);
+    const { currentUser, theme, setTheme, setCommandBarOpen } = useContext(AppContext);
 
     const toggleTheme = () => {
         setTheme(theme === 'light' ? 'dark' : 'light');
@@ -488,7 +526,10 @@ const Header = ({ title, setSidebarOpen }) => {
                 <div className="user-info">
                     <strong>{currentUser.name}</strong> - <small>{currentUser.role}</small>
                 </div>
-                 <button className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+                 <button className="header-action-btn" onClick={() => setCommandBarOpen(true)} aria-label="Open command bar (Cmd+K)">
+                    <Icons.search />
+                </button>
+                 <button className="header-action-btn" onClick={toggleTheme} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
                     {theme === 'light' ? <Icons.moon /> : <Icons.sun />}
                 </button>
             </div>
@@ -497,9 +538,10 @@ const Header = ({ title, setSidebarOpen }) => {
 };
 
 const Sidebar = ({ isSidebarOpen, setSidebarOpen }) => {
-    const { currentUser, setCurrentUser, currentView, setCurrentView } = useContext(AppContext);
+    const { currentUser, setCurrentUser, currentView, setCurrentView, addAuditLog } = useContext(AppContext);
 
     const handleLogout = () => {
+        addAuditLog('LOGOUT', 'success');
         setCurrentUser(null);
         setCurrentView('auth');
     };
@@ -552,6 +594,26 @@ const Sidebar = ({ isSidebarOpen, setSidebarOpen }) => {
     );
 };
 
+const BarChart = ({ data }: { data: { label: string; value: number }[] }) => {
+    const maxValue = useMemo(() => Math.max(...data.map(d => d.value), 0), [data]);
+
+    if (!data || data.length === 0) {
+        return <div className="bar-chart-container"><p>No data available.</p></div>;
+    }
+
+    return (
+        <div className="bar-chart-container">
+            {data.map((d, i) => (
+                <div key={i} className="bar-wrapper" title={`${d.label}: ${d.value}`}>
+                    <div className="bar" style={{ height: `${(d.value / (maxValue || 1)) * 100}%`, animationDelay: `${i * 50}ms` }} />
+                    <span className="bar-label">{d.label}</span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+
 // --- VIEWS ---
 
 const DashboardView = () => {
@@ -588,6 +650,7 @@ const StudentDashboard = () => {
     const today = DAYS[new Date().getDay() -1] || 'Monday';
     const todaysClasses = timetable.filter(c => c.day === today && c.department === currentUser.dept && c.year === currentUser.year).sort((a,b) => a.timeIndex - b.timeIndex);
     const relevantAnnouncements = announcements.filter(a => (a.targetDept === 'all' || a.targetDept === currentUser.dept) && (a.targetRole === 'all' || a.targetRole === 'student')).slice(0, 3);
+    const gradesData = currentUser.grades?.map(g => ({ label: g.subject.substring(0, 10), value: g.score })) || [];
     
     return (
         <div className="dashboard-container">
@@ -596,6 +659,10 @@ const StudentDashboard = () => {
              <div className="dashboard-grid">
                 <div className="dashboard-card full-width ai-feature-card">
                     <AIStudyPlanGenerator />
+                </div>
+                <div className="dashboard-card">
+                    <h3>My Grades</h3>
+                    {gradesData.length > 0 ? <BarChart data={gradesData} /> : <p>No grades recorded yet.</p>}
                 </div>
                 <div className="dashboard-card">
                     <h3>Today's Classes</h3>
@@ -633,20 +700,26 @@ const StudentDashboard = () => {
 const HODDashboard = () => {
     const { users, courseFiles, setCurrentView } = useContext(AppContext);
     const pendingApprovals = users.filter(u => u.status === 'pending_approval' && u.dept === 'CSE');
-    const studentCount = users.filter(u => u.role === 'student' && u.dept === 'CSE').length;
-    const facultyCount = users.filter(u => u.role === 'faculty' && u.dept === 'CSE').length;
     const pendingCourseFiles = courseFiles.filter(cf => cf.status === 'pending_review');
+    
+    const courseFileStatusData = useMemo(() => {
+        const statuses = courseFiles.reduce((acc, file) => {
+            acc[file.status] = (acc[file.status] || 0) + 1;
+            return acc;
+        }, {} as Record<CourseFile['status'], number>);
+        // FIX: The value from Object.entries might be inferred as unknown in some TypeScript configurations.
+        // Explicitly cast to number to match the BarChart component's prop type.
+        return Object.entries(statuses).map(([label, value]) => ({ label: label.replace('_', ' '), value: value as number }));
+    }, [courseFiles]);
 
     return (
         <div className="dashboard-container">
             <h2 className="dashboard-greeting">Management Dashboard</h2>
-            <div className="principal-stats-grid">
-                <div className="stat-card stagger-item"><h3 className="stat-title">Students (CSE)</h3><p className="stat-value">{studentCount}</p></div>
-                <div className="stat-card stagger-item" style={{animationDelay: '100ms'}}><h3 className="stat-title">Faculty (CSE)</h3><p className="stat-value">{facultyCount}</p></div>
-                <div className="stat-card stagger-item" style={{animationDelay: '200ms'}}><h3 className="stat-title">Pending Approvals</h3><p className="stat-value">{pendingApprovals.length}</p></div>
-                <div className="stat-card stagger-item" style={{animationDelay: '300ms'}}><h3 className="stat-title">Course Files to Review</h3><p className="stat-value">{pendingCourseFiles.length}</p></div>
-            </div>
-             <div className="dashboard-grid">
+            <div className="dashboard-grid">
+                <div className="dashboard-card">
+                    <h3>Course File Submissions</h3>
+                    <BarChart data={courseFileStatusData} />
+                </div>
                 <div className="dashboard-card">
                     <h3>Pending User Approvals</h3>
                      <div className="feed-list">
@@ -728,26 +801,31 @@ const FacultyDashboard = () => {
 };
 
 const AdminDashboard = () => {
-    const { users, setCurrentView } = useContext(AppContext);
-    const pendingApprovals = users.filter(u => u.status === 'pending_approval');
-    const totalUsers = users.length;
-    const lockedUsers = users.filter(u => u.isLocked).length;
+    const { users, auditLogs, setCurrentView } = useContext(AppContext);
     const activeAlerts = MOCK_SECURITY_ALERTS.filter(a => !a.isResolved);
+    
+    const userRoleData = useMemo(() => {
+        const roles = users.reduce((acc, user) => {
+            acc[user.role] = (acc[user.role] || 0) + 1;
+            return acc;
+        }, {} as Record<UserRole, number>);
+        // FIX: The value from Object.entries might be inferred as unknown in some TypeScript configurations.
+        // Explicitly cast to number to match the BarChart component's prop type.
+        return Object.entries(roles).map(([label, value]) => ({ label, value: value as number }));
+    }, [users]);
 
     return (
         <div className="dashboard-container">
             <h2 className="dashboard-greeting">System Administration</h2>
-            <div className="principal-stats-grid">
-                <div className="stat-card stagger-item"><h3 className="stat-title">Total Users</h3><p className="stat-value">{totalUsers}</p></div>
-                <div className="stat-card stagger-item" style={{animationDelay: '100ms'}}><h3 className="stat-title">Pending Approvals</h3><p className="stat-value">{pendingApprovals.length}</p></div>
-                <div className="stat-card stagger-item" style={{animationDelay: '200ms'}}><h3 className="stat-title">Locked Accounts</h3><p className="stat-value">{lockedUsers}</p></div>
-                <div className="stat-card stagger-item" style={{animationDelay: '300ms'}}><h3 className="stat-title">Active Security Alerts</h3><p className="stat-value">{activeAlerts.length}</p></div>
-            </div>
             <div className="dashboard-grid">
+                <div className="dashboard-card full-width">
+                    <h3>User Role Distribution</h3>
+                    <BarChart data={userRoleData} />
+                </div>
                 <div className="dashboard-card">
                     <h3>Recent Audit Log</h3>
                     <div className="feed-list">
-                        {MOCK_AUDIT_LOGS.slice(0, 5).map(log => (
+                        {auditLogs.slice(0, 5).map(log => (
                             <div key={log.id} className="feed-item-card">
                                 <div className={`feed-item-icon`}>
                                     {log.status === 'success' ? <Icons.check/> : log.status === 'failure' ? <Icons.xmark/> : <Icons.info/>}
@@ -768,49 +846,1338 @@ const AdminDashboard = () => {
                                 <div className={`feed-item-icon severity-icon severity-${alert.severity}`}><Icons.warning/></div>
                                 <div>
                                     <p className="feed-item-title">{alert.title}</p>
-                                    <p className="feed-item-meta">{alert.description}</p>
+                                    <p className="feed-item-meta">Severity: {alert.severity}</p>
                                 </div>
                             </div>
                         )) : <p>No active security alerts.</p>}
-                        {activeAlerts.length > 0 && <button className="btn-link" onClick={() => setCurrentView('security')}>Go to Security</button>}
+                        {activeAlerts.length > 0 && <button className="btn-link" onClick={() => setCurrentView('security')}>View All Alerts</button>}
                     </div>
                 </div>
             </div>
         </div>
     );
-}
+};
 
-const AIStudyPlanGenerator = () => {
-    const [subject, setSubject] = useState('');
-    const [duration, setDuration] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [generatedPlan, setGeneratedPlan] = useState<StudyPlan | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const { addNotification } = useContext(AppContext);
+const TimetableView = () => {
+    const { currentUser, timetable, setTimetable, settings } = useContext(AppContext);
+    const [isEditing, setEditing] = useState(false);
+    const [editingCell, setEditingCell] = useState<TimetableEntry | null>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!isAiEnabled || !ai) {
-            addNotification("AI features are disabled. Please configure the API key.", 'error');
-            return;
-        }
-        if (!subject || !duration) {
-            addNotification("Please enter both subject and duration.", "warning");
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const prompt = `Generate a detailed weekly and daily study plan for a student to learn "${subject}" over a period of "${duration}". The plan should cover all essential topics. For each day, list the main topic and a few specific, actionable learning tasks as a checklist.`;
+    const canEdit = useMemo(() => ['admin', 'hod', 'principal', 'creator'].includes(currentUser.role), [currentUser.role]);
+    
+    // Default to user's dept/year if student, otherwise first available
+    const initialDept = currentUser.role === 'student' ? currentUser.dept : 'CSE';
+    const initialYear = currentUser.role === 'student' ? currentUser.year : 'II';
+    const [selectedDept, setSelectedDept] = useState(initialDept);
+    const [selectedYear, setSelectedYear] = useState(initialYear);
+
+    const filteredTimetable = useMemo(() => {
+        return timetable.filter(entry => entry.department === selectedDept && entry.year === selectedYear);
+    }, [timetable, selectedDept, selectedYear]);
+    
+    const handleCellClick = (day, timeIndex) => {
+        if (!isEditing) return;
+        const existingEntry = filteredTimetable.find(e => e.day === day && e.timeIndex === timeIndex);
+        const newEntry: TimetableEntry = {
+            id: `tt_${day.toLowerCase()}_${timeIndex}_${selectedDept}_${selectedYear}`,
+            day,
+            timeIndex,
+            department: selectedDept,
+            year: selectedYear,
+            subject: 'New Class',
+            type: 'class'
+        };
+        setEditingCell(existingEntry || newEntry);
+    };
+    
+    const handleSave = (updatedEntry: TimetableEntry) => {
+        setTimetable(prev => {
+            const index = prev.findIndex(e => e.id === updatedEntry.id);
+            if (index > -1) {
+                const newTable = [...prev];
+                newTable[index] = updatedEntry;
+                return newTable;
+            }
+            return [...prev, updatedEntry];
+        });
+        setEditingCell(null);
+    };
+    
+    const handleDelete = (id: string) => {
+         setTimetable(prev => prev.filter(e => e.id !== id));
+         setEditingCell(null);
+    };
+
+    return (
+        <div>
+            <div className="timetable-header">
+                <div className="timetable-controls">
+                    <div className="control-group-inline">
+                        <label htmlFor="dept-select">Department</label>
+                        <select id="dept-select" className="form-control" value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>
+                            {DEPARTMENTS.slice(0, 8).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </div>
+                     <div className="control-group-inline">
+                        <label htmlFor="year-select">Year</label>
+                        <select id="year-select" className="form-control" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+                            {['I', 'II', 'III', 'IV'].map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                </div>
+                {canEdit && (
+                    <button className={`btn ${isEditing ? 'btn-danger-outline' : 'btn-primary'}`} onClick={() => setEditing(!isEditing)}>
+                        {isEditing ? 'Cancel Edit' : 'Edit Timetable'}
+                    </button>
+                )}
+            </div>
             
+            <div className="timetable-wrapper">
+                <div className="timetable-grid">
+                    <div className="grid-header">Time</div>
+                    {DAYS.map(day => <div key={day} className="grid-header">{day}</div>)}
+                    
+                    {settings.timeSlots.map((slot, timeIndex) => (
+                        <React.Fragment key={timeIndex}>
+                             <div className="time-slot">{slot}</div>
+                             {DAYS.map(day => {
+                                 const entry = filteredTimetable.find(e => e.day === day && e.timeIndex === timeIndex);
+                                 return (
+                                     <div key={`${day}-${timeIndex}`} className={`grid-cell ${entry?.type || ''} ${isEditing ? 'editable' : ''}`} onClick={() => handleCellClick(day, timeIndex)}>
+                                         {entry ? (
+                                             entry.type === 'class' ? (
+                                                 <>
+                                                     <span className="subject">{entry.subject}</span>
+                                                     <span className="faculty">{entry.faculty} | {entry.room}</span>
+                                                 </>
+                                             ) : <span className="subject">{entry.subject}</span>
+                                         ) : null}
+                                     </div>
+                                 );
+                             })}
+                        </React.Fragment>
+                    ))}
+                </div>
+            </div>
+            {editingCell && <TimetableEditModal entry={editingCell} onClose={() => setEditingCell(null)} onSave={handleSave} onDelete={handleDelete} />}
+        </div>
+    );
+};
+
+const AnnouncementsView = () => {
+    const { currentUser, announcements, setAnnouncements, addAuditLog } = useContext(AppContext);
+    const [isModalOpen, setModalOpen] = useState(false);
+    const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+    const [isSummaryModalOpen, setSummaryModalOpen] = useState(false);
+    const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+
+    const handleEdit = (ann: Announcement) => {
+        setEditingAnnouncement(ann);
+        setModalOpen(true);
+    };
+    
+    const handleDelete = (id: string) => {
+        if(confirm('Are you sure you want to delete this announcement?')) {
+            setAnnouncements(prev => prev.filter(a => a.id !== id));
+            addAuditLog('DELETE_ANNOUNCEMENT', 'success', `ID: ${id}`);
+        }
+    };
+    
+    const openNewModal = () => {
+        setEditingAnnouncement(null);
+        setModalOpen(true);
+    };
+
+    const handleOpenSummary = (announcement: Announcement) => {
+        setSelectedAnnouncement(announcement);
+        setSummaryModalOpen(true);
+    };
+
+    const canManage = (announcement: Announcement) => {
+        return currentUser.role === 'admin' || currentUser.id === announcement.authorId;
+    };
+    
+    const canCreate = ['admin', 'hod', 'principal', 'faculty'].includes(currentUser.role);
+    
+    return (
+        <div>
+            <div className="view-header">
+                <h2>Latest News</h2>
+                {canCreate && <button className="btn btn-primary" onClick={openNewModal}>New Announcement</button>}
+            </div>
+            <div className="announcement-list">
+                {announcements.sort((a,b) => b.timestamp - a.timestamp).map(ann => (
+                    <div key={ann.id} className="announcement-card">
+                         {canManage(ann) && (
+                            <div className="card-actions-top">
+                                <button className="btn btn-sm" onClick={() => handleEdit(ann)}><Icons.edit /></button>
+                                <button className="btn btn-sm btn-danger-outline" onClick={() => handleDelete(ann.id)}><Icons.trash /></button>
+                            </div>
+                        )}
+                        <h3>{ann.title}</h3>
+                        <div className="announcement-meta">
+                            <span>By <strong>{ann.author}</strong></span>
+                            <span>{formatDate(ann.timestamp)}</span>
+                        </div>
+                        <div className="announcement-content" dangerouslySetInnerHTML={{ __html: marked(ann.content) }}></div>
+                         <div className="announcement-actions">
+                            <button className="btn btn-sm btn-secondary" onClick={() => handleOpenSummary(ann)}>
+                                <Icons.sparkles /> AI Summary
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {isModalOpen && <AnnouncementModal announcement={editingAnnouncement} onClose={() => setModalOpen(false)} />}
+            {isSummaryModalOpen && selectedAnnouncement && (
+                <AnnouncementSummaryModal announcement={selectedAnnouncement} onClose={() => setSummaryModalOpen(false)} />
+            )}
+        </div>
+    );
+};
+
+
+const UserManagementView = () => {
+    const { users, setUsers, addAuditLog } = useContext(AppContext);
+    
+    const handleUserStatusChange = (userId: string, status: User['status']) => {
+        setUsers(prevUsers => prevUsers.map(user => 
+            user.id === userId ? { ...user, status } : user
+        ));
+        addAuditLog('USER_STATUS_CHANGE', 'success', `User ${userId} set to ${status}`);
+    };
+    
+    const handleLockToggle = (userId: string, isLocked: boolean) => {
+         setUsers(prevUsers => prevUsers.map(user => 
+            user.id === userId ? { ...user, isLocked } : user
+        ));
+        addAuditLog(isLocked ? 'LOCK_USER' : 'UNLOCK_USER', 'success', `User ${userId}`);
+    }
+
+    const tabs: { name: User['status'] | 'all', label: string }[] = [
+        { name: 'all', label: 'All Users' },
+        { name: 'pending_approval', label: 'Pending Approvals' },
+        { name: 'active', label: 'Active Users' },
+        { name: 'rejected', label: 'Rejected Users' },
+    ];
+    const [activeTab, setActiveTab] = useState<'all' | User['status']>('all');
+    
+    const filteredUsers = useMemo(() => {
+        if (activeTab === 'all') return users;
+        return users.filter(u => u.status === activeTab);
+    }, [users, activeTab]);
+
+    return (
+        <div>
+            <div className="view-header">
+                <h2>User Management</h2>
+            </div>
+            <div className="tabs">
+                {tabs.map(tab => (
+                    <button key={tab.name} className={`tab-btn ${activeTab === tab.name ? 'active' : ''}`} onClick={() => setActiveTab(tab.name)}>
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+            <div className="table-wrapper">
+                <table className="entry-list-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Department</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredUsers.map(user => (
+                            <tr key={user.id}>
+                                <td>{user.name}</td>
+                                <td>{user.role}</td>
+                                <td>{user.dept}</td>
+                                <td><span className={`status-badge status-${user.status}`}>{user.status.replace('_', ' ')}</span></td>
+                                <td className="entry-actions">
+                                    {user.status === 'pending_approval' && (
+                                        <>
+                                            <button className="btn btn-sm btn-success" onClick={() => handleUserStatusChange(user.id, 'active')}>Approve</button>
+                                            <button className="btn btn-sm btn-danger" onClick={() => handleUserStatusChange(user.id, 'rejected')}>Reject</button>
+                                        </>
+                                    )}
+                                    {user.status === 'active' && (
+                                        <button className="btn btn-sm" onClick={() => handleLockToggle(user.id, !user.isLocked)}>
+                                            {user.isLocked ? <><Icons.unlock /> Unlock</> : <><Icons.lock/> Lock</>}
+                                        </button>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+const StudentDirectoryView = () => {
+    const { users, setUsers, addNotification } = useContext(AppContext);
+    const [loadingAnalysis, setLoadingAnalysis] = useState<string | null>(null);
+
+    const students = useMemo(() => users.filter(u => u.role === 'student'), [users]);
+    
+    const handleGenerateRiskAnalysis = async (studentId: string) => {
+        if (!ai) {
+            addNotification("AI Service not available.", "error");
+            return;
+        }
+        
+        const student = users.find(u => u.id === studentId);
+        if (!student) return;
+        
+        setLoadingAnalysis(studentId);
+        
+        const prompt = `Analyze the academic risk for the following student. Provide a risk level (Low, Moderate, High), a brief rationale, and 2-3 specific intervention suggestions. Student data: Grades: ${JSON.stringify(student.grades)}, Attendance: ${student.attendance?.present}/${student.attendance?.total} classes.`;
+        
+        try {
             const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            riskLevel: { type: Type.STRING, description: "Low, Moderate, or High" },
+                            rationale: { type: Type.STRING },
+                            interventions: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        }
+                    }
+                }
+            });
+            const analysisResult = JSON.parse(response.text);
+            
+            const newAnalysis = {
+                ...analysisResult,
+                timestamp: Date.now()
+            };
+
+            setUsers(prev => prev.map(u => u.id === studentId ? {...u, aiRiskAnalysis: newAnalysis} : u));
+            addNotification(`Successfully updated risk analysis for ${student.name}.`, 'success');
+
+        } catch (err) {
+            console.error(err);
+            addNotification("Failed to generate AI risk analysis.", "error");
+        } finally {
+            setLoadingAnalysis(null);
+        }
+    };
+
+    return (
+        <div>
+            <div className="view-header">
+                <h2>Student Directory</h2>
+            </div>
+            <div className="table-wrapper">
+                <table className="entry-list-table">
+                     <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Year</th>
+                            <th>Risk Level</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {students.map(student => (
+                            <tr key={student.id}>
+                                <td>{student.name}</td>
+                                <td>{student.dept}</td>
+                                <td>{student.year}</td>
+                                <td>
+                                    {student.aiRiskAnalysis ? (
+                                         <span className={`status-badge status-${student.aiRiskAnalysis.riskLevel.toLowerCase()}`}>{student.aiRiskAnalysis.riskLevel}</span>
+                                    ) : (
+                                        <span className="text-secondary">N/A</span>
+                                    )}
+                                </td>
+                                 <td className="entry-actions">
+                                    <button className="btn btn-sm" onClick={() => handleGenerateRiskAnalysis(student.id)} disabled={loadingAnalysis === student.id}>
+                                        {loadingAnalysis === student.id ? <span className="spinner"/> : <Icons.sparkles />}
+                                        {student.aiRiskAnalysis ? 'Update Analysis' : 'Generate Analysis'}
+                                    </button>
+                                 </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+
+const CourseFilesView = () => {
+    const { currentUser, courseFiles, setCourseFiles, addNotification } = useContext(AppContext);
+    const [isReviewModalOpen, setReviewModalOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<CourseFile | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const canReview = ['hod', 'principal'].includes(currentUser.role);
+    const filteredFiles = useMemo(() => {
+        if (canReview) return courseFiles;
+        return courseFiles.filter(cf => cf.facultyId === currentUser.id);
+    }, [currentUser, courseFiles, canReview]);
+
+    const handleGenerateReview = async (file: CourseFile) => {
+        if (!ai) {
+            addNotification("AI Service not available.", "error");
+            return;
+        }
+        
+        setIsLoading(true);
+        setSelectedFile(file);
+
+        const prompt = `As an academic reviewer, analyze this course file submission. Subject: "${file.subject}", Faculty: ${file.facultyName}. Files submitted: ${file.files.map(f => f.name).join(', ')}. Provide a brief summary, a list of actionable suggestions for improvement, and identify any potential corrections in a "original" vs "corrected" format.`;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            summary: { type: Type.STRING },
+                            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            corrections: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        original: { type: Type.STRING },
+                                        corrected: { type: Type.STRING }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            const reviewData = JSON.parse(response.text);
+            const newReview = {
+                ...reviewData,
+                status: 'complete',
+                timestamp: Date.now(),
+            };
+            setCourseFiles(prev => prev.map(cf => cf.id === file.id ? {...cf, aiReview: newReview} : cf));
+            addNotification(`AI Review generated for ${file.subject}`, 'success');
+        } catch (err) {
+            console.error(err);
+            addNotification("Failed to generate AI review.", "error");
+        } finally {
+            setIsLoading(false);
+            // Re-fetch the file to open the modal with new data
+            const updatedFile = courseFiles.find(cf => cf.id === file.id);
+            if(updatedFile && updatedFile.aiReview){
+                setSelectedFile(updatedFile);
+                setReviewModalOpen(true);
+            }
+        }
+    };
+    
+    const openReviewModal = (file: CourseFile) => {
+        if (file.aiReview) {
+            setSelectedFile(file);
+            setReviewModalOpen(true);
+        } else {
+            handleGenerateReview(file);
+        }
+    }
+
+    return (
+        <div>
+            <div className="view-header"><h2>Course File Management</h2></div>
+            <div className="table-wrapper">
+                <table className="entry-list-table">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Faculty</th>
+                            <th>Submitted On</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredFiles.map(file => (
+                            <tr key={file.id}>
+                                <td>{file.subject} ({file.semester} Sem)</td>
+                                <td>{file.facultyName}</td>
+                                <td>{formatDate(file.submittedAt, { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                                <td><span className={`status-badge status-${file.status}`}>{file.status.replace('_', ' ')}</span></td>
+                                <td className="entry-actions">
+                                    {canReview && (
+                                        <button className="btn btn-sm" onClick={() => openReviewModal(file)} disabled={isLoading && selectedFile?.id === file.id}>
+                                            {(isLoading && selectedFile?.id === file.id) ? <span className="spinner" /> : <Icons.sparkles />}
+                                            {file.aiReview ? 'View AI Review' : 'Generate AI Review'}
+                                        </button>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            {isReviewModalOpen && selectedFile && (
+                <CourseFileReviewModal file={selectedFile} onClose={() => setReviewModalOpen(false)} />
+            )}
+        </div>
+    );
+};
+
+const ResourcesView = () => {
+    const { resources } = useContext(AppContext);
+    const [isSummaryModalOpen, setSummaryModalOpen] = useState(false);
+    const [isQuizModalOpen, setQuizModalOpen] = useState(false);
+    const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+
+    const handleOpenSummary = (resource: Resource) => {
+        setSelectedResource(resource);
+        setSummaryModalOpen(true);
+    };
+
+    const handleOpenQuiz = (resource: Resource) => {
+        setSelectedResource(resource);
+        setQuizModalOpen(true);
+    };
+
+    const resourceIcons = {
+        book: <Icons.book />,
+        notes: <Icons.notes />,
+        project: <Icons.project />,
+        lab: <Icons.lab />,
+        other: <Icons.other />,
+    };
+
+    return (
+        <div>
+            <div className="view-header">
+                <h2>Learning Resources</h2>
+            </div>
+            <div className="card-grid">
+                {resources.map(res => (
+                    <div key={res.id} className="resource-card">
+                        <div className="resource-card-icon">{resourceIcons[res.type]}</div>
+                        <h3 className="resource-card-title">{res.name}</h3>
+                        <p className="resource-card-meta">{res.department} | {res.subject}</p>
+                        <p className="resource-card-uploader">Uploaded by {res.uploaderName}</p>
+                        <div className="resource-card-actions">
+                             <button className="btn btn-sm btn-secondary" onClick={() => handleOpenSummary(res)}>
+                                <Icons.sparkles /> AI Summary
+                            </button>
+                            <button className="btn btn-sm btn-secondary" onClick={() => handleOpenQuiz(res)}>
+                                <Icons.sparkles /> Generate Quiz
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {isSummaryModalOpen && selectedResource && (
+                <ResourceSummaryModal resource={selectedResource} onClose={() => setSummaryModalOpen(false)} />
+            )}
+            {isQuizModalOpen && selectedResource && (
+                <QuizGeneratorModal resource={selectedResource} onClose={() => setQuizModalOpen(false)} />
+            )}
+        </div>
+    );
+};
+
+const AcademicCalendarView = () => {
+    return <div className="placeholder-view">Academic Calendar View - To be implemented</div>;
+};
+
+const SecurityView = () => {
+    const { auditLogs } = useContext(AppContext);
+
+    return (
+        <div>
+            <div className="view-header">
+                <h2>Security & Audit</h2>
+            </div>
+            <div className="dashboard-card" style={{ marginBottom: '2rem' }}>
+                <h3>Active Security Alerts</h3>
+                <div className="table-wrapper">
+                    <table className="entry-list-table">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {MOCK_SECURITY_ALERTS.filter(a => !a.isResolved).map(alert => (
+                                <tr key={alert.id}>
+                                    <td><span className={`status-badge status-${alert.severity}`}>{alert.severity}</span></td>
+                                    <td>{alert.title}</td>
+                                    <td>{alert.description}</td>
+                                    <td>{formatDate(alert.timestamp)}</td>
+                                    <td><button className="btn btn-sm btn-secondary">Resolve</button></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="dashboard-card">
+                <h3>Live Audit Log</h3>
+                <div className="table-wrapper">
+                    <table className="entry-list-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Status</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {auditLogs.map(log => (
+                                <tr key={log.id}>
+                                    <td>{formatDate(log.timestamp)}</td>
+                                    <td>{log.userName} ({log.userId})</td>
+                                    <td>{log.action}</td>
+                                    <td><span className={`status-badge status-${log.status}`}>{log.status}</span></td>
+                                    <td>{log.details || 'N/A'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+const SettingsView = () => {
+    return <div className="placeholder-view">Settings View - To be implemented</div>;
+};
+
+// --- MODALS ---
+
+const TimetableEditModal = ({ entry, onClose, onSave, onDelete }) => {
+    const [formData, setFormData] = useState(entry);
+    
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+    
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave(formData);
+    };
+
+    return createPortal(
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <div className="modal-header">
+                    <h3>Edit Timetable Slot</h3>
+                    <button onClick={onClose} className="modal-close-btn"><Icons.close /></button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        {/* Form fields for subject, faculty, room etc. */}
+                         <div className="control-group">
+                            <label>Subject</label>
+                            <input type="text" name="subject" value={formData.subject} onChange={handleChange} className="form-control" />
+                        </div>
+                        <div className="control-group">
+                            <label>Faculty</label>
+                            <input type="text" name="faculty" value={formData.faculty || ''} onChange={handleChange} className="form-control" />
+                        </div>
+                        <div className="control-group">
+                            <label>Room No.</label>
+                            <input type="text" name="room" value={formData.room || ''} onChange={handleChange} className="form-control" />
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-danger-outline" onClick={() => onDelete(entry.id)}>Delete</button>
+                        <div>
+                             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                             <button type="submit" className="btn btn-primary">Save Changes</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+const AnnouncementModal = ({ announcement, onClose }) => {
+    const { currentUser, setAnnouncements, addAuditLog } = useContext(AppContext);
+    const [title, setTitle] = useState(announcement?.title || '');
+    const [content, setContent] = useState(announcement?.content || '');
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [isAiLoading, setAiLoading] = useState(false);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const newAnnouncement: Announcement = {
+            id: announcement?.id || `ann_${Date.now()}`,
+            title,
+            content,
+            author: currentUser.name,
+            authorId: currentUser.id,
+            timestamp: Date.now(),
+            targetRole: 'all', // Simplified for now
+            targetDept: 'all',
+        };
+        
+        if (announcement) {
+            setAnnouncements(prev => prev.map(a => a.id === announcement.id ? newAnnouncement : a));
+            addAuditLog('EDIT_ANNOUNCEMENT', 'success', `ID: ${newAnnouncement.id}`);
+        } else {
+            setAnnouncements(prev => [newAnnouncement, ...prev]);
+            addAuditLog('CREATE_ANNOUNCEMENT', 'success', `ID: ${newAnnouncement.id}`);
+        }
+        onClose();
+    };
+
+    const handleGenerateWithAi = async () => {
+        if (!ai || !aiPrompt) return;
+        setAiLoading(true);
+        const prompt = `Generate a college announcement. Create a concise title and a detailed body (in Markdown). The user's request is: "${aiPrompt}".`;
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            title: { type: Type.STRING, description: `A concise title, like 'Study Plan for ${subject}'` },
+                            title: { type: Type.STRING },
+                            content: { type: Type.STRING, description: "Content in Markdown format" }
+                        }
+                    }
+                }
+            });
+            const result = JSON.parse(response.text);
+            setTitle(result.title);
+            setContent(result.content);
+        } catch (err) {
+            console.error("AI Generation Error:", err);
+            // Add user feedback here
+        } finally {
+            setAiLoading(false);
+        }
+    };
+    
+    return createPortal(
+        <div className="modal-overlay">
+            <div className="modal-content large">
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-header">
+                        <h3>{announcement ? 'Edit' : 'New'} Announcement</h3>
+                        <button type="button" onClick={onClose} className="modal-close-btn"><Icons.close /></button>
+                    </div>
+                    <div className="modal-body">
+                         <div className="ai-generator-section">
+                             <h4><Icons.sparkles /> Generate with AI</h4>
+                             <div className="ai-generator-form">
+                                <input 
+                                    type="text" 
+                                    className="form-control"
+                                    placeholder="e.g., Guest lecture on AI by Dr. Smith on Friday at 2pm"
+                                    value={aiPrompt}
+                                    onChange={(e) => setAiPrompt(e.target.value)}
+                                    disabled={isAiLoading}
+                                />
+                                <button type="button" className="btn" onClick={handleGenerateWithAi} disabled={isAiLoading}>
+                                    {isAiLoading ? <span className="spinner" /> : 'Generate'}
+                                </button>
+                             </div>
+                         </div>
+                        <div className="control-group">
+                            <label htmlFor="ann-title">Title</label>
+                            <input id="ann-title" type="text" className="form-control" value={title} onChange={e => setTitle(e.target.value)} required />
+                        </div>
+                        <div className="control-group">
+                            <label htmlFor="ann-content">Content (Markdown supported)</label>
+                            <textarea id="ann-content" className="form-control" value={content} onChange={e => setContent(e.target.value)} rows={10} required></textarea>
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                         <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                         <button type="submit" className="btn btn-primary">Save Announcement</button>
+                    </div>
+                </form>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+const ResourceSummaryModal = ({ resource, onClose }) => {
+    const [summary, setSummary] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSummary = async () => {
+            if (!ai) {
+                setSummary("AI functionality is disabled.");
+                setIsLoading(false);
+                return;
+            }
+            try {
+                const prompt = `Provide a concise, one-paragraph summary for a learning resource titled "${resource.name}" covering the subject "${resource.subject}".`;
+                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+                setSummary(response.text);
+            } catch (err) {
+                console.error(err);
+                setSummary("Could not generate summary at this time.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchSummary();
+    }, [resource]);
+    
+     return createPortal(
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <div className="modal-header">
+                    <h3><Icons.sparkles /> AI Summary: {resource.name}</h3>
+                    <button onClick={onClose} className="modal-close-btn"><Icons.close /></button>
+                </div>
+                <div className="modal-body">
+                    {isLoading ? <div className="spinner-container"><div className="spinner" /></div> : <p>{summary}</p>}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+const AnnouncementSummaryModal = ({ announcement, onClose }) => {
+    const [summary, setSummary] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSummary = async () => {
+            if (!ai) {
+                setSummary("AI functionality is disabled.");
+                setIsLoading(false);
+                return;
+            }
+            try {
+                const prompt = `Provide a concise, one-paragraph summary for the following announcement titled "${announcement.title}". Content: ${announcement.content}`;
+                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+                setSummary(response.text);
+            } catch (err) {
+                console.error(err);
+                setSummary("Could not generate summary at this time.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchSummary();
+    }, [announcement]);
+    
+     return createPortal(
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <div className="modal-header">
+                    <h3><Icons.sparkles /> AI Summary: {announcement.title}</h3>
+                    <button onClick={onClose} className="modal-close-btn"><Icons.close /></button>
+                </div>
+                <div className="modal-body">
+                    {isLoading ? <div className="spinner-container"><div className="spinner" /></div> : <p>{summary}</p>}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+
+const QuizGeneratorModal = ({ resource, onClose }) => {
+    const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [userAnswers, setUserAnswers] = useState<(number | undefined)[]>([]);
+    const [isFinished, setIsFinished] = useState(false);
+    const [feedback, setFeedback] = useState<Record<number, string>>({});
+    const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+    const { addNotification } = useContext(AppContext);
+
+    useEffect(() => {
+        const generateQuiz = async () => {
+            if (!ai) {
+                addNotification("AI features are disabled.", "error");
+                setIsLoading(false);
+                return;
+            }
+            try {
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: `Generate a 5-question multiple-choice quiz about "${resource.name}" on the subject of "${resource.subject}". Ensure each question has 4 options and indicate the correct answer's index.`,
+                    config: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: Type.OBJECT,
+                            properties: {
+                                quiz: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            question: { type: Type.STRING },
+                                            options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                            correctAnswerIndex: { type: Type.INTEGER }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                const parsed = JSON.parse(response.text);
+
+                if (parsed.quiz && Array.isArray(parsed.quiz) && parsed.quiz.length > 0) {
+                     setQuestions(parsed.quiz);
+                     setUserAnswers(new Array(parsed.quiz.length).fill(undefined));
+                } else {
+                     throw new Error("Invalid quiz format received from AI.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                addNotification("Failed to generate quiz.", "error");
+                onClose();
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        generateQuiz();
+    }, [resource, addNotification, onClose]);
+
+    const handleAnswer = (optionIndex: number) => {
+        const newAnswers = [...userAnswers];
+        newAnswers[currentQuestionIndex] = optionIndex;
+        setUserAnswers(newAnswers);
+
+        setTimeout(() => {
+            if (currentQuestionIndex < questions.length - 1) {
+                setCurrentQuestionIndex(prev => prev + 1);
+            } else {
+                setIsFinished(true);
+            }
+        }, 500);
+    };
+
+    const score = useMemo(() => {
+        return userAnswers.reduce((correctCount, answer, index) => {
+            if (questions[index] && answer === questions[index].correctAnswerIndex) {
+                return correctCount + 1;
+            }
+            return correctCount;
+        }, 0);
+    }, [userAnswers, questions]);
+    
+    const handleGetFeedback = async () => {
+        if (!ai) {
+            addNotification("AI features are disabled.", "error");
+            return;
+        }
+        setIsFeedbackLoading(true);
+
+        const incorrectAnswers = questions.map((q, i) => ({...q, userAnswer: userAnswers[i]})).filter((q, i) => q.correctAnswerIndex !== userAnswers[i]);
+        if (incorrectAnswers.length === 0) {
+            addNotification("Great job! All answers were correct.", "success");
+            setIsFeedbackLoading(false);
+            return;
+        }
+
+        const prompt = `For the following quiz questions that were answered incorrectly, provide a brief, one-sentence explanation for why the correct answer is right. Return a JSON object where the key is the question index and the value is the explanation.\n\n${JSON.stringify(incorrectAnswers.map((q,i) => ({ questionIndex: questions.findIndex(orig => orig.question === q.question), question: q.question, options: q.options, correctAnswer: q.options[q.correctAnswerIndex] })))}`;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                 config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            explanations: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        questionIndex: { type: Type.INTEGER },
+                                        explanation: { type: Type.STRING }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                 }
+            });
+            const result = JSON.parse(response.text);
+            const newFeedback = result.explanations.reduce((acc, item) => {
+                acc[item.questionIndex] = item.explanation;
+                return acc;
+            }, {});
+            setFeedback(newFeedback);
+        } catch(err) {
+            console.error(err);
+            addNotification("Could not generate AI feedback.", "error");
+        } finally {
+            setIsFeedbackLoading(false);
+        }
+    };
+
+    const renderContent = () => {
+        if (isLoading) return <div className="spinner-container"><div className="spinner" /></div>;
+        
+        if (isFinished) {
+            return (
+                <div className="quiz-results">
+                    <h2>Quiz Complete!</h2>
+                    <p className="quiz-score">Your Score: {score} / {questions.length}</p>
+                    <div className="quiz-review">
+                        {questions.map((q, i) => {
+                            const userAnswer = userAnswers[i];
+                            const isCorrect = userAnswer === q.correctAnswerIndex;
+                            return (
+                                <div key={i} className="quiz-review-item">
+                                    <div className={`quiz-review-question ${isCorrect ? 'correct' : 'incorrect'}`}>
+                                        {isCorrect ? <Icons.check /> : <Icons.xmark />}
+                                        <p>{q.question}</p>
+                                    </div>
+                                    <div className="quiz-review-answers">
+                                        <p>Your answer: <strong>{userAnswer !== undefined ? q.options[userAnswer] : 'Not answered'}</strong></p>
+                                        {!isCorrect && <p>Correct answer: <strong>{q.options[q.correctAnswerIndex]}</strong></p>}
+                                    </div>
+                                    {feedback[i] && <p className="ai-feedback">{feedback[i]}</p>}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="modal-footer" style={{ justifyContent: 'space-between', marginTop: '1rem', paddingTop: '1rem' }}>
+                         <button className="btn btn-secondary" onClick={onClose}>Close</button>
+                         <button className="btn btn-primary" onClick={handleGetFeedback} disabled={isFeedbackLoading}>
+                            {isFeedbackLoading ? <span className="spinner" /> : <><Icons.sparkles/> Get AI Feedback</>}
+                         </button>
+                    </div>
+                </div>
+            );
+        }
+
+        const currentQuestion = questions[currentQuestionIndex];
+        if (!currentQuestion) return <p>No question to display.</p>;
+
+        return (
+            <div className="quiz-container">
+                <p className="quiz-progress">Question {currentQuestionIndex + 1} of {questions.length}</p>
+                <h4 className="quiz-question">{currentQuestion.question}</h4>
+                <div className="quiz-options">
+                    {currentQuestion.options.map((option, index) => (
+                         <button 
+                            key={index}
+                            className={`quiz-option-btn ${userAnswers[currentQuestionIndex] === index ? 'selected' : ''}`}
+                            onClick={() => handleAnswer(index)}
+                            disabled={userAnswers[currentQuestionIndex] !== undefined}
+                         >
+                            {option}
+                         </button>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    return createPortal(
+        <div className="modal-overlay">
+            <div className="modal-content large">
+                <div className="modal-header">
+                    <h3>Quiz: {resource.name}</h3>
+                    <button onClick={onClose} className="modal-close-btn"><Icons.close /></button>
+                </div>
+                <div className="modal-body">
+                    {renderContent()}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+// --- AUTHENTICATION ---
+const AuthView = () => {
+    const { users, setCurrentUser, setUsers, addNotification, addAuditLog } = useContext(AppContext);
+    const [isLoginView, setIsLoginView] = useState(true);
+    const [isFlipped, setIsFlipped] = useState(false);
+    
+    // Login State
+    const [loginId, setLoginId] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    
+    // Signup State
+    const [signupName, setSignupName] = useState('');
+    const [signupRole, setSignupRole] = useState<UserRole>('student');
+    const [signupDept, setSignupDept] = useState('CSE');
+    const [signupYear, setSignupYear] = useState('I');
+    const [signupPassword, setSignupPassword] = useState('');
+
+    const handleLogin = (e: React.FormEvent) => {
+        e.preventDefault();
+        const user = users.find(u => u.id === loginId && u.password === loginPassword);
+        if (user) {
+            if (user.isLocked) {
+                addNotification('Your account is locked. Please contact an administrator.', 'error');
+                addAuditLog('LOGIN_ATTEMPT_LOCKED', 'failure', `User: ${loginId}`);
+                return;
+            }
+             if (user.status === 'active') {
+                setCurrentUser(user);
+                addNotification(`Welcome back, ${user.name}!`, 'success');
+                addAuditLog('LOGIN', 'success');
+            } else {
+                addNotification(`Your account is ${user.status.replace('_', ' ')}.`, 'warning');
+                addAuditLog('LOGIN_ATTEMPT_INACTIVE', 'failure', `User: ${loginId}, Status: ${user.status}`);
+            }
+        } else {
+            addNotification('Invalid username or password.', 'error');
+             addAuditLog('LOGIN_ATTEMPT_FAILED', 'failure', `User: ${loginId}`);
+        }
+    };
+
+    const handleSignup = (e: React.FormEvent) => {
+        e.preventDefault();
+        const newUser: User = {
+            id: `user_${Date.now()}`,
+            name: signupName,
+            role: signupRole,
+            dept: signupDept,
+            year: signupRole === 'student' ? signupYear : undefined,
+            password: signupPassword,
+            status: 'pending_approval'
+        };
+        setUsers(prev => [...prev, newUser]);
+        addNotification('Registration successful! Please wait for admin approval.', 'success');
+        addAuditLog('SIGNUP', 'info', `New user: ${newUser.name}`);
+        toggleView();
+    };
+
+    const toggleView = () => {
+        setIsFlipped(!isFlipped);
+        setTimeout(() => setIsLoginView(!isLoginView), 300); // Sync with animation
+    };
+
+    return (
+        <div className="login-view-container">
+            <div className="login-card">
+                 <div className={`login-card-inner ${isFlipped ? 'is-flipped' : ''}`}>
+                    <div className="login-card-front">
+                        <div className="login-header">
+                            <span className="logo"><Icons.logo /></span>
+                            <h1>Welcome to AcademiaAI</h1>
+                            <p>Sign in to your account</p>
+                        </div>
+                        <form onSubmit={handleLogin}>
+                            <div className="control-group">
+                                <label htmlFor="loginId">User ID</label>
+                                <input id="loginId" type="text" className="form-control" value={loginId} onChange={e => setLoginId(e.target.value)} required />
+                            </div>
+                            <div className="control-group">
+                                <label htmlFor="loginPassword">Password</label>
+                                <input id="loginPassword" type="password" className="form-control" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
+                            </div>
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }}>Login</button>
+                        </form>
+                        <p className="auth-hint">Try: id: <strong>stud001</strong>, pass: <strong>password</strong></p>
+                         <div className="auth-toggle">
+                            Don't have an account? <button onClick={toggleView}>Sign up</button>
+                        </div>
+                    </div>
+                     <div className="login-card-back">
+                        <div className="login-header">
+                             <span className="logo"><Icons.logo /></span>
+                             <h1>Create an Account</h1>
+                             <p>Join the AcademiaAI platform</p>
+                        </div>
+                         <form onSubmit={handleSignup}>
+                            <div className="control-group">
+                                <label>Full Name</label>
+                                <input type="text" className="form-control" value={signupName} onChange={e => setSignupName(e.target.value)} required />
+                            </div>
+                            <div className="form-grid">
+                                <div className="control-group">
+                                    <label>Role</label>
+                                    <select className="form-control" value={signupRole} onChange={e => setSignupRole(e.target.value as UserRole)}>
+                                        <option value="student">Student</option>
+                                        <option value="faculty">Faculty</option>
+                                    </select>
+                                </div>
+                                <div className="control-group">
+                                     <label>Department</label>
+                                    <select className="form-control" value={signupDept} onChange={e => setSignupDept(e.target.value)}>
+                                        {DEPARTMENTS.slice(0, 7).map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            {signupRole === 'student' && (
+                                <div className="control-group">
+                                    <label>Year</label>
+                                    <select className="form-control" value={signupYear} onChange={e => setSignupYear(e.target.value)}>
+                                        {['I', 'II', 'III', 'IV'].map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                             <div className="control-group">
+                                <label>Password</label>
+                                <input type="password" className="form-control" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required />
+                            </div>
+                             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }}>Register</button>
+                        </form>
+                         <div className="auth-toggle">
+                            Already have an account? <button onClick={toggleView}>Log in</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- CHATBOT & AI FEATURES ---
+
+const Chatbot = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [chat, setChat] = useState<Chat | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    
+    useEffect(() => {
+        if(isOpen && ai && !chat) {
+            const newChat = ai.chats.create({
+                model: 'gemini-2.5-flash',
+                config: {
+                    systemInstruction: 'You are a helpful academic assistant for a college portal. Be concise and friendly.'
+                }
+            });
+            setChat(newChat);
+        }
+    }, [isOpen, ai, chat]);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+    
+    const handleSend = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (!input.trim() || isLoading || !chat) return;
+
+        const userMessage: ChatMessage = { id: `msg_${Date.now()}`, role: 'user', text: input };
+        setMessages(prev => [...prev, userMessage]);
+        setInput('');
+        setIsLoading(true);
+
+        try {
+            let response = await chat.sendMessageStream({ message: input });
+            let modelResponseText = '';
+            for await (const chunk of response) {
+                modelResponseText += chunk.text;
+                setMessages(prev => {
+                    const lastMsg = prev[prev.length -1];
+                    if (lastMsg.role === 'model') {
+                        const newMessages = [...prev];
+                        newMessages[newMessages.length-1] = {...lastMsg, text: modelResponseText };
+                        return newMessages;
+                    } else {
+                        return [...prev, {id: `msg_model_${Date.now()}`, role: 'model', text: modelResponseText }]
+                    }
+                });
+            }
+        } catch (error) {
+            console.error(error);
+            const errorMessage: ChatMessage = { id: `msg_err_${Date.now()}`, role: 'model', text: 'Sorry, something went wrong.', isError: true };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    if (!isAiEnabled) return null;
+
+    return (
+        <div className={`chatbot-container ${isOpen ? 'open' : ''}`}>
+            <button className="chatbot-toggle" onClick={() => setIsOpen(!isOpen)} aria-label={isOpen ? 'Close chat' : 'Open chat'}>
+                {isOpen ? <Icons.close /> : <Icons.sparkles />}
+            </button>
+             {isOpen && (
+                <div className="chatbot-window">
+                    <div className="chatbot-header">AI Assistant</div>
+                    <div className="chatbot-messages">
+                        {messages.map((msg) => (
+                            <div key={msg.id} className={`chat-bubble ${msg.role}`}>
+                                <div dangerouslySetInnerHTML={{ __html: marked(msg.text) }}></div>
+                            </div>
+                        ))}
+                        {isLoading && <div className="chat-bubble model"><span className="typing-indicator"></span></div>}
+                        <div ref={messagesEndRef} />
+                    </div>
+                    <form className="chatbot-input-form" onSubmit={handleSend}>
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="Ask me anything..."
+                            disabled={isLoading}
+                        />
+                        <button type="submit" disabled={isLoading || !input.trim()}><Icons.send /></button>
+                    </form>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const AIStudyPlanGenerator = () => {
+    const { currentUser, addNotification } = useContext(AppContext);
+    const [subject, setSubject] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
+
+    const generatePlan = async () => {
+        if (!ai || !subject) return;
+        setIsLoading(true);
+        setStudyPlan(null);
+        
+        const studentInfo = `I am a ${currentUser.year} year ${currentUser.dept} student.`;
+        const prompt = `Create a detailed 2-week study plan for the subject "${subject}". ${studentInfo} Break it down by week and day, with specific topics and small, actionable tasks for each day.`;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING },
                             weeks: {
                                 type: Type.ARRAY,
                                 items: {
@@ -822,15 +2189,15 @@ const AIStudyPlanGenerator = () => {
                                             items: {
                                                 type: Type.OBJECT,
                                                 properties: {
-                                                    day: { type: Type.STRING, description: "e.g., Monday, Tuesday" },
-                                                    topic: { type: Type.STRING, description: "Main topic for the day." },
+                                                    day: { type: Type.STRING },
+                                                    topic: { type: Type.STRING },
                                                     tasks: {
                                                         type: Type.ARRAY,
                                                         items: {
                                                             type: Type.OBJECT,
                                                             properties: {
-                                                                text: { type: Type.STRING, description: "A specific learning task." },
-                                                                completed: { type: Type.BOOLEAN, default: false }
+                                                                text: { type: Type.STRING },
+                                                                completed: { type: Type.BOOLEAN }
                                                             }
                                                         }
                                                     }
@@ -844,1545 +2211,256 @@ const AIStudyPlanGenerator = () => {
                     }
                 }
             });
-
-            const planData = JSON.parse(response.text) as StudyPlan;
-            setGeneratedPlan(planData);
-            setIsModalOpen(true);
-            addNotification("Study plan generated successfully!", "success");
-        } catch (error) {
-            console.error("Error generating study plan:", error);
-            addNotification("Failed to generate study plan. Please try again.", "error");
+            const plan = JSON.parse(response.text);
+            setStudyPlan(plan);
+        } catch (err) {
+            console.error(err);
+            addNotification("Failed to generate study plan.", "error");
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <>
+        <div>
             <div className="ai-feature-card-header">
                 <Icons.sparkles />
                 <h3>AI Study Plan Generator</h3>
             </div>
-            <p>Enter a subject and a timeframe, and let AI create a personalized study schedule for you.</p>
-            <form className="ai-generator-form" onSubmit={handleSubmit}>
-                <input type="text" className="form-control" placeholder="e.g., Data Structures" value={subject} onChange={e => setSubject(e.target.value)} disabled={isLoading} />
-                <input type="text" className="form-control" placeholder="e.g., 4 Weeks" value={duration} onChange={e => setDuration(e.target.value)} disabled={isLoading} />
-                <button type="submit" className="btn btn-primary" disabled={isLoading}>
-                    {isLoading ? <span className="spinner"></span> : 'Generate Plan'}
+            <p>Enter a subject to generate a personalized 2-week study schedule.</p>
+            <div className="ai-generator-form">
+                <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g., Data Structures"
+                    value={subject}
+                    onChange={e => setSubject(e.target.value)}
+                    disabled={isLoading}
+                />
+                <button className="btn btn-primary" onClick={generatePlan} disabled={isLoading}>
+                    {isLoading ? <span className="spinner" /> : 'Generate Plan'}
                 </button>
-            </form>
-            {isModalOpen && generatedPlan && (
-                <StudyPlanModal plan={generatedPlan} setPlan={setGeneratedPlan} onClose={() => setIsModalOpen(false)} />
-            )}
-        </>
-    );
-};
-
-const TimetableView = () => {
-    const { timetable, currentUser, settings } = useContext(AppContext);
-    const [filters, setFilters] = useState({ dept: currentUser.dept, year: currentUser.role === 'student' ? currentUser.year : 'II' });
-    const [selectedEntry, setSelectedEntry] = useState<TimetableEntry | null>(null);
-    const [isModalOpen, setModalOpen] = useState(false);
-
-    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setFilters({ ...filters, [e.target.name]: e.target.value });
-    };
-
-    const filteredTimetable = useMemo(() => {
-        return timetable.filter(entry => entry.department === filters.dept && entry.year === filters.year);
-    }, [timetable, filters]);
-
-    const canEdit = ['hod', 'admin', 'principal', 'creator'].includes(currentUser.role);
-
-    const handleCellClick = (day: string, timeIndex: number) => {
-        if (!canEdit) return;
-        const entry = filteredTimetable.find(e => e.day === day && e.timeIndex === timeIndex);
-        setSelectedEntry(entry || {
-            id: `tt_${day}_${timeIndex}_${filters.dept}_${filters.year}`,
-            day, timeIndex,
-            department: filters.dept,
-            year: filters.year,
-            subject: '',
-            type: 'class'
-        });
-        setModalOpen(true);
-    };
-
-    const handleModalClose = () => {
-        setModalOpen(false);
-        setSelectedEntry(null);
-    };
-
-    return (
-        <div className="timetable-container">
-            <div className="timetable-header">
-                <h3>Class Schedule</h3>
-                <div className="timetable-controls">
-                     <div className="control-group-inline">
-                        <label htmlFor="dept">Department:</label>
-                        <select id="dept" name="dept" value={filters.dept} onChange={handleFilterChange} className="form-control">
-                           {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                    </div>
-                     <div className="control-group-inline">
-                        <label htmlFor="year">Year:</label>
-                         <select id="year" name="year" value={filters.year} onChange={handleFilterChange} className="form-control">
-                            <option value="I">I</option>
-                            <option value="II">II</option>
-                            <option value="III">III</option>
-                            <option value="IV">IV</option>
-                        </select>
-                    </div>
-                </div>
             </div>
-
-            <div className="timetable-wrapper">
-                <div className="timetable-grid" style={{ gridTemplateRows: `40px repeat(${settings.timeSlots.length}, 60px)`}}>
-                    <div className="grid-header">Time</div>
-                    {DAYS.map(day => <div key={day} className="grid-header">{day}</div>)}
-
-                    {settings.timeSlots.map((slot, timeIndex) => (
-                        <React.Fragment key={timeIndex}>
-                            <div className="time-slot">{slot}</div>
-                            {DAYS.map((day) => {
-                                const entry = filteredTimetable.find(e => e.day === day && e.timeIndex === timeIndex);
-                                return (
-                                    <div 
-                                        key={`${day}-${timeIndex}`} 
-                                        className={`grid-cell ${entry?.type || ''} ${canEdit ? 'editable' : ''}`}
-                                        onClick={() => handleCellClick(day, timeIndex)}
-                                    >
-                                        {entry && (
-                                            <>
-                                                <span className="subject">{entry.subject}</span>
-                                                {entry.faculty && <span className="faculty">{entry.faculty}</span>}
-                                                {entry.room && <span className="faculty">Room: {entry.room}</span>}
-                                            </>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </React.Fragment>
-                    ))}
-                </div>
-            </div>
-             {isModalOpen && selectedEntry && (
-                <TimetableEntryModal entry={selectedEntry} onClose={handleModalClose} />
-            )}
-        </div>
-    );
-};
-
-
-const AnnouncementsView = () => {
-    const { announcements, setAnnouncements, currentUser, addNotification } = useContext(AppContext);
-    const [editingAnn, setEditingAnn] = useState<Announcement | null>(null);
-    const [confirmDelete, setConfirmDelete] = useState<Announcement | null>(null);
-
-    const handleReaction = (announcementId: string, emoji: string) => {
-        setAnnouncements((prevAnnouncements: Announcement[]) =>
-            prevAnnouncements.map(ann => {
-                if (ann.id === announcementId) {
-                    const reactions = { ...(ann.reactions || {}) };
-                    if (!reactions[emoji]) reactions[emoji] = [];
-
-                    const userIndex = reactions[emoji].indexOf(currentUser.id);
-                    if (userIndex > -1) {
-                        reactions[emoji].splice(userIndex, 1);
-                        if (reactions[emoji].length === 0) delete reactions[emoji];
-                    } else {
-                        reactions[emoji].push(currentUser.id);
-                    }
-                    return { ...ann, reactions };
-                }
-                return ann;
-            })
-        );
-    };
-    
-    const handleDelete = () => {
-        if (!confirmDelete) return;
-        setAnnouncements((prev: Announcement[]) => prev.filter(ann => ann.id !== confirmDelete.id));
-        addNotification('Announcement deleted.', 'success');
-        setConfirmDelete(null);
-    };
-
-    const canPost = ['admin', 'hod', 'principal', 'creator'].includes(currentUser.role);
-    const sortedAnnouncements = [...announcements].sort((a, b) => b.timestamp - a.timestamp);
-
-    return (
-        <div>
-            <div className="view-header">
-                <h2>Latest News & Updates</h2>
-                {canPost && <button className="btn btn-primary" onClick={() => setEditingAnn({} as Announcement)}>New Announcement</button>}
-            </div>
-            <div className="announcement-list">
-                {sortedAnnouncements.map(ann => {
-                    const canManage = ann.authorId === currentUser.id || ['admin', 'hod', 'principal', 'creator'].includes(currentUser.role);
-                    return (
-                    <div key={ann.id} className="announcement-card stagger-item">
-                        {canManage && (
-                            <div className="card-actions">
-                                <button onClick={() => setEditingAnn(ann)} aria-label="Edit announcement"><Icons.edit/></button>
-                                <button onClick={() => setConfirmDelete(ann)} aria-label="Delete announcement"><Icons.trash/></button>
-                            </div>
-                        )}
-                        <h3>{ann.title}</h3>
-                        <p>{ann.content}</p>
-                        <div className="announcement-footer">
-                            <div className="meta">
-                                <strong>{ann.author}</strong> - {formatDate(ann.timestamp)}
-                            </div>
-                            <div className="reactions">
-                                {['👍', '❤️', '🎉'].map(emoji => (
-                                    <button
-                                        key={emoji}
-                                        className={ann.reactions?.[emoji]?.includes(currentUser.id) ? 'active' : ''}
-                                        onClick={() => handleReaction(ann.id, emoji)}
-                                    >
-                                        {emoji} {ann.reactions?.[emoji]?.length || 0}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )})}
-            </div>
-            {editingAnn && <AnnouncementModal announcement={editingAnn.id ? editingAnn : null} onClose={() => setEditingAnn(null)} />}
-            {confirmDelete && (
-                <ConfirmModal
-                    title="Delete Announcement"
-                    message="Are you sure you want to delete this announcement? This action cannot be undone."
-                    onConfirm={handleDelete}
-                    onCancel={() => setConfirmDelete(null)}
-                />
-            )}
-        </div>
-    );
-};
-
-const UserManagementView = () => {
-    const { users, setUsers } = useContext(AppContext);
-    const [filter, setFilter] = useState<'all' | 'pending_approval' | 'active' | 'rejected'>('all');
-    const [isModalOpen, setModalOpen] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
-
-    const handleEditUser = (user: User) => {
-        setSelectedUser(user);
-        setModalOpen(true);
-    };
-
-    const handleApprove = (userId: string, status: 'active' | 'rejected') => {
-        setUsers(users.map(u => u.id === userId ? { ...u, status } : u));
-    };
-
-    const handleToggleLock = (userId: string) => {
-        setUsers(users.map(u => u.id === userId ? { ...u, isLocked: !u.isLocked } : u));
-    };
-
-    const filteredUsers = users.filter(user => filter === 'all' || user.status === filter);
-
-    return (
-        <div>
-            <div className="view-header">
-                <h2>Manage Users</h2>
-                 <select value={filter} onChange={(e) => setFilter(e.target.value as any)} className="form-control" style={{width: '200px'}}>
-                    <option value="all">All Users</option>
-                    <option value="pending_approval">Pending Approval</option>
-                    <option value="active">Active</option>
-                    <option value="rejected">Rejected</option>
-                </select>
-            </div>
-             <div className="table-wrapper">
-                <table className="entry-list-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Role</th>
-                            <th>Department</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                       {filteredUsers.map(user => (
-                            <tr key={user.id}>
-                                <td data-label="Name">{user.name}</td>
-                                <td data-label="Role" style={{ textTransform: 'capitalize' }}>{user.role}</td>
-                                <td data-label="Department">{user.dept}</td>
-                                <td data-label="Status">
-                                    <span className={`status-badge status-${user.status}`}>{user.status.replace('_', ' ')}</span>
-                                     {user.isLocked && <span className="status-badge status-locked">Locked</span>}
-                                </td>
-                                <td data-label="Actions" className="entry-actions">
-                                    {user.status === 'pending_approval' && (
-                                        <>
-                                            <button className="btn btn-sm btn-success" onClick={() => handleApprove(user.id, 'active')}><Icons.check/> Approve</button>
-                                            <button className="btn btn-sm btn-danger" onClick={() => handleApprove(user.id, 'rejected')}><Icons.xmark/> Reject</button>
-                                        </>
-                                    )}
-                                    <button className="btn btn-sm btn-secondary" onClick={() => handleToggleLock(user.id)}>
-                                        {user.isLocked ? <Icons.unlock/> : <Icons.lock/>}
-                                    </button>
-                                    <button className="btn btn-sm btn-secondary" onClick={() => handleEditUser(user)}><Icons.edit/></button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            {isModalOpen && <UserModal user={selectedUser} onClose={() => { setModalOpen(false); setSelectedUser(null); }} />}
-        </div>
-    );
-};
-
-const StudentDirectoryView = () => {
-    const { users } = useContext(AppContext);
-    const [filters, setFilters] = useState({ dept: 'all', year: 'all', search: '' });
-    const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
-
-    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFilters({ ...filters, [e.target.name]: e.target.value });
-    };
-
-    const students = useMemo(() => {
-        return users.filter(u => u.role === 'student')
-            .filter(s => filters.dept === 'all' || s.dept === filters.dept)
-            .filter(s => filters.year === 'all' || s.year === filters.year)
-            .filter(s => s.name.toLowerCase().includes(filters.search.toLowerCase()));
-    }, [users, filters]);
-
-    return (
-        <div className="directory-container">
-            <div className="directory-filters">
-                <input type="search" name="search" placeholder="Search by name..." className="form-control" onChange={handleFilterChange} />
-                <select name="dept" className="form-control" onChange={handleFilterChange}>
-                    <option value="all">All Departments</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <select name="year" className="form-control" onChange={handleFilterChange}>
-                    <option value="all">All Years</option>
-                    <option value="I">I Year</option>
-                    <option value="II">II Year</option>
-                    <option value="III">III Year</option>
-                    <option value="IV">IV Year</option>
-                </select>
-            </div>
-            <div className="student-grid">
-                {students.map(student => (
-                    <div key={student.id} className="student-card" onClick={() => setSelectedStudent(student)}>
-                        <div className="student-card-avatar"><Icons.userCircle /></div>
-                        <div className="student-card-info">
-                            <h4>{student.name}</h4>
-                            <p>{student.dept} - Year {student.year}</p>
-                            {student.aiRiskAnalysis && student.aiRiskAnalysis.riskLevel !== 'Low' && (
-                                <span className={`status-badge status-${student.aiRiskAnalysis.riskLevel === 'High' ? 'rejected' : 'pending-approval'}`}>{student.aiRiskAnalysis.riskLevel} Risk</span>
-                            )}
-                        </div>
-                    </div>
-                ))}
-            </div>
-            {selectedStudent && <StudentDetailModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />}
-        </div>
-    );
-};
-
-const CourseFilesView = () => {
-    const { courseFiles, setCourseFiles, currentUser } = useContext(AppContext);
-    const [selectedFile, setSelectedFile] = useState<CourseFile | null>(null);
-    const [isModalOpen, setModalOpen] = useState(false);
-
-    const canReview = ['hod', 'principal'].includes(currentUser.role);
-    const canSubmit = currentUser.role === 'faculty';
-
-    const handleReview = async (file: CourseFile) => {
-        if (!isAiEnabled || !ai) return;
-
-        setCourseFiles(files => files.map(f => f.id === file.id ? { 
-            ...f, 
-            aiReview: { 
-                summary: '', 
-                suggestions: [],
-                corrections: [],
-                status: 'pending', 
-                timestamp: Date.now() 
-            } 
-        } : f));
-        
-        try {
-            const prompt = `Review the following course file submission for quality. Subject: ${file.subject}, Semester: ${file.semester}. Files submitted: ${file.files.map(f=>f.name).join(', ')}. Provide a concise summary, a list of actionable suggestions for improvement, and identify any potential corrections in content (if any).`;
-             const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: prompt,
-                 config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            summary: { type: Type.STRING },
-                            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            corrections: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        original: { type: Type.STRING },
-                                        corrected: { type: Type.STRING },
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            const reviewData = JSON.parse(response.text);
-            
-            const fullReview = { ...reviewData, status: 'complete', timestamp: Date.now() };
-            setCourseFiles(files => files.map(f => f.id === file.id ? { ...f, aiReview: fullReview } : f));
-            setSelectedFile(prev => prev ? { ...prev, aiReview: fullReview } : null);
-
-        } catch (error) {
-            console.error("AI Review failed:", error);
-            setCourseFiles(files => files.map(f => f.id === file.id ? { ...f, aiReview: { summary: 'AI review failed to generate.', suggestions: [], corrections: [], status: 'failed', timestamp: Date.now() } } : f));
-        }
-    };
-
-    const visibleFiles = currentUser.role === 'faculty' ? courseFiles.filter(f => f.facultyId === currentUser.id) : courseFiles;
-
-    return (
-        <div>
-             <div className="view-header">
-                <h2>Course File Submissions</h2>
-                {canSubmit && <button className="btn btn-primary" onClick={() => setModalOpen(true)}>Submit New Files</button>}
-            </div>
-             <div className="table-wrapper">
-                <table className="entry-list-table">
-                    <thead>
-                        <tr>
-                            <th>Faculty</th>
-                            <th>Subject</th>
-                            <th>Semester</th>
-                            <th>Status</th>
-                            <th>Submitted</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {visibleFiles.map(file => (
-                            <tr key={file.id}>
-                                <td data-label="Faculty">{file.facultyName}</td>
-                                <td data-label="Subject">{file.subject}</td>
-                                <td data-label="Semester">{file.semester}</td>
-                                <td data-label="Status"><span className={`status-badge status-${file.status}`}>{file.status.replace('_', ' ')}</span></td>
-                                <td data-label="Submitted">{formatDate(file.submittedAt)}</td>
-                                <td data-label="Actions" className="entry-actions">
-                                    <button className="btn btn-sm btn-secondary" onClick={() => setSelectedFile(file)}>View Details</button>
-                                     {canReview && (!file.aiReview || file.aiReview.status !== 'pending') && (
-                                        <button className="btn btn-sm btn-primary" onClick={() => handleReview(file)} style={{gap: '0.25rem'}}>
-                                            <Icons.sparkles/> {file.aiReview ? 'Re-run' : 'AI'} Review
-                                        </button>
-                                    )}
-                                     {canReview && file.aiReview?.status === 'pending' && <span className="spinner"></span>}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-             </div>
-            {selectedFile && <CourseFileDetailModal file={selectedFile} onClose={() => setSelectedFile(null)} />}
-            {isModalOpen && <CourseFileSubmitModal onClose={() => setModalOpen(false)} />}
-        </div>
-    );
-};
-
-const ResourcesView = () => {
-    const { resources, setResources, currentUser, addNotification } = useContext(AppContext);
-    const [filter, setFilter] = useState<{ type: 'all' | Resource['type'], dept: 'all' | string }>({ type: 'all', dept: 'all' });
-    const [editingResource, setEditingResource] = useState<Resource | null>(null);
-    const [confirmDelete, setConfirmDelete] = useState<Resource | null>(null);
-
-    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setFilter(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-
-    const handleDelete = () => {
-        if (!confirmDelete) return;
-        setResources((prev: Resource[]) => prev.filter(res => res.id !== confirmDelete.id));
-        addNotification('Resource deleted.', 'success');
-        setConfirmDelete(null);
-    };
-
-    const filteredResources = resources.filter(res => 
-        (filter.type === 'all' || res.type === filter.type) &&
-        (filter.dept === 'all' || res.department === filter.dept || res.department === 'all')
-    );
-    
-    const resourceIcons = { book: <Icons.book />, notes: <Icons.notes />, project: <Icons.project />, lab: <Icons.lab />, other: <Icons.other /> };
-    const canUpload = ['faculty', 'hod', 'admin'].includes(currentUser.role);
-
-    return (
-         <div className="directory-container">
-            <div className="view-header">
-                <h2>Shared Resources</h2>
-                {canUpload && <button className="btn btn-primary" onClick={() => setEditingResource({} as Resource)}>Upload Resource</button>}
-            </div>
-            <div className="directory-filters">
-                <select name="type" className="form-control" onChange={handleFilterChange} value={filter.type}>
-                    <option value="all">All Types</option>
-                    <option value="book">Books</option>
-                    <option value="notes">Notes</option>
-                    <option value="project">Projects</option>
-                    <option value="lab">Lab Materials</option>
-                    <option value="other">Other</option>
-                </select>
-                <select name="dept" className="form-control" onChange={handleFilterChange} value={filter.dept}>
-                    <option value="all">All Departments</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-            </div>
-            <div className="resources-grid">
-                {filteredResources.map((res, i) => {
-                    const canManage = res.uploaderId === currentUser.id || ['admin', 'hod', 'principal'].includes(currentUser.role);
-                    return (
-                    <div key={res.id} className="resource-card stagger-item" style={{animationDelay: `${i * 50}ms`}}>
-                         {canManage && (
-                            <div className="card-actions">
-                                <button onClick={() => setEditingResource(res)} aria-label="Edit resource"><Icons.edit/></button>
-                                <button onClick={() => setConfirmDelete(res)} aria-label="Delete resource"><Icons.trash/></button>
-                            </div>
-                        )}
-                        <div className="resource-card-header">
-                            <div className="resource-icon">{resourceIcons[res.type]}</div>
-                            <div className="resource-info">
-                                <h4>{res.name}</h4>
-                                <p className="resource-meta">{res.department} / {res.subject}</p>
-                            </div>
-                        </div>
-                        <div className="resource-card-footer">
-                           <p className="resource-uploader">Uploaded by {res.uploaderName} on {formatDate(res.timestamp, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                        </div>
-                    </div>
-                )})}
-            </div>
-            {editingResource && <ResourceModal resource={editingResource.id ? editingResource : null} onClose={() => setEditingResource(null)} />}
-            {confirmDelete && (
-                <ConfirmModal
-                    title="Delete Resource"
-                    message="Are you sure you want to delete this resource? This action cannot be undone."
-                    onConfirm={handleDelete}
-                    onCancel={() => setConfirmDelete(null)}
-                />
-            )}
-        </div>
-    );
-};
-
-const AcademicCalendarView = () => {
-    const { calendarEvents, setCalendarEvents, currentUser, addNotification } = useContext(AppContext);
-    const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-    const [confirmDelete, setConfirmDelete] = useState<CalendarEvent | null>(null);
-
-    const eventsByMonth = useMemo(() => {
-        const grouped: { [key: string]: CalendarEvent[] } = {};
-        const sortedEvents = [...calendarEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        sortedEvents.forEach(event => {
-            const month = formatDate(new Date(event.date).getTime(), { year: 'numeric', month: 'long' });
-            if (!grouped[month]) {
-                grouped[month] = [];
-            }
-            grouped[month].push(event);
-        });
-        return grouped;
-    }, [calendarEvents]);
-    
-    const handleDelete = () => {
-        if (!confirmDelete) return;
-        setCalendarEvents((prev: CalendarEvent[]) => prev.filter(event => event.id !== confirmDelete.id));
-        addNotification('Event deleted from calendar.', 'success');
-        setConfirmDelete(null);
-    };
-
-    const canAddEvent = ['admin', 'principal'].includes(currentUser.role);
-
-    return (
-        <div className="calendar-container">
-             <div className="view-header">
-                <h2>Academic Calendar</h2>
-                {canAddEvent && <button className="btn btn-primary" onClick={() => setEditingEvent({} as CalendarEvent)}>New Event</button>}
-            </div>
-            {Object.entries(eventsByMonth).map(([month, events]) => (
-                <div key={month} className="calendar-month-group stagger-item">
-                    <h3>{month}</h3>
-                    <div className="calendar-event-list">
-                        {events.map(event => (
-                             <div key={event.id} className={`calendar-event-item ${event.type}`}>
-                                <div className="event-date">
-                                    <div className="date-day">{new Date(`${event.date}T00:00:00`).getDate()}</div>
-                                    <div className="date-month">{formatDate(new Date(`${event.date}T00:00:00`).getTime(), { month: 'short' })}</div>
-                                </div>
-                                <div className="event-details">
-                                    <p className="event-title">{event.title}</p>
-                                </div>
-                                <div className="event-actions">
-                                    {canAddEvent && (
-                                        <>
-                                            <button onClick={() => setEditingEvent(event)} aria-label="Edit event"><Icons.edit/></button>
-                                            <button onClick={() => setConfirmDelete(event)} aria-label="Delete event"><Icons.trash/></button>
-                                        </>
-                                    )}
-                                    <span className="event-type-badge">{event.type}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ))}
-            {editingEvent && <CalendarEventModal event={editingEvent.id ? editingEvent : null} onClose={() => setEditingEvent(null)} />}
-            {confirmDelete && (
-                <ConfirmModal
-                    title="Delete Calendar Event"
-                    message="Are you sure you want to delete this event? This action cannot be undone."
-                    onConfirm={handleDelete}
-                    onCancel={() => setConfirmDelete(null)}
-                />
-            )}
-        </div>
-    );
-};
-
-const SecurityView = () => {
-    const [view, setView] = useState<'alerts' | 'logs'>('alerts');
-    const { addNotification, setUsers } = useContext(AppContext);
-    const [alerts, setAlerts] = useState(MOCK_SECURITY_ALERTS);
-
-    const handleResolve = (alertId: string) => {
-        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, isResolved: true } : a));
-        addNotification('Alert marked as resolved.', 'success');
-    };
-
-    const handleAction = (alert: SecurityAlert) => {
-        if (alert.relatedUserId && alert.responsePlan?.recommendedAction === 'LOCK_USER') {
-            setUsers((prevUsers: User[]) => prevUsers.map(u => u.id === alert.relatedUserId ? { ...u, isLocked: true } : u));
-            addNotification(`User account ${alert.relatedUserId} has been locked.`, 'warning');
-            handleResolve(alert.id);
-        }
-    };
-    
-    return (
-        <div className="security-container">
-             <div className="control-group-inline" style={{ marginBottom: '2rem' }}>
-                <button className={`btn ${view === 'alerts' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('alerts')}>Security Alerts</button>
-                <button className={`btn ${view === 'logs' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('logs')}>Audit Logs</button>
-            </div>
-            
-            {view === 'alerts' && (
-                <div className="security-grid">
-                    {alerts.filter(a => !a.isResolved).map(alert => (
-                        <div key={alert.id} className={`alert-card severity-${alert.severity}`}>
-                            <div className="alert-card-header">
-                                <span className={`severity-icon severity-${alert.severity}`}>
-                                    {alert.severity === 'critical' ? <Icons.critical/> : <Icons.warning/>}
-                                </span>
-                                <h4>{alert.title}</h4>
-                            </div>
-                            <p className="alert-card-description">{alert.description}</p>
-                            <div className="alert-card-footer">
-                                <span>{formatDate(alert.timestamp)}</span>
-                                <div className="entry-actions">
-                                    {alert.responsePlan?.recommendedAction !== 'NONE' && (
-                                        <button className="btn btn-sm btn-warning" onClick={() => handleAction(alert)}>
-                                            Take Action
-                                        </button>
-                                    )}
-                                    <button className="btn btn-sm btn-secondary" onClick={() => handleResolve(alert.id)}>Resolve</button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                    {alerts.filter(a => !a.isResolved).length === 0 && <p>No active security alerts.</p>}
-                </div>
-            )}
-
-            {view === 'logs' && (
-                <div className="table-wrapper">
-                    <table className="entry-list-table audit-log-table">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th><th>User</th><th>Action</th><th>Status</th><th>IP Address</th><th>Details</th>
-                            </tr>
-                        </thead>
-                         <tbody>
-                            {[...MOCK_AUDIT_LOGS].sort((a, b) => b.timestamp - a.timestamp).map(log => (
-                                <tr key={log.id}>
-                                    <td data-label="Timestamp">{formatDate(log.timestamp)}</td>
-                                    <td data-label="User">{log.userName} ({log.userId})</td>
-                                    <td data-label="Action">{log.action}</td>
-                                    <td data-label="Status"><span className={`status-badge status-${log.status}`}>{log.status}</span></td>
-                                    <td data-label="IP Address">{log.ip}</td>
-                                    <td data-label="Details">{log.details || 'N/A'}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {studyPlan && (
+                <div className="study-plan-container">
+                    <h4>{studyPlan.title}</h4>
+                    {/* Render the plan here */}
                 </div>
             )}
         </div>
     );
 };
 
-const SettingsView = () => {
-    const { currentUser, setCurrentUser, users, setUsers, settings, setSettings, addNotification } = useContext(AppContext);
-    
-    const [profileData, setProfileData] = useState({ name: currentUser.name, password: '' });
-    const [appSettings, setAppSettings] = useState({ accentColor: settings.accentColor });
+const CommandBar = ({ onClose }) => {
+    const { setCurrentView, users, resources, addNotification } = useContext(AppContext);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [searchResults, setSearchResults] = useState([]);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setProfileData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
+    const NAV_ITEMS = [
+        { view: 'dashboard', label: 'Dashboard', icon: <Icons.dashboard /> },
+        { view: 'timetable', label: 'Timetable', icon: <Icons.timetable /> },
+        { view: 'announcements', label: 'Announcements', icon: <Icons.announcements /> },
+        { view: 'userManagement', label: 'User Management', icon: <Icons.userManagement /> },
+        { view: 'studentDirectory', label: 'Student Directory', icon: <Icons.studentDirectory /> },
+        { view: 'courseFiles', label: 'Course Files', icon: <Icons.courseFiles /> },
+        { view: 'resources', label: 'Resources', icon: <Icons.resources /> },
+        { view: 'security', label: 'Security', icon: <Icons.security /> },
+    ];
 
-    const handleSettingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setAppSettings(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-
-    const handleProfileSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        const updatedUser = {
-            ...currentUser,
-            name: profileData.name,
-            password: profileData.password ? profileData.password : currentUser.password,
-        };
-        setCurrentUser(updatedUser);
-        setUsers(users.map((u: User) => u.id === currentUser.id ? updatedUser : u));
-        addNotification('Profile updated successfully!', 'success');
-        setProfileData(prev => ({...prev, password: ''}));
-    };
-
-    const handleSettingsSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        setSettings(prev => ({ ...prev, ...appSettings }));
-        addNotification('Settings saved!', 'success');
-    };
-
-    return (
-        <div className="settings-container">
-            <div className="settings-card">
-                <h3>Profile Settings</h3>
-                <form onSubmit={handleProfileSave}>
-                    <div className="control-group">
-                        <label htmlFor="name">Name</label>
-                        <input id="name" name="name" type="text" className="form-control" value={profileData.name} onChange={handleProfileChange} />
-                    </div>
-                    <div className="control-group">
-                        <label htmlFor="password">New Password (leave blank to keep current)</label>
-                        <input id="password" name="password" type="password" className="form-control" value={profileData.password} onChange={handleProfileChange} />
-                    </div>
-                    <button type="submit" className="btn btn-primary">Update Profile</button>
-                </form>
-            </div>
-             <div className="settings-card">
-                <h3>Application Settings</h3>
-                <form onSubmit={handleSettingsSave}>
-                    <div className="control-group">
-                        <label htmlFor="accentColor">Accent Color</label>
-                        <input id="accentColor" name="accentColor" type="color" className="form-control" value={appSettings.accentColor} onChange={handleSettingsChange} style={{padding: '0.25rem', height: '40px'}}/>
-                    </div>
-                    <button type="submit" className="btn btn-primary">Save Settings</button>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const AuthView = () => {
-    const { users, setUsers, setCurrentUser, addNotification } = useContext(AppContext);
-    const [isLogin, setIsLogin] = useState(true);
-    const [credentials, setCredentials] = useState({ id: '', password: '' });
-    const [signupData, setSignupData] = useState({ name: '', id: '', password: '', role: 'student' as UserRole, dept: 'CSE', year: 'I' });
-
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault();
-        const user = users.find(u => u.id === credentials.id && u.password === credentials.password);
-        if (user) {
-            if (user.isLocked) {
-                 addNotification('Your account is locked. Please contact an administrator.', 'error');
-                 return;
-            }
-             if (user.status === 'pending_approval') {
-                addNotification('Your account is pending approval.', 'warning');
-                return;
-            }
-            if (user.status === 'rejected') {
-                addNotification('Your account registration was rejected.', 'error');
-                return;
-            }
-            setCurrentUser(user);
-            addNotification(`Welcome back, ${user.name}!`, 'success');
-        } else {
-            addNotification('Invalid credentials. Please try again.', 'error');
-        }
-    };
-    
-    const handleSignup = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (users.find(u => u.id === signupData.id)) {
-            addNotification('User ID already exists. Please choose another one.', 'error');
+    useEffect(() => {
+        if (!input) {
+            setSearchResults([]);
             return;
         }
 
-        const newUser: User = {
-            ...signupData,
-            year: signupData.role === 'student' ? signupData.year : undefined,
-            status: 'pending_approval',
-            isLocked: false,
-        };
+        const lowercasedInput = input.toLowerCase();
+        const navResults = NAV_ITEMS.filter(item => item.label.toLowerCase().includes(lowercasedInput))
+            .map(item => ({...item, type: 'navigate'}));
+        const userResults = users.filter(user => user.name.toLowerCase().includes(lowercasedInput))
+            .map(user => ({...user, type: 'user', icon: <Icons.userCircle/>}));
+        const resourceResults = resources.filter(res => res.name.toLowerCase().includes(lowercasedInput))
+            .map(res => ({...res, type: 'resource', icon: <Icons.book />}));
         
-        setUsers((prevUsers: User[]) => [...prevUsers, newUser]);
-        addNotification('Registration request sent! An admin will review it shortly.', 'success');
-        setIsLogin(true);
-    };
-    
-    const handleCredsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setCredentials({...credentials, [e.target.name]: e.target.value});
-    };
-    
-    const handleSignupChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setSignupData({...signupData, [e.target.name]: e.target.value});
-    };
-    
-    return (
-        <div className="login-view-container">
-            <div className="login-card">
-                <div className={`login-card-inner ${!isLogin ? 'is-flipped' : ''}`}>
-                    <div className="login-card-front">
-                        <div className="login-header">
-                            <span className="logo"><Icons.logo /></span>
-                            <h1>Welcome Back</h1>
-                            <p>Sign in to your AcademiaAI account.</p>
-                        </div>
-                        <form onSubmit={handleLogin}>
-                             <div className="control-group">
-                                <label htmlFor="id">User ID</label>
-                                <input type="text" id="id" name="id" className="form-control" required onChange={handleCredsChange} />
-                            </div>
-                            <div className="control-group">
-                                <label htmlFor="password">Password</label>
-                                <input type="password" id="password" name="password" className="form-control" required onChange={handleCredsChange} />
-                            </div>
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Login</button>
-                        </form>
-                         <div className="auth-hint">
-                            Hint: Try <strong>admin</strong> / <strong>password</strong> or <strong>stud001</strong> / <strong>password</strong>
-                        </div>
-                         <div className="auth-toggle">
-                            Don't have an account?
-                            <button onClick={() => setIsLogin(false)}>Sign Up</button>
-                        </div>
-                    </div>
-                    <div className="login-card-back">
-                        <div className="login-header">
-                            <span className="logo"><Icons.logo /></span>
-                             <h1>Create Account</h1>
-                            <p>Join the AcademiaAI platform.</p>
-                        </div>
-                         <form onSubmit={handleSignup}>
-                            <div className="control-group">
-                                <label>Full Name</label>
-                                <input type="text" name="name" className="form-control" required onChange={handleSignupChange} />
-                            </div>
-                             <div className="control-group">
-                                <label>User ID</label>
-                                <input type="text" name="id" className="form-control" required onChange={handleSignupChange} />
-                            </div>
-                             <div className="control-group">
-                                <label>Password</label>
-                                <input type="password" name="password" className="form-control" required onChange={handleSignupChange}/>
-                            </div>
-                            <div className="form-grid">
-                                <div className="control-group">
-                                    <label>Role</label>
-                                    <select name="role" className="form-control" value={signupData.role} onChange={handleSignupChange}>
-                                        <option value="student">Student</option>
-                                        <option value="faculty">Faculty</option>
-                                    </select>
-                                </div>
-                                <div className="control-group">
-                                    <label>Department</label>
-                                    <select name="dept" className="form-control" value={signupData.dept} onChange={handleSignupChange}>
-                                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Register</button>
-                        </form>
-                         <div className="auth-toggle">
-                            Already have an account?
-                            <button onClick={() => setIsLogin(true)}>Login</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
+        const results = [];
+        if (navResults.length > 0) results.push({ category: 'Navigation', items: navResults });
+        if (userResults.length > 0) results.push({ category: 'Users', items: userResults });
+        if (resourceResults.length > 0) results.push({ category: 'Resources', items: resourceResults });
 
+        setSearchResults(results);
+    }, [input, users, resources]);
+    
+    const handleSelectResult = (item) => {
+        switch(item.type) {
+            case 'navigate':
+                setCurrentView(item.view);
+                break;
+            case 'user':
+                addNotification(`Showing details for ${item.name}`, 'info');
+                // Future: navigate to a user profile page
+                break;
+             case 'resource':
+                addNotification(`Showing resource: ${item.name}`, 'info');
+                // Future: open resource details
+                break;
+        }
+        onClose();
+    };
 
-// --- MODALS ---
-
-const Modal = ({ children, onClose, size = 'md' }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        setIsOpen(true);
+        inputRef.current?.focus();
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
+            if (e.key === 'Escape') {
+                onClose();
+            }
         };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, [onClose]);
 
-    const handleOverlayClick = (e: React.MouseEvent) => {
-        if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+    const handleCommand = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!ai || !input || searchResults.length > 0) return;
+        setIsLoading(true);
+
+        const prompt = `You are a command parser for an academic portal app. Analyze the user's command: "${input}". Respond ONLY with a JSON object. Possible actions are 'navigate', 'search_user', 'create_announcement'. For 'navigate', payload should be { "view": "view_name" }. For 'search_user', payload should be { "name": "user_name" }. For 'create_announcement', the payload should be { "prompt": "details for announcement"}. Valid views: dashboard, timetable, announcements, userManagement, studentDirectory, resources, security, settings.`;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { action: { type: Type.STRING }, payload: { type: Type.OBJECT } } } }
+            });
+            const command = JSON.parse(response.text);
+
+            switch (command.action) {
+                case 'navigate': setCurrentView(command.payload.view); break;
+                case 'search_user': addNotification(`AI search found user: "${command.payload.name}".`, 'info'); break;
+                case 'create_announcement': addNotification(`Opening new announcement with prompt: "${command.payload.prompt}"`, 'info'); break;
+                default: addNotification("Sorry, I didn't understand that command.", "warning");
+            }
             onClose();
+
+        } catch (err) {
+            console.error(err);
+            addNotification("Could not process the command.", "error");
+        } finally {
+            setIsLoading(false);
         }
     };
     
     return createPortal(
-        <div className={`modal-overlay ${isOpen ? 'open' : ''}`} onMouseDown={handleOverlayClick}>
-            <div className={`modal-content modal-${size}`} ref={modalRef}>
-                {children}
+        <div className="modal-overlay command-bar-overlay" onClick={onClose}>
+            <div className="command-bar-content" onClick={(e) => e.stopPropagation()}>
+                <form onSubmit={handleCommand}>
+                    <div className="command-bar-input-wrapper">
+                         <Icons.search />
+                         <input 
+                            ref={inputRef}
+                            type="text" 
+                            placeholder="Type a command or search... (e.g., 'go to timetable')"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            disabled={isLoading}
+                        />
+                        {isLoading && <span className="spinner" />}
+                    </div>
+                </form>
+                 <div className="command-bar-results">
+                    {searchResults.map(group => (
+                        <div key={group.category} className="results-group">
+                            <h4 className="results-category">{group.category}</h4>
+                            <ul>
+                                {group.items.map(item => (
+                                    <li key={item.id || item.view} onClick={() => handleSelectResult(item)}>
+                                        {item.icon}
+                                        <span>{item.name || item.label}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                    {!isLoading && input && searchResults.length === 0 && (
+                        <div className="results-empty">No results found. Press Enter to ask AI.</div>
+                    )}
+                </div>
             </div>
         </div>,
         document.body
     );
 };
 
-const ConfirmModal = ({ title, message, onConfirm, onCancel }: { title: string; message: string; onConfirm: () => void; onCancel: () => void; }) => {
-    return (
-        <Modal onClose={onCancel} size="sm">
-            <div className="modal-header">
-                <h3>{title}</h3>
-                <button onClick={onCancel} className="close-modal-btn"><Icons.close/></button>
-            </div>
-            <div className="modal-body">
-                <p>{message}</p>
-            </div>
-            <div className="modal-footer">
-                <div className="actions-right">
-                    <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
-                    <button onClick={onConfirm} className="btn btn-danger">Confirm</button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-const TimetableEntryModal = ({ entry, onClose }: { entry: TimetableEntry, onClose: () => void }) => {
-    const { timetable, setTimetable, addNotification } = useContext(AppContext);
-    const [editedEntry, setEditedEntry] = useState(entry);
-    const isNew = !timetable.some(item => item.id === entry.id);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setEditedEntry(prev => ({...prev, [name]: value}));
-    };
-    
-    const handleSave = () => {
-        if (!editedEntry.subject) {
-            addNotification('Subject cannot be empty.', 'warning');
-            return;
-        }
-        setTimetable((prev: TimetableEntry[]) => {
-            if (isNew) return [...prev, editedEntry];
-            return prev.map(item => item.id === editedEntry.id ? editedEntry : item);
-        });
-        addNotification('Timetable updated!', 'success');
-        onClose();
-    };
-
-    const handleDelete = () => {
-        setTimetable((prev: TimetableEntry[]) => prev.filter(item => item.id !== editedEntry.id));
-        addNotification('Timetable entry removed.', 'success');
-        onClose();
-    };
-
-    return (
-        <Modal onClose={onClose}>
-            <div className="modal-header">
-                <h3>{isNew ? 'Add' : 'Edit'} Timetable Entry</h3>
-                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
-            </div>
-            <div className="modal-body">
-                <div className="control-group">
-                    <label>Subject</label>
-                    <input type="text" name="subject" value={editedEntry.subject} onChange={handleChange} className="form-control" />
-                </div>
-                <div className="control-group">
-                    <label>Faculty</label>
-                    <input type="text" name="faculty" value={editedEntry.faculty || ''} onChange={handleChange} className="form-control" />
-                </div>
-                 <div className="control-group">
-                    <label>Room</label>
-                    <input type="text" name="room" value={editedEntry.room || ''} onChange={handleChange} className="form-control" />
-                </div>
-            </div>
-            <div className="modal-footer">
-                {!isNew && <button onClick={handleDelete} className="btn btn-danger-outline delete-button"><Icons.trash/> Delete</button> }
-                <div className="actions-right">
-                    <button onClick={onClose} className="btn btn-secondary">Cancel</button>
-                    <button onClick={handleSave} className="btn btn-primary">Save Changes</button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-const AnnouncementModal = ({ announcement, onClose }: { announcement?: Announcement | null; onClose: () => void }) => {
-    const { setAnnouncements, currentUser, addNotification } = useContext(AppContext);
-    const [formData, setFormData] = useState({ 
-        title: announcement?.title || '', 
-        content: announcement?.content || '' 
-    });
-    const isEditing = !!announcement;
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-
-    const handleSave = () => {
-        if (!formData.title || !formData.content) {
-            addNotification('Title and content cannot be empty.', 'warning');
-            return;
-        }
-
-        if (isEditing) {
-            setAnnouncements((prev: Announcement[]) => 
-                prev.map(ann => ann.id === announcement.id ? { ...ann, ...formData, timestamp: Date.now() } : ann)
-            );
-            addNotification('Announcement updated!', 'success');
-        } else {
-            const newAnnouncement: Announcement = {
-                id: `ann_${Date.now()}`,
-                ...formData,
-                author: currentUser.name,
-                authorId: currentUser.id,
-                timestamp: Date.now(),
-                targetRole: 'all',
-                targetDept: 'all',
-            };
-            setAnnouncements((prev: Announcement[]) => [newAnnouncement, ...prev]);
-            addNotification('Announcement posted!', 'success');
-        }
-        onClose();
-    };
-
-    return (
-        <Modal onClose={onClose}>
-            <div className="modal-header">
-                <h3>{isEditing ? 'Edit' : 'New'} Announcement</h3>
-                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
-            </div>
-            <div className="modal-body">
-                <div className="control-group">
-                    <label>Title</label>
-                    <input type="text" name="title" value={formData.title} onChange={handleChange} className="form-control" />
-                </div>
-                <div className="control-group">
-                    <label>Content</label>
-                    <textarea name="content" value={formData.content} onChange={handleChange} className="form-control" rows={5}></textarea>
-                </div>
-            </div>
-            <div className="modal-footer">
-                <div className="actions-right">
-                    <button onClick={onClose} className="btn btn-secondary">Cancel</button>
-                    <button onClick={handleSave} className="btn btn-primary">{isEditing ? 'Save Changes' : 'Post Announcement'}</button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }) => {
-    const { setUsers } = useContext(AppContext);
-    const [editedUser, setEditedUser] = useState<User | null>(user);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        if (!editedUser) return;
-        setEditedUser({ ...editedUser, [name]: value });
-    };
-
-    const handleSave = () => {
-        if (!editedUser) return;
-        setUsers((prev: User[]) => prev.map(u => u.id === editedUser.id ? editedUser : u));
-        onClose();
-    };
-    
-    if (!editedUser) return null;
-
-    return (
-         <Modal onClose={onClose}>
-            <div className="modal-header">
-                <h3>Edit User: {editedUser.name}</h3>
-                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
-            </div>
-            <div className="modal-body">
-                <div className="control-group">
-                    <label>Name</label>
-                    <input type="text" name="name" value={editedUser.name} onChange={handleChange} className="form-control" />
-                </div>
-                <div className="control-group">
-                    <label>Role</label>
-                     <select name="role" value={editedUser.role} onChange={handleChange} className="form-control">
-                        {USER_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                </div>
-                 <div className="control-group">
-                    <label>Department</label>
-                     <select name="dept" value={editedUser.dept} onChange={handleChange} className="form-control">
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                </div>
-            </div>
-            <div className="modal-footer">
-                <div className="actions-right">
-                    <button onClick={onClose} className="btn btn-secondary">Cancel</button>
-                    <button onClick={handleSave} className="btn btn-primary">Save Changes</button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-const StudentDetailModal = ({ student, onClose }: { student: User, onClose: () => void }) => {
-    const { setUsers, addNotification } = useContext(AppContext);
-    
-    const handleGenerateAnalysis = async () => {
-        if (!isAiEnabled || !ai) {
-             addNotification('AI features are disabled.', 'error');
-             return;
-        }
-
-        const prompt = `Perform a risk analysis for student ${student.name}. Grades: ${JSON.stringify(student.grades)}. Attendance: ${JSON.stringify(student.attendance)}. Generate a risk level (Low, Moderate, High), a rationale for the assessment, and a list of recommended interventions.`;
-
-        try {
-            const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            riskLevel: { type: Type.STRING, enum: ['Low', 'Moderate', 'High'] },
-                            rationale: { type: Type.STRING },
-                            interventions: { type: Type.ARRAY, items: { type: Type.STRING } }
-                        }
-                    }
-                }
-            });
-            
-            const riskData = JSON.parse(response.text) as Omit<User['aiRiskAnalysis'], 'timestamp'>;
-            const analysis = { ...riskData, timestamp: Date.now() };
-
-            setUsers((prev: User[]) => prev.map(u => u.id === student.id ? { ...u, aiRiskAnalysis: analysis } : u));
-            addNotification('AI Risk Analysis complete!', 'success');
-        } catch (error) {
-            console.error("AI Risk analysis failed:", error);
-            addNotification('AI analysis failed.', 'error');
-        }
-    };
-    
-    return (
-        <Modal onClose={onClose} size="lg">
-            <div className="modal-header">
-                <h3>Student Profile: {student.name}</h3>
-                 <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
-            </div>
-            <div className="modal-body">
-                <div className="details-list">
-                    <p><strong>ID:</strong> {student.id}</p>
-                    <p><strong>Department:</strong> {student.dept}</p>
-                    <p><strong>Year:</strong> {student.year}</p>
-                    <p><strong>Status:</strong> {student.status}</p>
-                </div>
-
-                <div className="ai-review-section">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h4>AI Risk Analysis</h4>
-                        <button className="btn btn-sm btn-primary" onClick={handleGenerateAnalysis}><Icons.sparkles/> Generate/Update</button>
-                    </div>
-                    {student.aiRiskAnalysis ? (
-                         <div className="risk-analysis-modal">
-                            <div className="risk-level-display">
-                                <span className={`risk-level-badge risk-level-${student.aiRiskAnalysis.riskLevel.toLowerCase()}`}>{student.aiRiskAnalysis.riskLevel} Risk</span>
-                            </div>
-                            <h4>Rationale</h4>
-                            <p>{student.aiRiskAnalysis.rationale}</p>
-                            <h4>Recommended Interventions</h4>
-                            <ul>
-                               {student.aiRiskAnalysis.interventions.map((item, i) => <li key={i}>{item}</li>)}
-                            </ul>
-                             <span className="analysis-timestamp">Last updated: {formatDate(student.aiRiskAnalysis.timestamp)}</span>
-                        </div>
-                    ) : <p>No AI risk analysis has been performed yet.</p>}
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-const CourseFileDetailModal = ({ file, onClose }: { file: CourseFile, onClose: () => void }) => {
-    return (
-        <Modal onClose={onClose} size="lg">
-             <div className="modal-header">
-                <h3>Course File: {file.subject}</h3>
-                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
-            </div>
-            <div className="modal-body">
-                 <div className="details-list">
-                    <p><strong>Faculty:</strong> {file.facultyName}</p>
-                    <p><strong>Department:</strong> {file.department}</p>
-                    <p><strong>Semester:</strong> {file.semester}</p>
-                    <p><strong>Files:</strong> {file.files.map(f => f.name).join(', ')}</p>
-                    <p><strong>Status:</strong> <span className={`status-badge status-${file.status}`}>{file.status.replace('_', ' ')}</span></p>
-                </div>
-                 <div className="ai-review-section">
-                     <h4><Icons.sparkles/> AI Review</h4>
-                     {file.aiReview && file.aiReview.status === 'complete' ? (
-                        <div>
-                           <h5>Summary</h5>
-                           <p>{file.aiReview.summary}</p>
-                           <h5>Suggestions</h5>
-                           <ul>{file.aiReview.suggestions.map((s, i) => <li key={i}>{s}</li>)}</ul>
-                        </div>
-                     ) : file.aiReview?.status === 'pending' ? (
-                        <p>AI Review in progress...</p>
-                     ) : (
-                         <p>No AI review available.</p>
-                     )}
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-const CourseFileSubmitModal = ({ onClose }: { onClose: () => void }) => {
-    const { setCourseFiles, currentUser, addNotification } = useContext(AppContext);
-    const [formData, setFormData] = useState({ subject: '', semester: 'I', files: '' });
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-
-    const handleSave = () => {
-        if (!formData.subject || !formData.files) {
-            addNotification('Please fill all fields.', 'warning');
-            return;
-        }
-        const newSubmission: CourseFile = {
-            id: `cf_${Date.now()}`,
-            facultyId: currentUser.id,
-            facultyName: currentUser.name,
-            department: currentUser.dept,
-            subject: formData.subject,
-            semester: formData.semester,
-            files: [{ name: formData.files, type: 'notes' }], // Simplified
-            status: 'pending_review',
-            submittedAt: Date.now(),
-        };
-        setCourseFiles((prev: CourseFile[]) => [...prev, newSubmission]);
-        addNotification('Course files submitted for review!', 'success');
-        onClose();
-    };
-
-    return (
-        <Modal onClose={onClose}>
-            <div className="modal-header"><h3>Submit Course Files</h3><button onClick={onClose} className="close-modal-btn"><Icons.close/></button></div>
-            <div className="modal-body">
-                <div className="control-group"><label>Subject</label><input type="text" name="subject" value={formData.subject} onChange={handleChange} className="form-control" /></div>
-                <div className="control-group"><label>Semester</label><select name="semester" value={formData.semester} onChange={handleChange} className="form-control"><option>I</option><option>II</option><option>III</option><option>IV</option><option>V</option><option>VI</option><option>VII</option><option>VIII</option></select></div>
-                <div className="control-group"><label>File Name (e.g., Unit1.pdf)</label><input type="text" name="files" value={formData.files} onChange={handleChange} className="form-control" /></div>
-            </div>
-            <div className="modal-footer"><div className="actions-right"><button onClick={onClose} className="btn btn-secondary">Cancel</button><button onClick={handleSave} className="btn btn-primary">Submit</button></div></div>
-        </Modal>
-    );
-};
-
-const ResourceModal = ({ resource, onClose }: { resource?: Resource | null, onClose: () => void }) => {
-    const { setResources, currentUser, addNotification } = useContext(AppContext);
-    const [formData, setFormData] = useState({ 
-        name: resource?.name || '', 
-        subject: resource?.subject || '', 
-        type: resource?.type || 'notes' as Resource['type'] 
-    });
-    const isEditing = !!resource;
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-
-    const handleSave = () => {
-        if (!formData.name || !formData.subject) {
-            addNotification('Resource name and subject cannot be empty.', 'warning');
-            return;
-        }
-        if (isEditing) {
-            setResources((prev: Resource[]) => prev.map(res => res.id === resource.id ? { ...res, ...formData, timestamp: Date.now() } : res));
-            addNotification('Resource updated!', 'success');
-        } else {
-            const newResource: Resource = {
-                id: `res_${Date.now()}`,
-                ...formData,
-                type: formData.type,
-                department: currentUser.dept,
-                uploaderId: currentUser.id,
-                uploaderName: currentUser.name,
-                timestamp: Date.now(),
-            };
-            setResources((prev: Resource[]) => [newResource, ...prev]);
-            addNotification('Resource added successfully!', 'success');
-        }
-        onClose();
-    };
-
-    return (
-        <Modal onClose={onClose}>
-            <div className="modal-header"><h3>{isEditing ? 'Edit' : 'Upload New'} Resource</h3><button onClick={onClose} className="close-modal-btn"><Icons.close/></button></div>
-            <div className="modal-body">
-                <div className="control-group"><label>Resource Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="form-control" /></div>
-                <div className="control-group"><label>Subject</label><input type="text" name="subject" value={formData.subject} onChange={handleChange} className="form-control" /></div>
-                <div className="control-group"><label>Type</label><select name="type" value={formData.type} onChange={handleChange} className="form-control"><option value="book">Book</option><option value="notes">Notes</option><option value="project">Project</option><option value="lab">Lab Material</option><option value="other">Other</option></select></div>
-            </div>
-            <div className="modal-footer"><div className="actions-right"><button onClick={onClose} className="btn btn-secondary">Cancel</button><button onClick={handleSave} className="btn btn-primary">{isEditing ? 'Save Changes' : 'Upload'}</button></div></div>
-        </Modal>
-    );
-};
-
-const CalendarEventModal = ({ event, onClose }: { event?: CalendarEvent | null; onClose: () => void }) => {
-    const { setCalendarEvents, addNotification } = useContext(AppContext);
-    const [formData, setFormData] = useState({ 
-        title: event?.title || '', 
-        date: event?.date || '', 
-        type: event?.type || 'event' as CalendarEvent['type'] 
-    });
-    const isEditing = !!event;
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-
-    const handleSave = () => {
-        if (!formData.title || !formData.date) {
-            addNotification('Event title and date are required.', 'warning');
-            return;
-        }
-
-        if (isEditing) {
-            setCalendarEvents((prev: CalendarEvent[]) => prev.map(ev => ev.id === event.id ? { ...ev, ...formData } : ev));
-            addNotification('Calendar event updated!', 'success');
-        } else {
-            const newEvent: CalendarEvent = {
-                id: `cal_${Date.now()}`,
-                ...formData,
-                type: formData.type,
-            };
-            setCalendarEvents((prev: CalendarEvent[]) => [...prev, newEvent]);
-            addNotification('Event added to calendar!', 'success');
-        }
-        onClose();
-    };
-
-    return (
-        <Modal onClose={onClose}>
-            <div className="modal-header"><h3>{isEditing ? 'Edit' : 'Add'} Calendar Event</h3><button onClick={onClose} className="close-modal-btn"><Icons.close/></button></div>
-            <div className="modal-body">
-                <div className="control-group"><label>Event Title</label><input type="text" name="title" value={formData.title} onChange={handleChange} className="form-control" /></div>
-                <div className="control-group"><label>Date</label><input type="date" name="date" value={formData.date} onChange={handleChange} className="form-control" /></div>
-                <div className="control-group"><label>Event Type</label><select name="type" value={formData.type} onChange={handleChange} className="form-control"><option value="event">Event</option><option value="exam">Exam</option><option value="deadline">Deadline</option><option value="holiday">Holiday</option></select></div>
-            </div>
-            <div className="modal-footer"><div className="actions-right"><button onClick={onClose} className="btn btn-secondary">Cancel</button><button onClick={handleSave} className="btn btn-primary">{isEditing ? 'Save Changes' : 'Add Event'}</button></div></div>
-        </Modal>
-    );
-};
-
-const StudyPlanModal = ({ plan, setPlan, onClose }: { plan: StudyPlan, setPlan: React.Dispatch<React.SetStateAction<StudyPlan | null>>, onClose: () => void }) => {
-
-    const toggleTask = (weekIndex: number, dayIndex: number, taskIndex: number) => {
-        setPlan(currentPlan => {
-            if (!currentPlan) return null;
-            const newPlan = JSON.parse(JSON.stringify(currentPlan));
-            newPlan.weeks[weekIndex].days[dayIndex].tasks[taskIndex].completed = !newPlan.weeks[weekIndex].days[dayIndex].tasks[taskIndex].completed;
-            return newPlan;
-        });
-    };
-    
-    return (
-         <Modal onClose={onClose} size="xl">
-             <div className="modal-header">
-                <h3>{plan.title}</h3>
-                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
-            </div>
-            <div className="modal-body study-plan-view">
-                {plan.weeks.map((week, wIdx) => (
-                    <div key={week.week} className="plan-week">
-                        <h4>Week {week.week}</h4>
-                        {week.days.map((day, dIdx) => (
-                            <div key={`${wIdx}-${dIdx}`} className="plan-day">
-                                <p className="plan-day-header">{day.day}<span>{day.topic}</span></p>
-                                <ul className="plan-tasks">
-                                    {day.tasks.map((task, tIdx) => (
-                                        <li key={`${wIdx}-${dIdx}-${tIdx}`}>
-                                            <input 
-                                                type="checkbox" 
-                                                id={`task-${wIdx}-${dIdx}-${tIdx}`} 
-                                                checked={task.completed} 
-                                                onChange={() => toggleTask(wIdx, dIdx, tIdx)} 
-                                            />
-                                            <label htmlFor={`task-${wIdx}-${dIdx}-${tIdx}`}>{task.text}</label>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))}
-                    </div>
-                ))}
-            </div>
-        </Modal>
-    );
-};
-
-// --- CHATBOT & NOTIFICATIONS ---
-
-const Chatbot = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [input, setInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const chatRef = useRef<Chat | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const { addNotification } = useContext(AppContext);
-
-    useEffect(() => {
-        if (isAiEnabled && ai && !chatRef.current) {
-            chatRef.current = ai.chats.create({ model: 'gemini-2.5-flash' });
-        }
-    }, []);
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
-
-    const handleSend = async (messageText = input) => {
-        if (!messageText.trim() || isLoading) return;
-        
-        if (!isAiEnabled || !chatRef.current) {
-            addNotification("AI Chat is not available.", 'error');
-            return;
-        }
-
-        const userMessage: ChatMessage = { id: `msg_${Date.now()}`, role: 'user', text: messageText };
-        setMessages(prev => [...prev, userMessage]);
-        setInput('');
-        setIsLoading(true);
-
-        try {
-            const response = await chatRef.current.sendMessage({ message: messageText });
-            const modelMessage: ChatMessage = { id: `msg_${Date.now() + 1}`, role: 'model', text: response.text };
-            setMessages(prev => [...prev, modelMessage]);
-        } catch (error) {
-            console.error("Chat error:", error);
-            const errorMessage: ChatMessage = { id: `msg_${Date.now() + 1}`, role: 'model', text: 'Sorry, I encountered an error. Please try again.', isError: true };
-            setMessages(prev => [...prev, errorMessage]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <>
-            <button className="chatbot-fab" onClick={() => setIsOpen(!isOpen)} aria-label={isOpen ? "Close chat" : "Open chat"}>
-                {isOpen ? <Icons.close /> : <Icons.sparkles />}
-            </button>
-            {isOpen && (
-                <div className="chatbot-window">
-                    <div className="chatbot-header">
-                        <h3>AI Assistant</h3>
-                        <button onClick={() => setIsOpen(false)}><Icons.close /></button>
-                    </div>
-                    <div className="chatbot-messages">
-                        {messages.length === 0 && (
-                            <div className="chat-empty-state">
-                                <Icons.sparkles/>
-                                <p>Ask me anything about the university, subjects, or schedules!</p>
-                            </div>
-                        )}
-                        {messages.map(msg => (
-                            <div key={msg.id} className={`chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}>
-                                <div className="chat-bubble" dangerouslySetInnerHTML={{ __html: marked.parse(msg.text) }}></div>
-                            </div>
-                        ))}
-                         {isLoading && (
-                            <div className="chat-message model">
-                                <div className="chat-bubble"><span className="loading-dots"><span></span><span></span><span></span></span></div>
-                            </div>
-                        )}
-                        <div ref={messagesEndRef} />
-                    </div>
-                    <form className="chatbot-input-form" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
-                        <input type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} />
-                        <button type="submit" disabled={!input.trim() || isLoading} aria-label="Send message"><Icons.send /></button>
-                    </form>
-                </div>
-            )}
-        </>
-    );
-};
-
-const notificationIcons = {
-    info: <Icons.info />,
-    success: <Icons.check />,
-    error: <Icons.xmark />,
-    warning: <Icons.warning />,
-};
-
+// --- NOTIFICATIONS ---
 const NotificationContainer = ({ notifications, setNotifications }) => {
-    const [exitingIds, setExitingIds] = useState<string[]>([]);
+    const removeNotification = (id: string) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+    };
 
-    const dismissNotification = useCallback((id: string) => {
-        setExitingIds(prev => [...prev, id]);
-        setTimeout(() => {
-            setNotifications((prev: AppNotification[]) => prev.filter(n => n.id !== id));
-            setExitingIds(prev => prev.filter(exId => exId !== id));
-        }, 400); // Corresponds to CSS animation duration
-    }, [setNotifications]);
-
-    useEffect(() => {
-        if (notifications.length > 0) {
-            const latestNotif = notifications[notifications.length - 1];
-            if (!exitingIds.includes(latestNotif.id)) {
-                const timer = setTimeout(() => {
-                    dismissNotification(latestNotif.id);
-                }, 5000);
-                return () => clearTimeout(timer);
-            }
-        }
-    }, [notifications, exitingIds, dismissNotification]);
-
-    return (
+    return createPortal(
         <div className="notification-container">
-            {notifications.map((notif: AppNotification) => (
-                <div key={notif.id} className={`notification-item ${notif.type} ${exitingIds.includes(notif.id) ? 'exiting' : ''}`}>
-                    <div className="notification-icon">{notificationIcons[notif.type]}</div>
-                    <span>{notif.message}</span>
-                    <button onClick={() => dismissNotification(notif.id)} className="notification-dismiss">&times;</button>
-                    <div className="notification-progress"></div>
+            {notifications.map(n => (
+                <div key={n.id} className={`notification-toast toast-${n.type}`}>
+                    <div className="toast-icon">
+                        {n.type === 'success' ? <Icons.check /> : n.type === 'error' ? <Icons.xmark /> : <Icons.info />}
+                    </div>
+                    <p>{n.message}</p>
+                    <button onClick={() => removeNotification(n.id)} className="toast-close-btn"><Icons.close/></button>
                 </div>
             ))}
+        </div>,
+        document.body
+    );
+};
+
+const CourseFileReviewModal = ({ file, onClose }) => {
+    const { aiReview } = file;
+    return createPortal(
+         <div className="modal-overlay">
+            <div className="modal-content large">
+                 <div className="modal-header">
+                    <h3><Icons.sparkles/> AI Review: {file.subject}</h3>
+                    <button onClick={onClose} className="modal-close-btn"><Icons.close/></button>
+                </div>
+                <div className="modal-body">
+                    {aiReview ? (
+                        <div className="ai-review-content">
+                            <h4>Summary</h4>
+                            <p>{aiReview.summary}</p>
+                            
+                            <h4>Suggestions for Improvement</h4>
+                            <ul>
+                                {aiReview.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                            </ul>
+
+                            {aiReview.corrections && aiReview.corrections.length > 0 && (
+                                <>
+                                <h4>Potential Corrections</h4>
+                                <ul className="corrections-list">
+                                    {aiReview.corrections.map((c, i) => <li key={i}><strong>Original:</strong> {c.original} <br/> <strong>Corrected:</strong> {c.corrected}</li>)}
+                                </ul>
+                                </>
+                            )}
+                        </div>
+                    ) : (
+                        <p>No AI review available for this file.</p>
+                    )}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+}
+
+const PlaceholderView = ({ title }) => {
+    return (
+        <div className="placeholder-view">
+            <h2>{title}</h2>
+            <p>This feature is under construction.</p>
         </div>
     );
 };
-
 
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);
