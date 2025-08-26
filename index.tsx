@@ -49,7 +49,7 @@ interface Announcement {
     reactions?: { [emoji: string]: string[] }; // Emoji: [userId1, userId2]
 }
 interface ChatMessage {
-    id: string;
+    id:string;
     role: 'user' | 'model';
     text: string;
     isError?: boolean;
@@ -116,12 +116,13 @@ interface CourseFile {
         suggestions: string[];
         corrections?: { original: string; corrected: string; }[];
         status: 'pending' | 'complete' | 'failed';
+        timestamp: number;
     };
 }
 
 interface CalendarEvent {
     id: string;
-    date: Date;
+    date: string; // Using ISO string for easier storage
     title: string;
     type: 'exam' | 'holiday' | 'event' | 'deadline';
 }
@@ -166,641 +167,682 @@ interface AppSettings {
     accentColor: string;
 }
 
+interface StudyPlan {
+    title: string;
+    weeks: {
+        week: number;
+        days: {
+            day: string;
+            topic: string;
+            tasks: { text: string; completed: boolean; }[];
+        }[];
+    }[];
+}
+
 const DEPARTMENTS = ["CSE", "ECE", "EEE", "MCA", "AI&DS", "CYBERSECURITY", "MECHANICAL", "TAMIL", "ENGLISH", "MATHS", "LIB", "NSS", "NET"];
 const USER_ROLES: UserRole[] = ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'];
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 const MOCK_SETTINGS: AppSettings = {
-    timeSlots: ['09:00 - 10:00', '10:00 - 11:00', '11:00 - 11:15', '11:15 - 12:15', '12:15 - 01:15', '01:15 - 02:00', '02:00 - 03:00', '03:00 - 04:00'],
+    timeSlots: [
+        '09:00 - 09:50',
+        '09:50 - 10:35',
+        '10:35 - 10:50', // Break
+        '10:50 - 11:35',
+        '11:35 - 12:20',
+        '12:20 - 13:05',
+        '13:05 - 14:00', // Lunch
+        '14:00 - 14:50',
+        '14:50 - 15:40',
+        '15:40 - 16:30'
+    ],
     accentColor: '#3B82F6',
 };
 
-const MOCK_USERS: User[] = [
-    { id: 'admin', name: 'Admin', role: 'admin', dept: 'System', status: 'active' },
-    { id: 'principal', name: 'Dr. Principal', role: 'principal', dept: 'Management', status: 'active' },
-    { id: 'hod_cse', name: 'HOD (CSE)', role: 'hod', dept: 'CSE', status: 'active' },
-    { id: 'stud001', name: 'Alice', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }], attendance: { present: 78, total: 80 } },
-    { id: 'stud002', name: 'Bob', role: 'student', dept: 'ECE', year: 'III', status: 'pending_approval' },
-    { id: 'fac001', name: 'Prof. Charlie', role: 'faculty', dept: 'CSE', status: 'active' },
-    { id: 'fac002', name: 'Prof. Diana', role: 'faculty', dept: 'ECE', status: 'rejected' },
-    { id: 'creator', name: 'App Creator', role: 'creator', dept: 'System', status: 'active' }
+const MOCK_USERS_INITIAL: User[] = [
+    { id: 'admin', name: 'Admin', role: 'admin', dept: 'System', status: 'active', isLocked: false, password: 'password' },
+    { id: 'principal', name: 'Dr. Principal', role: 'principal', dept: 'Management', status: 'active', isLocked: false, password: 'password' },
+    { id: 'hod_cse', name: 'HOD (CSE)', role: 'hod', dept: 'CSE', status: 'active', isLocked: false, password: 'password' },
+    { id: 'stud001', name: 'Alice', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, { subject: 'OOPs', score: 72 }], attendance: { present: 78, total: 80 }, isLocked: false, password: 'password' },
+    { id: 'stud003', name: 'Eve', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 65 }, { subject: 'OOPs', score: 55 }], attendance: { present: 60, total: 80 }, isLocked: false, password: 'password', aiRiskAnalysis: { riskLevel: 'High', rationale: 'Low attendance and declining grades in core subjects.', interventions: ['Mandatory counseling session', 'Additional tutoring for OOPs'], timestamp: Date.now() - 86400000 * 3 } },
+    { id: 'stud002', name: 'Bob', role: 'student', dept: 'ECE', year: 'III', status: 'pending_approval', isLocked: false, password: 'password' },
+    { id: 'fac001', name: 'Prof. Charlie', role: 'faculty', dept: 'CSE', status: 'active', isLocked: false, password: 'password' },
+    { id: 'fac002', name: 'Prof. Diana', role: 'faculty', dept: 'ECE', status: 'rejected', isLocked: false, password: 'password' },
+    { id: 'creator', name: 'App Creator', role: 'creator', dept: 'System', status: 'active', isLocked: false, password: 'password' }
 ];
 
-const MOCK_ANNOUNCEMENTS: Announcement[] = [
+const MOCK_ANNOUNCEMENTS_INITIAL: Announcement[] = [
     { id: 'ann001', title: 'Mid-term Exams', content: 'Mid-term exams for all departments will commence from next week. Please collect your hall tickets.', author: 'Admin', timestamp: Date.now() - 86400000, targetRole: 'all', targetDept: 'all', reactions: { '👍': ['stud001', 'fac001'] } },
     { id: 'ann002', title: 'Project Submission Deadline', content: 'Final year project submissions are due this Friday. No extensions will be provided.', author: 'HOD (CSE)', timestamp: Date.now() - 172800000, targetRole: 'student', targetDept: 'CSE' }
 ];
 
-const MOCK_TIMETABLE: TimetableEntry[] = [
-    { id: 'tt001', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 0, subject: 'Data Structures', type: 'class', faculty: 'Prof. Charlie', room: 'CS101' },
-    { id: 'tt002', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 1, subject: 'Algorithms', type: 'class', faculty: 'Prof. Charlie', room: 'CS101' },
-    { id: 'tt003', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 2, subject: 'Break', type: 'break' },
-    { id: 'tt004', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 3, subject: 'Database Systems', type: 'class', faculty: 'Prof. Eva', room: 'CS102' }
+const MOCK_TIMETABLE_INITIAL: TimetableEntry[] = [
+    // Monday
+    { id: 'tt_mon_0', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 0, subject: 'Discrete Mathematics', type: 'class', faculty: 'Ms. YUVASRI', room: 'A212' },
+    { id: 'tt_mon_1', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 1, subject: 'Object Oriented Programming', type: 'class', faculty: 'Ms. MYSHREE B', room: 'A212' },
+    { id: 'tt_mon_2', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 2, subject: 'Break', type: 'break' },
+    { id: 'tt_mon_3', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 3, subject: 'Digital Principles & Comp. Org.', type: 'class', faculty: 'Mrs. THANGAMANI', room: 'A212' },
+    { id: 'tt_mon_4', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 4, subject: 'Data Structures', type: 'class', faculty: 'Mr. SOUNDHUR', room: 'A212' },
+    { id: 'tt_mon_5', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 5, subject: 'FDS', type: 'class', room: 'A212' },
+    { id: 'tt_mon_6', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 6, subject: 'Lunch', type: 'break' },
+    { id: 'tt_mon_7', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 7, subject: 'OOPS Lab', type: 'class', faculty: 'Ms. MYSHREE B', room: 'A212' },
+    { id: 'tt_mon_8', department: 'CSE', year: 'II', day: 'Monday', timeIndex: 8, subject: 'OOPS Lab', type: 'class', faculty: 'Ms. MYSHREE B', room: 'A212' },
+    // Tuesday
+    { id: 'tt_tue_0', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 0, subject: 'Digital Principles & Comp. Org.', type: 'class', faculty: 'Mrs. THANGAMANI', room: 'A212' },
+    { id: 'tt_tue_1', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 1, subject: 'Data Structures', type: 'class', faculty: 'Mr. SOUNDHUR', room: 'A212' },
+    { id: 'tt_tue_2', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 2, subject: 'Break', type: 'break' },
+    { id: 'tt_tue_3', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 3, subject: 'FDS Lab', type: 'class', room: 'A212' },
+    { id: 'tt_tue_4', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 4, subject: 'FDS Lab', type: 'class', room: 'A212' },
+    { id: 'tt_tue_5', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 5, subject: 'FDS Lab', type: 'class', room: 'A212' },
+    { id: 'tt_tue_6', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 6, subject: 'Lunch', type: 'break' },
+    { id: 'tt_tue_7', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 7, subject: 'Discrete Mathematics', type: 'class', faculty: 'Ms. YUVASRI', room: 'A212' },
+    { id: 'tt_tue_8', department: 'CSE', year: 'II', day: 'Tuesday', timeIndex: 8, subject: 'Discrete Mathematics', type: 'class', faculty: 'Ms. YUVASRI', room: 'A212' },
 ];
 
-// --- Utility Functions & Hooks ---
-function usePersistentState<T>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-    const [state, setState] = useState<T>(() => {
+const MOCK_COURSE_FILES_INITIAL: CourseFile[] = [
+    { id: 'cf001', facultyId: 'fac001', facultyName: 'Prof. Charlie', department: 'CSE', subject: 'Data Structures', semester: 'IV', files: [{ name: 'Syllabus.pdf', type: 'syllabus' }, { name: 'Unit1_Notes.pdf', type: 'notes' }], status: 'pending_review', submittedAt: Date.now() - 86400000 * 2 },
+    { id: 'cf002', facultyId: 'fac002', facultyName: 'Prof. Diana', department: 'ECE', subject: 'Circuit Theory', semester: 'III', files: [{ name: 'Syllabus.pdf', type: 'syllabus' }], status: 'approved', submittedAt: Date.now() - 86400000 * 5 },
+];
+
+const MOCK_RESOURCES_INITIAL: Resource[] = [
+    { id: 'res001', name: 'Data Structures & Algorithms', type: 'book', department: 'CSE', subject: 'Data Structures', uploaderId: 'fac001', uploaderName: 'Prof. Charlie', timestamp: Date.now() - 86400000 * 3 },
+    { id: 'res002', name: 'OOPs Concepts Slides', type: 'notes', department: 'CSE', subject: 'OOPs', uploaderId: 'fac001', uploaderName: 'Prof. Charlie', timestamp: Date.now() - 86400000 * 4 },
+    { id: 'res003', name: 'Digital Logic Design Lab Manual', type: 'lab', department: 'ECE', subject: 'Digital Logic', uploaderId: 'fac002', uploaderName: 'Prof. Diana', timestamp: Date.now() - 86400000 * 5 },
+    { id: 'res004', name: 'Final Year Project Template', type: 'project', department: 'all', subject: 'General', uploaderId: 'hod_cse', uploaderName: 'HOD (CSE)', timestamp: Date.now() - 86400000 * 10 },
+];
+
+const MOCK_CALENDAR_EVENTS_INITIAL: CalendarEvent[] = [
+    { id: 'cal001', date: new Date(Date.now() + 86400000 * 7).toISOString(), title: 'Internal Assessment I Starts', type: 'exam' },
+    { id: 'cal002', date: new Date(Date.now() + 86400000 * 14).toISOString(), title: 'National Science Day Symposium', type: 'event' },
+    { id: 'cal003', date: new Date(Date.now() + 86400000 * 20).toISOString(), title: 'Fee Payment Deadline', type: 'deadline' },
+    { id: 'cal004', date: new Date(Date.now() + 86400000 * 25).toISOString(), title: 'Summer Holiday Begins', type: 'holiday' },
+];
+
+const MOCK_AUDIT_LOGS: AuditLogEntry[] = [
+    { id: 'al001', timestamp: Date.now() - 10000, userId: 'admin', userName: 'Admin', action: 'LOGIN_SUCCESS', ip: '192.168.1.1', status: 'success' },
+    { id: 'al002', timestamp: Date.now() - 25000, userId: 'stud002', userName: 'Bob', action: 'APPROVAL_REQUEST', ip: '203.0.113.25', status: 'info', details: 'User requested account approval.' },
+    { id: 'al003', timestamp: Date.now() - 35000, userId: 'hod_cse', userName: 'HOD (CSE)', action: 'UPDATE_TIMETABLE', ip: '198.51.100.10', status: 'success', details: 'Updated CSE II Year timetable.' },
+    { id: 'al004', timestamp: Date.now() - 45000, userId: 'unknown', userName: 'N/A', action: 'LOGIN_FAILURE', ip: '192.0.2.14', status: 'failure', details: 'Failed login attempt for user: guest' },
+];
+
+const MOCK_SECURITY_ALERTS: SecurityAlert[] = [
+    { id: 'sa001', type: 'Anomaly', title: 'Multiple Failed Logins', description: 'User account "fac002" had 5 failed login attempts in 2 minutes.', timestamp: Date.now() - 60000, severity: 'high', relatedUserId: 'fac002', isResolved: false, responsePlan: { containment: 'Temporarily lock user account.', investigation: 'Verify login attempts with user.', recovery: 'Reset password if necessary.', recommendedAction: 'LOCK_USER' } },
+    { id: 'sa002', type: 'Threat', title: 'Potential SQL Injection', description: 'Anomalous query pattern detected from IP 192.0.2.14.', timestamp: Date.now() - 120000, severity: 'critical', isResolved: false, responsePlan: { containment: 'Block IP at firewall.', investigation: 'Analyze web server logs for malicious activity.', recovery: 'Patch vulnerable endpoint.', recommendedAction: 'MONITOR' } },
+];
+
+// --- UTILITY & HELPER HOOKS ---
+const useLocalStorage = <T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
+    const [storedValue, setStoredValue] = useState<T>(() => {
         try {
-            const storedValue = localStorage.getItem(key);
-            return storedValue ? JSON.parse(storedValue) : defaultValue;
+            const item = window.localStorage.getItem(key);
+            return item ? JSON.parse(item) : initialValue;
         } catch (error) {
-            console.error(`Error reading from localStorage for key "${key}":`, error);
-            return defaultValue;
+            console.error(error);
+            return initialValue;
         }
     });
 
-    useEffect(() => {
+    const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
         try {
-            localStorage.setItem(key, JSON.stringify(state));
+            const valueToStore = value instanceof Function ? value(storedValue) : value;
+            setStoredValue(valueToStore);
+            window.localStorage.setItem(key, JSON.stringify(valueToStore));
         } catch (error) {
-            console.error(`Error writing to localStorage for key "${key}":`, error);
+            console.error(error);
         }
-    }, [key, state]);
-
-    return [state, setState];
-}
-
-const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
-};
-
-// --- App Context ---
-interface AIModalContent {
-    title: string;
-    content: string;
-    isLoading: boolean;
-}
-
-interface StudyToolContent {
-    type: 'summary' | 'studyPlan';
-    title: string;
-    content: string;
-    isLoading: boolean;
-}
-
-interface AppContextType {
-    currentUser: User | null;
-    currentView: AppView;
-    theme: 'light' | 'dark';
-    settings: AppSettings;
-    users: User[];
-    announcements: Announcement[];
-    timetable: TimetableEntry[];
-    isChatOpen: boolean;
-    isSidebarOpen: boolean;
-    notifications: AppNotification[];
-    aiModalContent: AIModalContent | null;
-    studyToolContent: StudyToolContent | null;
-
-    login: (id: string, pass: string) => Promise<boolean>;
-    logout: () => void;
-    signup: (user: Omit<User, 'id' | 'status'>) => Promise<boolean>;
-    setCurrentView: React.Dispatch<React.SetStateAction<AppView>>;
-    setTheme: React.Dispatch<React.SetStateAction<'light' | 'dark'>>;
-    updateUser: (user: User) => void;
-    addAnnouncement: (ann: Omit<Announcement, 'id' | 'timestamp' | 'reactions'>) => void;
-    reactToAnnouncement: (annId: string, emoji: string) => void;
-    updateTimetableEntry: (entry: TimetableEntry) => void;
-    addTimetableEntry: (entry: Omit<TimetableEntry, 'id'>) => void;
-    deleteTimetableEntry: (id: string) => void;
-    approveUser: (id: string) => void;
-    rejectUser: (id: string) => void;
-    setIsChatOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    toggleSidebar: () => void;
-    addNotification: (notification: Omit<AppNotification, 'id'>) => void;
-    setAiModalContent: React.Dispatch<React.SetStateAction<AIModalContent | null>>;
-    setStudyToolContent: React.Dispatch<React.SetStateAction<StudyToolContent | null>>;
-}
-
-const AppContext = createContext<AppContextType | null>(null);
-const useAppContext = () => {
-    const context = useContext(AppContext);
-    if (!context) throw new Error("useAppContext must be used within an AppProvider");
-    return context;
-};
-
-// --- Helper Components ---
-const Icon: React.FC<{ name: string; className?: string }> = ({ name, className }) => {
-    const icons: { [key: string]: React.ReactNode } = {
-        'dashboard': <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l3-3m0 0l3 3m-3-3v12.75m3-3l3 3m-3-3V3.75m9 9.75l3-3m0 0l3 3m-3-3V3.75m-6 3.75l-3 3m0 0l3 3m-3-3h12.75" />,
-        'timetable': <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18M12 12.75h.008v.008H12v-.008z" />,
-        'manage': <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />,
-        'settings': <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-1.003 1.11-1.226M15 21v-4.502m0 0l-1.465-1.465c-.29-.29-.752-.29-1.042 0l-1.466 1.465m3.973 0V21m-3.973-4.502l-1.465 1.465c-.29.29-.29.752 0 1.042l1.465 1.465m0 0V21m-6.035-6.035l-1.465-1.465c-.29-.29-.752-.29-1.042 0l-1.466 1.465m3.973 0V15m-3.973-4.502l-1.465 1.465c-.29.29-.29.752 0 1.042l1.465 1.465m0 0V15m13.465-6.035l-1.465-1.465c-.29-.29-.752-.29-1.042 0l-1.466 1.465m3.973 0V9m-3.973-4.502l-1.465 1.465c-.29.29-.29.752 0 1.042l1.465 1.465m0 0V9" />,
-        'announcements': <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 1.87a.75.75 0 01.41-1.418 12.016 12.016 0 016.89 2.595.75.75 0 01-.58 1.344 10.512 10.512 0 00-6.72-2.52zM3.001 7.69a.75.75 0 010-1.06 11.956 11.956 0 0110.158-4.13.75.75 0 01.83 1.163A10.457 10.457 0 003.34 7.5a.75.75 0 01-.34.19z" />,
-        'approvals': <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
-        'logout': <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />,
-        'moon': <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />,
-        'sun': <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />,
-        'logo': <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />,
-        'menu': <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />,
-        'close': <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />,
-        'add': <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />,
-        'user': <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />,
-        'send': <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />,
-        'mic': <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5a6 6 0 00-12 0v1.5a6 6 0 006 6zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
-        'ai_sparkle': <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.502L16.5 21.75l-.398-1.248a3.375 3.375 0 00-2.456-2.456L12.5 17.25l1.248-.398a3.375 3.375 0 002.456-2.456L16.5 13.5l.398 1.248a3.375 3.375 0 002.456 2.456L20.5 17.25l-1.248.398a3.375 3.375 0 00-2.456 2.456z" />,
-        'edit': <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />,
-        'delete': <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.036-2.134H8.716C7.58 2.134 6.67 3.044 6.67 4.22v.916m7.5 0a48.667 48.667 0 00-7.5 0" />,
-        'approve': <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />,
-        'reject': <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />,
-        'class': <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />,
-        'link': <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />,
-        'open_new': <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />,
-        'ai_summarize': <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />,
-        'ai_plan': <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.5h3.846A3.375 3.375 0 0019.5 14.25v-2.625" />,
     };
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-            {icons[name]}
-        </svg>
-    );
+
+    return [storedValue, setValue];
 };
 
-const LoadingSpinner: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({ size = 'md' }) => (
-    <div className="spinner" />
-);
-
-const Modal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    title: string;
-    children: React.ReactNode;
-    size?: 'md' | 'lg' | 'xl';
-}> = ({ isOpen, onClose, title, children, size = 'md' }) => {
-    if (!isOpen) return null;
-
-    return createPortal(
-        <div className="modal-overlay open" onClick={onClose}>
-            <div className={`modal-content modal-${size}`} onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>{title}</h3>
-                    <button onClick={onClose} className="close-modal-btn" aria-label="Close modal">
-                        <Icon name="close" className="w-6 h-6" />
-                    </button>
-                </div>
-                <div className="modal-body">{children}</div>
-            </div>
-        </div>,
-        document.body
-    );
+const formatDate = (timestamp: number, options?: Intl.DateTimeFormatOptions) => {
+    const defaultOptions: Intl.DateTimeFormatOptions = {
+        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    };
+    return new Date(timestamp).toLocaleDateString('en-US', options || defaultOptions);
 };
 
-const NotificationArea: React.FC = () => {
-    const { notifications } = useAppContext();
-    const [visibleNotifications, setVisibleNotifications] = useState<AppNotification[]>([]);
+const AppContext = createContext<any>(null);
+
+
+// --- SVG ICONS ---
+const Icons = {
+    dashboard: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 8.25 20.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6A2.25 2.25 0 0 1 15.75 3.75h2.25A2.25 2.25 0 0 1 20.25 6v2.25a2.25 2.25 0 0 1-2.25 2.25H15.75A2.25 2.25 0 0 1 13.5 8.25V6ZM13.5 15.75A2.25 2.25 0 0 1 15.75 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18.25 20.25H15.75A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>,
+    timetable: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M-4.5 12h22.5" /></svg>,
+    announcements: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 0 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.708.226-3.362.654-4.945a20.845 20.845 0 0 1 1.44-4.282m.058 9.287c.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18Zm0 0a8.949 8.949 0 0 0 5.022-1.612m-10.044 0A8.949 8.949 0 0 0 12 21Z" /></svg>,
+    approvals: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>,
+    userManagement: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-2.272M15 19.128v-3.872M15 19.128A9.37 9.37 0 0 1 12.125 21a9.37 9.37 0 0 1-2.875-.872M15 19.128a9.37 9.37 0 0 0-2.875-.872M12 15c-2.485 0-4.5-2.015-4.5-4.5s2.015-4.5 4.5-4.5 4.5 2.015 4.5 4.5-2.015 4.5-4.5 4.5ZM12 15v6.375m0-6.375a9.37 9.37 0 0 1-2.875.872M8.25 15a9.37 9.37 0 0 1-2.875.872M8.25 15v6.375m0-6.375a9.37 9.37 0 0 0-2.875.872m2.875.872a9.37 9.37 0 0 1-2.875-.872M3.375 19.128a9.38 9.38 0 0 1-2.625.372 9.337 9.337 0 0 1-4.121-2.272M3.375 19.128v-3.872M3.375 19.128A9.37 9.37 0 0 0 6.25 21a9.37 9.37 0 0 0 2.875-.872M3.375 19.128A9.37 9.37 0 0 1 6.25 15m6.125-6.375a9.37 9.37 0 0 1-2.875-.872M12 8.625a9.37 9.37 0 0 0-2.875-.872" /></svg>,
+    studentDirectory: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-2.272M15 19.128v-3.872M15 19.128A9.37 9.37 0 0 1 12.125 21a9.37 9.37 0 0 1-2.875-.872M15 19.128a9.37 9.37 0 0 0-2.875-.872M12 15c-2.485 0-4.5-2.015-4.5-4.5s2.015-4.5 4.5-4.5 4.5 2.015 4.5 4.5-2.015 4.5-4.5 4.5ZM12 15v6.375m0-6.375a9.37 9.37 0 0 1-2.875.872M8.25 15a9.37 9.37 0 0 1-2.875.872M8.25 15v6.375m0-6.375a9.37 9.37 0 0 0-2.875.872m2.875.872a9.37 9.37 0 0 1-2.875-.872M3.375 19.128a9.38 9.38 0 0 1-2.625.372 9.337 9.337 0 0 1-4.121-2.272M3.375 19.128v-3.872M3.375 19.128A9.37 9.37 0 0 0 6.25 21a9.37 9.37 0 0 0 2.875-.872M3.375 19.128A9.37 9.37 0 0 1 6.25 15m6.125-6.375a9.37 9.37 0 0 1-2.875-.872M12 8.625a9.37 9.37 0 0 0-2.875-.872" /></svg>,
+    courseFiles: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>,
+    resources: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>,
+    academicCalendar: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M-4.5 12h22.5" /></svg>,
+    security: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>,
+    settings: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0M3.75 18H7.5m3-6h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0M3.75 12H7.5" /></svg>,
+    logout: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg>,
+    logo: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path></svg>,
+    close: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>,
+    menu: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>,
+    moon: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" /></svg>,
+    sun: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" /></svg>,
+    send: () => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"></path></svg>,
+    microphone: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m12 5.25v-1.5a6 6 0 0 0-12 0v1.5m12 0a9 9 0 1 1-18 0a9 9 0 0 1 18 0Z" /></svg>,
+    sparkles: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>,
+    check: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>,
+    xmark: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>,
+    lock: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>,
+    unlock: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>,
+    userCircle: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>,
+    book: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>,
+    notes: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>,
+    project: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h6M9 11.25h6M9 15.75h6" /></svg>,
+    lab: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75H6A2.25 2.25 0 0 0 3.75 6v1.5M16.5 3.75H18A2.25 2.25 0 0 1 20.25 6v1.5m0 9V18A2.25 2.25 0 0 1 18 20.25h-1.5m-9 0H6A2.25 2.25 0 0 1 3.75 18v-1.5M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>,
+    other: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.125 1.125 0 0 1 0 2.25H5.625a1.125 1.125 0 0 1 0-2.25Z" /></svg>,
+    info: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>,
+    warning: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>,
+    critical: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>,
+    edit: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>,
+};
+
+// --- App Structure & Components ---
+
+const App = () => {
+    const [theme, setTheme] = useLocalStorage('theme', 'light');
+    const [currentUser, setCurrentUser] = useLocalStorage<User | null>('currentUser', null);
+    const [currentView, setCurrentView] = useLocalStorage<AppView>('currentView', 'auth');
+    const [users, setUsers] = useLocalStorage<User[]>('users', MOCK_USERS_INITIAL);
+    const [announcements, setAnnouncements] = useLocalStorage<Announcement[]>('announcements', MOCK_ANNOUNCEMENTS_INITIAL);
+    const [timetable, setTimetable] = useLocalStorage<TimetableEntry[]>('timetable', MOCK_TIMETABLE_INITIAL);
+    const [courseFiles, setCourseFiles] = useLocalStorage<CourseFile[]>('courseFiles', MOCK_COURSE_FILES_INITIAL);
+    const [resources, setResources] = useLocalStorage<Resource[]>('resources', MOCK_RESOURCES_INITIAL);
+    const [calendarEvents, setCalendarEvents] = useLocalStorage<CalendarEvent[]>('calendarEvents', MOCK_CALENDAR_EVENTS_INITIAL);
+
+    const [isSidebarOpen, setSidebarOpen] = useState(false);
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
     useEffect(() => {
-        setVisibleNotifications(notifications);
-        const timer = setTimeout(() => {
-            if (notifications.length > 0) {
-                // This is a simplified removal, a real app would use a queue
-                setVisibleNotifications(notifications.slice(1));
-            }
+        document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
+    
+    useEffect(() => {
+        if (!currentUser) {
+            setCurrentView('auth');
+        } else if (currentView === 'auth') {
+            setCurrentView('dashboard');
+        }
+    }, [currentUser, currentView, setCurrentView]);
+
+    const addNotification = useCallback((message: string, type: AppNotification['type']) => {
+        const id = `notif_${Date.now()}`;
+        setNotifications(prev => [...prev, { id, message, type }]);
+        setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== id));
         }, 5000);
-        return () => clearTimeout(timer);
-    }, [notifications]);
+    }, []);
 
-    if (visibleNotifications.length === 0) return null;
+    const appContextValue = {
+        currentUser, setCurrentUser,
+        currentView, setCurrentView,
+        users, setUsers,
+        announcements, setAnnouncements,
+        timetable, setTimetable,
+        courseFiles, setCourseFiles,
+        resources, setResources,
+        calendarEvents, setCalendarEvents,
+        addNotification,
+        theme, setTheme
+    };
 
-    return createPortal(
-        <div className="notification-container">
-            {visibleNotifications.map((notif) => (
-                <div key={notif.id} className={`notification-item ${notif.type}`}>
-                    <span>{notif.message}</span>
-                    <button className="notification-dismiss">&times;</button>
-                </div>
-            ))}
-        </div>,
-        document.body
-    );
-};
-
-// --- Main App Components ---
-
-const Sidebar: React.FC = () => {
-    const { currentUser, currentView, setCurrentView, logout, isSidebarOpen, toggleSidebar } = useAppContext();
-
-    const navItems: { view: AppView, label: string, icon: string, roles: UserRole[] }[] = [
-        { view: 'dashboard', label: 'Dashboard', icon: 'dashboard', roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
-        { view: 'timetable', label: 'Timetable', icon: 'timetable', roles: ['student', 'faculty', 'hod', 'class advisor', 'principal', 'creator'] },
-        { view: 'announcements', label: 'Announcements', icon: 'announcements', roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
-        { view: 'manage', label: 'Manage Timetable', icon: 'manage', roles: ['admin', 'hod', 'creator'] },
-        { view: 'approvals', label: 'Approvals', icon: 'approvals', roles: ['admin', 'hod', 'principal', 'creator'] },
-        { view: 'settings', label: 'Settings', icon: 'settings', roles: ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'] },
-    ];
-
-    const filteredNavItems = navItems.filter(item => currentUser && item.roles.includes(currentUser.role));
+    if (!currentUser) {
+        return (
+            <AppContext.Provider value={appContextValue}>
+                <AuthView />
+            </AppContext.Provider>
+        );
+    }
 
     return (
-        <>
-            <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-                <div className="sidebar-header">
-                    <span className="logo"><Icon name="logo" /></span>
-                    <h1>Academia AI</h1>
-                    <button className="sidebar-close" onClick={toggleSidebar} aria-label="Close sidebar"><Icon name="close" /></button>
-                </div>
-                <nav className="nav-list">
-                    <ul>
-                        {filteredNavItems.map(item => (
-                            <li key={item.view} className="nav-item">
-                                <button
-                                    className={currentView === item.view ? 'active' : ''}
-                                    onClick={() => {
-                                        setCurrentView(item.view);
-                                        if (isSidebarOpen) toggleSidebar();
-                                    }}
-                                >
-                                    <Icon name={item.icon} />
-                                    <span>{item.label}</span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </nav>
-                <div className="sidebar-footer">
-                    <div className="user-info">
-                        Logged in as <strong>{currentUser?.name}</strong><br />
-                        <small>{currentUser?.role}</small>
-                    </div>
-                    <div className="sidebar-actions">
-                        <button onClick={logout} className="logout-btn" aria-label="Log out"><Icon name="logout" /></button>
-                    </div>
-                </div>
-            </aside>
-            <div className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`} onClick={toggleSidebar}></div>
-        </>
+        <AppContext.Provider value={appContextValue}>
+            <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+                <Sidebar isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
+                <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
+                <MainContent isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
+                <Chatbot />
+            </div>
+            <NotificationContainer notifications={notifications} setNotifications={setNotifications} />
+        </AppContext.Provider>
     );
 };
 
-const Header: React.FC = () => {
-    const { currentView, theme, setTheme, toggleSidebar } = useAppContext();
-    const viewTitles: Record<AppView, string> = {
-        dashboard: 'Dashboard',
-        timetable: 'My Timetable',
-        manage: 'Manage Timetable',
-        settings: 'Settings',
-        auth: 'Welcome',
-        approvals: 'User Approvals',
-        announcements: 'Announcements',
-        studentDirectory: 'Student Directory',
-        security: 'Security Center',
-        userManagement: 'User Management',
-        resources: 'Resources',
-        academicCalendar: 'Academic Calendar',
-        courseFiles: 'Course Files',
+// --- MAIN CONTENT & ROUTING ---
+const MainContent = ({ isSidebarOpen, setSidebarOpen }) => {
+    const { currentView } = useContext(AppContext);
+    
+    const viewTitle = useMemo(() => {
+        const titles: Record<AppView, string> = {
+            dashboard: 'Dashboard',
+            timetable: 'Timetable',
+            announcements: 'Announcements',
+            approvals: 'Approvals',
+            userManagement: 'User Management',
+            studentDirectory: 'Student Directory',
+            courseFiles: 'Course Files',
+            resources: 'Resources',
+            academicCalendar: 'Academic Calendar',
+            security: 'Security & Audit',
+            settings: 'Settings',
+            auth: 'Authentication',
+            manage: 'Manage',
+        };
+        return titles[currentView] || 'Dashboard';
+    }, [currentView]);
+
+    const renderView = () => {
+        switch (currentView) {
+            case 'dashboard': return <DashboardView />;
+            case 'timetable': return <TimetableView />;
+            case 'announcements': return <AnnouncementsView />;
+            case 'userManagement': return <UserManagementView />;
+            case 'studentDirectory': return <StudentDirectoryView />;
+            case 'courseFiles': return <CourseFilesView />;
+            case 'security': return <SecurityView />;
+            case 'settings': return <SettingsView />;
+            case 'resources': return <ResourcesView />;
+            case 'academicCalendar': return <AcademicCalendarView />;
+            default: return <DashboardView />;
+        }
+    };
+
+    return (
+        <main className="main-content">
+            <Header title={viewTitle} setSidebarOpen={setSidebarOpen} />
+            <div className="page-content">
+                {renderView()}
+            </div>
+        </main>
+    );
+};
+
+// --- CORE UI COMPONENTS ---
+
+const Header = ({ title, setSidebarOpen }) => {
+    const { currentUser, theme, setTheme } = useContext(AppContext);
+
+    const toggleTheme = () => {
+        setTheme(theme === 'light' ? 'dark' : 'light');
     };
 
     return (
         <header className="header">
             <div className="header-left">
-                <button className="menu-toggle" onClick={toggleSidebar} aria-label="Open sidebar"><Icon name="menu" /></button>
-                <h2 className="header-title">{viewTitles[currentView] || 'Academia AI'}</h2>
+                 <button className="menu-toggle" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">
+                    <Icons.menu />
+                </button>
+                <h2 className="header-title">{title}</h2>
             </div>
             <div className="header-right">
-                <button
-                    className="theme-toggle"
-                    onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                    aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-                >
-                    <Icon name={theme === 'light' ? 'moon' : 'sun'} />
+                <div className="user-info">
+                    <strong>{currentUser.name}</strong> - <small>{currentUser.role}</small>
+                </div>
+                 <button className="theme-toggle" onClick={toggleTheme} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+                    {theme === 'light' ? <Icons.moon /> : <Icons.sun />}
                 </button>
             </div>
         </header>
     );
 };
 
-const AuthView: React.FC = () => {
-    const { login, signup, addNotification } = useAppContext();
-    const [isFlipped, setIsFlipped] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+const Sidebar = ({ isSidebarOpen, setSidebarOpen }) => {
+    const { currentUser, setCurrentUser, currentView, setCurrentView } = useContext(AppContext);
 
-    // Login State
-    const [loginId, setLoginId] = useState('');
-    const [loginPassword, setLoginPassword] = useState('');
-
-    // Signup State
-    const [signupName, setSignupName] = useState('');
-    const [signupPassword, setSignupPassword] = useState('');
-    const [signupRole, setSignupRole] = useState<UserRole>('student');
-    const [signupDept, setSignupDept] = useState(DEPARTMENTS[0]);
-    const [signupYear, setSignupYear] = useState('I');
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!loginId || !loginPassword) {
-            addNotification({ type: 'error', message: 'Please enter both ID and password.' });
-            return;
-        }
-        setIsSubmitting(true);
-        const success = await login(loginId, loginPassword);
-        setIsSubmitting(false);
-        if (!success) {
-            addNotification({ type: 'error', message: 'Invalid credentials or user not approved.' });
-        }
+    const handleLogout = () => {
+        setCurrentUser(null);
+        setCurrentView('auth');
     };
 
-    const handleSignup = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        const newUser: Omit<User, 'id' | 'status'> = {
-            name: signupName,
-            password: signupPassword,
-            role: signupRole,
-            dept: signupDept,
-            ...(signupRole === 'student' && { year: signupYear }),
-        };
-        const success = await signup(newUser);
-        setIsSubmitting(false);
-        if (success) {
-            addNotification({ type: 'success', message: 'Registration successful! Please wait for admin approval.' });
-            setIsFlipped(false);
-        } else {
-            addNotification({ type: 'error', message: 'Registration failed. Please try again.' });
-        }
-    };
+    const navItems = useMemo(() => {
+        const allItems = [
+            { view: 'dashboard', label: 'Dashboard', icon: <Icons.dashboard />, roles: USER_ROLES },
+            { view: 'timetable', label: 'Timetable', icon: <Icons.timetable />, roles: ['student', 'faculty', 'hod', 'class advisor', 'principal', 'creator'] },
+            { view: 'announcements', label: 'Announcements', icon: <Icons.announcements />, roles: USER_ROLES },
+            { view: 'userManagement', label: 'User Management', icon: <Icons.userManagement />, roles: ['admin', 'principal', 'hod'] },
+            { view: 'studentDirectory', label: 'Student Directory', icon: <Icons.studentDirectory />, roles: ['faculty', 'hod', 'class advisor', 'principal'] },
+            { view: 'courseFiles', label: 'Course Files', icon: <Icons.courseFiles />, roles: ['faculty', 'hod', 'principal'] },
+            { view: 'resources', label: 'Resources', icon: <Icons.resources />, roles: ['student', 'faculty', 'hod'] },
+            { view: 'academicCalendar', label: 'Academic Calendar', icon: <Icons.academicCalendar />, roles: ['student', 'faculty', 'hod', 'principal'] },
+            { view: 'security', label: 'Security', icon: <Icons.security />, roles: ['admin'] },
+            { view: 'settings', label: 'Settings', icon: <Icons.settings />, roles: USER_ROLES },
+        ];
+        return allItems.filter(item => item.roles.includes(currentUser.role));
+    }, [currentUser.role]);
 
     return (
-        <div className="login-view-container">
-            <div className="login-card">
-                <div className={`login-card-inner ${isFlipped ? 'is-flipped' : ''}`}>
-                    <div className="login-card-front">
-                        <div className="login-header">
-                            <span className="logo"><Icon name="logo" /></span>
-                            <h1>Welcome Back</h1>
-                        </div>
-                        <form onSubmit={handleLogin}>
-                            <div className="control-group">
-                                <label htmlFor="loginId">User ID</label>
-                                <input type="text" id="loginId" className="form-control" value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="e.g., stud001" required />
-                            </div>
-                            <div className="control-group">
-                                <label htmlFor="loginPassword">Password</label>
-                                <input type="password" id="loginPassword" className="form-control" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" required />
-                            </div>
-                            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                                {isSubmitting ? <LoadingSpinner size="sm" /> : 'Log In'}
+        <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+             <div className="sidebar-header">
+                <span className="logo"><Icons.logo/></span>
+                <h1>AcademiaAI</h1>
+                <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
+                    <Icons.close />
+                </button>
+            </div>
+            <nav className="nav-list">
+                <ul>
+                    {navItems.map(item => (
+                         <li key={item.view} className="nav-item">
+                            <button className={currentView === item.view ? 'active' : ''} onClick={() => { setCurrentView(item.view); setSidebarOpen(false); }}>
+                                {item.icon}
+                                <span>{item.label}</span>
                             </button>
-                            <div className="auth-toggle">
-                                Don't have an account? <button onClick={() => setIsFlipped(true)}>Sign Up</button>
-                            </div>
-                        </form>
-                    </div>
-                    <div className="login-card-back">
-                        <div className="login-header">
-                            <span className="logo"><Icon name="logo" /></span>
-                            <h1>Create Account</h1>
-                        </div>
-                        <form onSubmit={handleSignup}>
-                            <div className="control-group">
-                                <label htmlFor="signupName">Full Name</label>
-                                <input type="text" id="signupName" className="form-control" value={signupName} onChange={e => setSignupName(e.target.value)} required />
-                            </div>
-                            <div className="control-group">
-                                <label htmlFor="signupPassword">Password</label>
-                                <input type="password" id="signupPassword" className="form-control" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required />
-                            </div>
-                            <div className="form-grid">
-                                <div className="control-group">
-                                    <label htmlFor="signupRole">Role</label>
-                                    <select id="signupRole" className="form-control" value={signupRole} onChange={e => setSignupRole(e.target.value as UserRole)}>
-                                        {USER_ROLES.map(r => <option key={r} value={r} style={{ textTransform: 'capitalize' }}>{r}</option>)}
-                                    </select>
-                                </div>
-                                <div className="control-group">
-                                    <label htmlFor="signupDept">Department</label>
-                                    <select id="signupDept" className="form-control" value={signupDept} onChange={e => setSignupDept(e.target.value)}>
-                                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            {signupRole === 'student' && (
-                                <div className="control-group">
-                                    <label htmlFor="signupYear">Year</label>
-                                    <select id="signupYear" className="form-control" value={signupYear} onChange={e => setSignupYear(e.target.value)}>
-                                        <option value="I">I</option>
-                                        <option value="II">II</option>
-                                        <option value="III">III</option>
-                                        <option value="IV">IV</option>
-                                    </select>
-                                </div>
-                            )}
-                            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                                {isSubmitting ? <LoadingSpinner size="sm" /> : 'Sign Up'}
-                            </button>
-                            <div className="auth-toggle">
-                                Already have an account? <button onClick={() => setIsFlipped(false)}>Log In</button>
-                            </div>
-                        </form>
-                    </div>
+                        </li>
+                    ))}
+                </ul>
+            </nav>
+            <div className="sidebar-footer">
+                <div className="sidebar-actions">
+                     <button onClick={handleLogout} className="logout-btn" title="Logout">
+                        <Icons.logout />
+                    </button>
                 </div>
             </div>
+        </aside>
+    );
+};
+
+// --- VIEWS ---
+
+const DashboardView = () => {
+    const { currentUser } = useContext(AppContext);
+
+    switch(currentUser.role) {
+        case 'student': return <StudentDashboard />;
+        case 'hod':
+        case 'principal':
+            return <HODDashboard />;
+        default:
+            return <GenericDashboard />;
+    }
+};
+
+const GenericDashboard = () => {
+    const { currentUser } = useContext(AppContext);
+     return (
+        <div className="dashboard-container">
+            <h2 className="dashboard-greeting">Welcome, {currentUser.name}!</h2>
+            <p className="dashboard-subtitle">Your academic portal is ready.</p>
         </div>
     );
 };
 
-const DashboardView: React.FC = () => {
-    const { currentUser, announcements, timetable, users, setCurrentView, setStudyToolContent } = useAppContext();
-    const greeting = getGreeting();
-
-    const studentDashboard = () => {
-        const myAnnouncements = announcements.filter(a =>
-            (a.targetRole === 'all' || a.targetRole === 'student') &&
-            (a.targetDept === 'all' || a.targetDept === currentUser?.dept)
-        ).slice(0, 3);
-
-        const today = DAYS[new Date().getDay() - 1];
-        const myTodaysClasses = timetable.filter(t => t.day === today && t.department === currentUser?.dept && t.year === currentUser?.year && t.type === 'class');
-
-        return (
-            <div className="dashboard-grid">
-                <div className="dashboard-card full-width stagger-item" style={{ animationDelay: '0.1s' }}>
-                    <h2 className="dashboard-greeting">{greeting}, {currentUser?.name}!</h2>
-                    <p className="text-secondary">Here's what's happening today.</p>
-                </div>
-
-                <div className="dashboard-card stagger-item" style={{ animationDelay: '0.2s' }}>
-                    <h3>Today's Classes</h3>
-                    {myTodaysClasses.length > 0 ? (
-                        <div className="feed-list">
-                            {myTodaysClasses.map(c => (
-                                <div key={c.id} className="feed-item-card class">
-                                    <div className="feed-item-icon"><Icon name="class" /></div>
-                                    <div>
-                                        <p className="feed-item-title">{c.subject}</p>
-                                        <p className="feed-item-meta">{MOCK_SETTINGS.timeSlots[c.timeIndex]} with {c.faculty}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : <p className="text-secondary mt-2">No classes scheduled for today.</p>}
-                </div>
-
-                <div className="dashboard-card stagger-item" style={{ animationDelay: '0.3s' }}>
-                    <h3>Recent Announcements</h3>
-                    {myAnnouncements.length > 0 ? (
-                        <div className="feed-list">
-                            {myAnnouncements.map(a => (
-                                <div key={a.id} className="feed-item-card announcement" onClick={() => setCurrentView('announcements')} style={{ cursor: 'pointer' }}>
-                                    <div className="feed-item-icon"><Icon name="announcements" /></div>
-                                    <div>
-                                        <p className="feed-item-title">{a.title}</p>
-                                        <p className="feed-item-meta">By {a.author} - {new Date(a.timestamp).toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : <p className="text-secondary mt-2">No recent announcements.</p>}
-                </div>
-                <div className="dashboard-card ai-feature-card stagger-item" style={{ animationDelay: '0.4s' }}>
-                    <div className="ai-feature-card-header">
-                        <Icon name="ai_sparkle" />
-                        <h3>AI Study Planner</h3>
-                    </div>
-                    <p>Generate a personalized study plan based on your upcoming exams and syllabus.</p>
-                    <button className="btn btn-primary" onClick={() => setStudyToolContent({ type: 'studyPlan', title: 'Generate Study Plan', content: '', isLoading: false })}>
-                        Create Plan
-                    </button>
-                </div>
-            </div>
-        );
-    };
-
-    const adminDashboard = () => {
-        const pendingApprovals = users.filter(u => u.status === 'pending_approval');
-        return (
-            <div className="dashboard-grid">
-                <div className="dashboard-card full-width stagger-item">
-                    <h2 className="dashboard-greeting">Admin Dashboard</h2>
-                    <p className="text-secondary">System overview and pending tasks.</p>
-                </div>
-                <div className="dashboard-card stagger-item">
-                    <h3>User Approvals</h3>
-                    {pendingApprovals.length > 0 ? (
-                        <>
-                            <p>{pendingApprovals.length} user(s) waiting for approval.</p>
-                            <button className="btn btn-primary mt-4" onClick={() => setCurrentView('approvals')}>Review Approvals</button>
-                        </>
-                    ) : <p className="text-secondary">No pending approvals.</p>}
-                </div>
-                <div className="dashboard-card stagger-item">
-                    <h3>Quick Stats</h3>
-                    <div className="principal-stats-grid">
-                        <div className="stat-card">
-                            <h3>Total Users</h3>
-                            <p>{users.length}</p>
-                        </div>
-                        <div className="stat-card">
-                            <h3>Announcements</h3>
-                            <p>{announcements.length}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    const principalDashboard = () => {
-        const studentCount = users.filter(u => u.role === 'student').length;
-        const facultyCount = users.filter(u => u.role === 'faculty').length;
-        return (
-            <div className="dashboard-grid">
-                <div className="dashboard-card full-width">
-                    <h2 className="dashboard-greeting">{greeting}, {currentUser?.name}!</h2>
-                    <p className="text-secondary">Here's a snapshot of the institution.</p>
+const StudentDashboard = () => {
+    const { currentUser, timetable, announcements } = useContext(AppContext);
+    
+    const today = DAYS[new Date().getDay() -1] || 'Monday';
+    const todaysClasses = timetable.filter(c => c.day === today && c.department === currentUser.dept && c.year === currentUser.year).sort((a,b) => a.timeIndex - b.timeIndex);
+    const relevantAnnouncements = announcements.filter(a => (a.targetDept === 'all' || a.targetDept === currentUser.dept) && (a.targetRole === 'all' || a.targetRole === 'student')).slice(0, 3);
+    
+    return (
+        <div className="dashboard-container">
+             <h2 className="dashboard-greeting">Hello, {currentUser.name}!</h2>
+             <p className="dashboard-subtitle">Here's what's happening today.</p>
+             <div className="dashboard-grid">
+                <div className="dashboard-card full-width ai-feature-card">
+                    <AIStudyPlanGenerator />
                 </div>
                 <div className="dashboard-card">
-                    <h3>Institution Statistics</h3>
-                    <div className="principal-stats-grid">
-                        <div className="stat-card">
-                            <h3>Total Students</h3>
-                            <p>{studentCount}</p>
-                        </div>
-                        <div className="stat-card">
-                            <h3>Total Faculty</h3>
-                            <p>{facultyCount}</p>
-                        </div>
-                        <div className="stat-card">
-                            <h3>Departments</h3>
-                            <p>{DEPARTMENTS.length}</p>
-                        </div>
-                        <div className="stat-card">
-                            <h3>Announcements</h3>
-                            <p>{announcements.length}</p>
-                        </div>
+                    <h3>Today's Classes</h3>
+                    <div className="feed-list">
+                        {todaysClasses.length > 0 ? todaysClasses.map((c, i) => (
+                            <div key={c.id} className="feed-item-card stagger-item" style={{animationDelay: `${i * 100}ms`}}>
+                                <div className="feed-item-icon" style={{color: 'var(--accent-primary)'}}><Icons.timetable /></div>
+                                <div>
+                                    <p className="feed-item-title">{c.subject}</p>
+                                    <p className="feed-item-meta">{MOCK_SETTINGS.timeSlots[c.timeIndex]} - {c.type === 'class' ? `Room ${c.room}` : 'Break'}</p>
+                                </div>
+                            </div>
+                        )) : <p>No classes scheduled for today.</p>}
                     </div>
                 </div>
-            </div>
-        );
-    };
-
-
-    const renderDashboard = () => {
-        switch (currentUser?.role) {
-            case 'student':
-            case 'faculty':
-            case 'hod':
-            case 'class advisor':
-                return studentDashboard(); // Simplified for now
-            case 'admin':
-            case 'creator':
-                return adminDashboard();
-            case 'principal':
-                return principalDashboard();
-            default:
-                return <p>Welcome!</p>;
-        }
-    };
-    return <div className="dashboard-container">{renderDashboard()}</div>;
+                <div className="dashboard-card">
+                    <h3>Recent Announcements</h3>
+                    <div className="feed-list">
+                       {relevantAnnouncements.map((a, i) => (
+                            <div key={a.id} className="feed-item-card stagger-item" style={{animationDelay: `${i * 100}ms`}}>
+                                <div className="feed-item-icon" style={{color: 'var(--accent-warning)'}}><Icons.announcements /></div>
+                                <div>
+                                    <p className="feed-item-title">{a.title}</p>
+                                    <p className="feed-item-meta">By {a.author} - {formatDate(a.timestamp)}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+             </div>
+        </div>
+    );
 };
 
-const TimetableView: React.FC = () => {
-    const { currentUser, timetable, settings } = useAppContext();
-    const [viewDept, setViewDept] = useState(currentUser?.dept || DEPARTMENTS[0]);
-    const [viewYear, setViewYear] = useState(currentUser?.year || 'I');
+const HODDashboard = () => {
+    const { users, setCurrentView } = useContext(AppContext);
+    const pendingApprovals = users.filter(u => u.status === 'pending_approval');
+    const studentCount = users.filter(u => u.role === 'student').length;
+    const facultyCount = users.filter(u => u.role === 'faculty').length;
+    const atRiskStudents = users.filter(u => u.aiRiskAnalysis && u.aiRiskAnalysis.riskLevel !== 'Low');
 
-    const filteredTimetable = timetable.filter(e => e.department === viewDept && e.year === viewYear);
+    return (
+        <div className="dashboard-container">
+            <h2 className="dashboard-greeting">Management Dashboard</h2>
+            <div className="principal-stats-grid">
+                <div className="stat-card stagger-item"><h3 className="stat-title">Total Students</h3><p className="stat-value">{studentCount}</p></div>
+                <div className="stat-card stagger-item" style={{animationDelay: '100ms'}}><h3 className="stat-title">Total Faculty</h3><p className="stat-value">{facultyCount}</p></div>
+                <div className="stat-card stagger-item" style={{animationDelay: '200ms'}}><h3 className="stat-title">Pending Approvals</h3><p className="stat-value">{pendingApprovals.length}</p></div>
+                <div className="stat-card stagger-item" style={{animationDelay: '300ms'}}><h3 className="stat-title">At-Risk Students</h3><p className="stat-value">{atRiskStudents.length}</p></div>
+            </div>
+             <div className="dashboard-grid">
+                <div className="dashboard-card">
+                    <h3>Pending Approvals</h3>
+                     <div className="feed-list">
+                        {pendingApprovals.length > 0 ? pendingApprovals.slice(0, 5).map(u => (
+                            <div key={u.id} className="feed-item-card">
+                                <div className="feed-item-icon"><Icons.userCircle /></div>
+                                <div>
+                                    <p className="feed-item-title">{u.name} ({u.role})</p>
+                                    <p className="feed-item-meta">Dept: {u.dept}</p>
+                                </div>
+                            </div>
+                        )) : <p>No pending approvals.</p>}
+                        {pendingApprovals.length > 0 && <button className="btn-link" onClick={() => setCurrentView('userManagement')}>View All</button>}
+                    </div>
+                </div>
+                 <div className="dashboard-card">
+                    <h3>At-Risk Students Overview</h3>
+                     <div className="feed-list">
+                       {atRiskStudents.length > 0 ? atRiskStudents.slice(0, 5).map(u => (
+                            <div key={u.id} className="feed-item-card">
+                                <div className={`feed-item-icon ${u.aiRiskAnalysis?.riskLevel === 'High' ? 'risk-high' : 'risk-moderate'}`}><Icons.warning /></div>
+                                <div>
+                                    <p className="feed-item-title">{u.name} - <span className={`risk-level-text-${u.aiRiskAnalysis?.riskLevel?.toLowerCase()}`}>{u.aiRiskAnalysis?.riskLevel} Risk</span></p>
+                                    <p className="feed-item-meta">{u.dept} - Year {u.year}</p>
+                                </div>
+                            </div>
+                        )) : <p>No students flagged as at-risk.</p>}
+                         {atRiskStudents.length > 0 && <button className="btn-link" onClick={() => setCurrentView('studentDirectory')}>Go to Directory</button>}
+                    </div>
+                </div>
+             </div>
+        </div>
+    );
+};
+
+const AIStudyPlanGenerator = () => {
+    const [subject, setSubject] = useState('');
+    const [duration, setDuration] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [generatedPlan, setGeneratedPlan] = useState<StudyPlan | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { addNotification } = useContext(AppContext);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!isAiEnabled || !ai) {
+            addNotification("AI features are disabled. Please configure the API key.", 'error');
+            return;
+        }
+        if (!subject || !duration) {
+            addNotification("Please enter both subject and duration.", "warning");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const prompt = `Generate a detailed weekly and daily study plan for a student to learn "${subject}" over a period of "${duration}". The plan should cover all essential topics. For each day, list the main topic and a few specific, actionable learning tasks as a checklist.`;
+            
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING, description: `A concise title, like 'Study Plan for ${subject}'` },
+                            weeks: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        week: { type: Type.INTEGER },
+                                        days: {
+                                            type: Type.ARRAY,
+                                            items: {
+                                                type: Type.OBJECT,
+                                                properties: {
+                                                    day: { type: Type.STRING, description: "e.g., Monday, Tuesday" },
+                                                    topic: { type: Type.STRING, description: "Main topic for the day." },
+                                                    tasks: {
+                                                        type: Type.ARRAY,
+                                                        items: {
+                                                            type: Type.OBJECT,
+                                                            properties: {
+                                                                text: { type: Type.STRING, description: "A specific learning task." },
+                                                                completed: { type: Type.BOOLEAN, default: false }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const planData = JSON.parse(response.text) as StudyPlan;
+            setGeneratedPlan(planData);
+            setIsModalOpen(true);
+            addNotification("Study plan generated successfully!", "success");
+        } catch (error) {
+            console.error("Error generating study plan:", error);
+            addNotification("Failed to generate study plan. Please try again.", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <>
+            <div className="ai-feature-card-header">
+                <Icons.sparkles />
+                <h3>AI Study Plan Generator</h3>
+            </div>
+            <p>Enter a subject and a timeframe, and let AI create a personalized study schedule for you.</p>
+            <form className="ai-generator-form" onSubmit={handleSubmit}>
+                <input type="text" className="form-control" placeholder="e.g., Data Structures" value={subject} onChange={e => setSubject(e.target.value)} disabled={isLoading} />
+                <input type="text" className="form-control" placeholder="e.g., 4 Weeks" value={duration} onChange={e => setDuration(e.target.value)} disabled={isLoading} />
+                <button type="submit" className="btn btn-primary" disabled={isLoading}>
+                    {isLoading ? <span className="spinner"></span> : 'Generate Plan'}
+                </button>
+            </form>
+            {isModalOpen && generatedPlan && (
+                <StudyPlanModal plan={generatedPlan} setPlan={setGeneratedPlan} onClose={() => setIsModalOpen(false)} />
+            )}
+        </>
+    );
+};
+
+const TimetableView = () => {
+    const { timetable, currentUser } = useContext(AppContext);
+    const [filters, setFilters] = useState({ dept: currentUser.dept, year: currentUser.role === 'student' ? currentUser.year : 'II' });
+    const [selectedEntry, setSelectedEntry] = useState<TimetableEntry | null>(null);
+    const [isModalOpen, setModalOpen] = useState(false);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setFilters({ ...filters, [e.target.name]: e.target.value });
+    };
+
+    const filteredTimetable = useMemo(() => {
+        return timetable.filter(entry => entry.department === filters.dept && entry.year === filters.year);
+    }, [timetable, filters]);
+
+    const handleCellClick = (entry: TimetableEntry) => {
+        if (entry.type === 'class') {
+            setSelectedEntry(entry);
+            // Non-editable for students
+            if (currentUser.role !== 'student') {
+                setModalOpen(true);
+            }
+        }
+    };
+
+    const handleModalClose = () => {
+        setModalOpen(false);
+        setSelectedEntry(null);
+    };
 
     return (
         <div className="timetable-container">
             <div className="timetable-header">
-                <h3>Viewing Timetable for {viewDept} - Year {viewYear}</h3>
+                <h3>Class Schedule</h3>
                 <div className="timetable-controls">
-                    <select className="form-control" value={viewDept} onChange={e => setViewDept(e.target.value)}>
-                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <select className="form-control" value={viewYear} onChange={e => setViewYear(e.target.value)}>
-                        <option value="I">I</option>
-                        <option value="II">II</option>
-                        <option value="III">III</option>
-                        <option value="IV">IV</option>
-                    </select>
+                     <div className="control-group-inline">
+                        <label htmlFor="dept">Department:</label>
+                        <select id="dept" name="dept" value={filters.dept} onChange={handleFilterChange} className="form-control">
+                           {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </div>
+                     <div className="control-group-inline">
+                        <label htmlFor="year">Year:</label>
+                         <select id="year" name="year" value={filters.year} onChange={handleFilterChange} className="form-control">
+                            <option value="I">I</option>
+                            <option value="II">II</option>
+                            <option value="III">III</option>
+                            <option value="IV">IV</option>
+                        </select>
+                    </div>
                 </div>
             </div>
+
             <div className="timetable-wrapper">
-                <div className="timetable-grid">
+                <div className="timetable-grid" style={{ gridTemplateRows: `40px repeat(${MOCK_SETTINGS.timeSlots.length}, 60px)`}}>
                     <div className="grid-header">Time</div>
                     {DAYS.map(day => <div key={day} className="grid-header">{day}</div>)}
 
-                    {settings.timeSlots.map((slot, timeIndex) => (
+                    {MOCK_SETTINGS.timeSlots.map((slot, timeIndex) => (
                         <React.Fragment key={timeIndex}>
                             <div className="time-slot">{slot}</div>
                             {DAYS.map((day, dayIndex) => {
                                 const entry = filteredTimetable.find(e => e.day === day && e.timeIndex === timeIndex);
                                 return (
-                                    <div key={`${day}-${timeIndex}`} className={`grid-cell ${entry?.type || ''}`}>
+                                    <div 
+                                        key={`${day}-${timeIndex}`} 
+                                        className={`grid-cell ${entry?.type || ''} ${selectedEntry?.id === entry?.id ? 'active' : ''}`}
+                                        onClick={() => entry && handleCellClick(entry)}
+                                    >
                                         {entry && (
                                             <>
                                                 <span className="subject">{entry.subject}</span>
-                                                {entry.type === 'class' && (
-                                                    <>
-                                                        <span className="faculty">{entry.faculty}</span>
-                                                        <span className="faculty">{entry.room}</span>
-                                                    </>
-                                                )}
+                                                {entry.faculty && <span className="faculty">{entry.faculty}</span>}
+                                                {entry.room && <span className="faculty">Room: {entry.room}</span>}
                                             </>
                                         )}
                                     </div>
@@ -810,789 +852,1091 @@ const TimetableView: React.FC = () => {
                     ))}
                 </div>
             </div>
-        </div>
-    );
-};
-
-const ManageTimetableView: React.FC = () => {
-    const { timetable, updateTimetableEntry, deleteTimetableEntry } = useAppContext();
-    // In a real app, you'd have modals/forms to edit and add entries
-    return (
-        <div className="table-wrapper">
-            <table className="entry-list-table">
-                <thead>
-                    <tr>
-                        <th>Dept</th>
-                        <th>Year</th>
-                        <th>Day</th>
-                        <th>Time</th>
-                        <th>Subject</th>
-                        <th>Faculty</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {timetable.map(entry => (
-                        <tr key={entry.id}>
-                            <td data-label="Dept">{entry.department}</td>
-                            <td data-label="Year">{entry.year}</td>
-                            <td data-label="Day">{entry.day}</td>
-                            <td data-label="Time">{MOCK_SETTINGS.timeSlots[entry.timeIndex]}</td>
-                            <td data-label="Subject">{entry.subject}</td>
-                            <td data-label="Faculty">{entry.faculty || 'N/A'}</td>
-                            <td data-label="Actions">
-                                <div className="entry-actions">
-                                    <button className="btn btn-secondary btn-sm"><Icon name="edit" /></button>
-                                    <button onClick={() => deleteTimetableEntry(entry.id)} className="btn btn-danger btn-sm"><Icon name="delete" /></button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-};
-
-const ApprovalsView: React.FC = () => {
-    const { users, approveUser, rejectUser } = useAppContext();
-    const pendingUsers = users.filter(u => u.status === 'pending_approval');
-
-    return (
-        <div className="table-wrapper">
-            <table className="entry-list-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Department</th>
-                        <th>Year</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {pendingUsers.length > 0 ? pendingUsers.map(user => (
-                        <tr key={user.id}>
-                            <td data-label="Name">{user.name}</td>
-                            <td data-label="Role" style={{ textTransform: 'capitalize' }}>{user.role}</td>
-                            <td data-label="Department">{user.dept}</td>
-                            <td data-label="Year">{user.year || 'N/A'}</td>
-                            <td data-label="Actions">
-                                <div className="entry-actions">
-                                    <button onClick={() => approveUser(user.id)} className="btn btn-success btn-sm"><Icon name="approve" /> Approve</button>
-                                    <button onClick={() => rejectUser(user.id)} className="btn btn-danger btn-sm"><Icon name="reject" /> Reject</button>
-                                </div>
-                            </td>
-                        </tr>
-                    )) : (
-                        <tr><td colSpan={5} style={{ textAlign: 'center' }}>No pending approvals.</td></tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-    );
-};
-
-const AnnouncementsView: React.FC = () => {
-    const { currentUser, announcements, addAnnouncement, reactToAnnouncement } = useAppContext();
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [newAnnTitle, setNewAnnTitle] = useState('');
-    const [newAnnContent, setNewAnnContent] = useState('');
-
-    const handleAddAnnouncement = () => {
-        if (!currentUser) return;
-        addAnnouncement({
-            title: newAnnTitle,
-            content: newAnnContent,
-            author: currentUser.name, // Simplified
-            targetRole: 'all', // Simplified
-            targetDept: 'all', // Simplified
-        });
-        setShowAddModal(false);
-        setNewAnnTitle('');
-        setNewAnnContent('');
-    };
-
-    return (
-        <>
-            <div className="view-header">
-                <h2>Latest Announcements</h2>
-                {(currentUser?.role === 'admin' || currentUser?.role === 'hod' || currentUser?.role === 'principal') && (
-                    <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-                        <Icon name="add" /> New Announcement
-                    </button>
-                )}
-            </div>
-            {announcements.length > 0 ? (
-                <div className="announcement-list">
-                    {announcements.map((ann, i) => (
-                        <div key={ann.id} className="announcement-card stagger-item" style={{ animationDelay: `${i * 0.1}s` }}>
-                            <h3>{ann.title}</h3>
-                            <p>{ann.content}</p>
-                            <div className="announcement-footer">
-                                <div className="meta">By <strong>{ann.author}</strong> on {new Date(ann.timestamp).toLocaleDateString()}</div>
-                                <div className="reactions">
-                                    {['👍', '❤️', '🎉'].map(emoji => (
-                                        <button
-                                            key={emoji}
-                                            onClick={() => reactToAnnouncement(ann.id, emoji)}
-                                            className={ann.reactions?.[emoji]?.includes(currentUser?.id || '') ? 'active' : ''}
-                                        >
-                                            {emoji} {ann.reactions?.[emoji]?.length || 0}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="empty-state">
-                    <p>No announcements yet. Check back later!</p>
+             {selectedEntry && currentUser.role === 'student' && (
+                <div className="class-details-container stagger-item">
+                    <div className="detail-item"><strong>Subject:</strong> {selectedEntry.subject}</div>
+                    <div className="detail-item"><strong>Faculty:</strong> {selectedEntry.faculty || 'N/A'}</div>
+                    <div className="detail-item"><strong>Room:</strong> {selectedEntry.room || 'N/A'}</div>
+                    <div className="detail-item"><strong>Time:</strong> {MOCK_SETTINGS.timeSlots[selectedEntry.timeIndex]}</div>
                 </div>
             )}
-            <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="New Announcement">
-                <div className="control-group">
-                    <label htmlFor="annTitle">Title</label>
-                    <input type="text" id="annTitle" className="form-control" value={newAnnTitle} onChange={e => setNewAnnTitle(e.target.value)} />
-                </div>
-                <div className="control-group">
-                    <label htmlFor="annContent">Content</label>
-                    <textarea id="annContent" className="form-control" rows={5} value={newAnnContent} onChange={e => setNewAnnContent(e.target.value)}></textarea>
-                </div>
-                <button className="btn btn-primary" onClick={handleAddAnnouncement}>Post Announcement</button>
-            </Modal>
-        </>
-    );
-};
-
-const SettingsView: React.FC = () => {
-    return (
-        <div className="dashboard-card">
-            <h3>Settings</h3>
-            <p className="text-secondary">Manage your account and application settings here.</p>
-            {/* Settings form would go here */}
+             {isModalOpen && selectedEntry && (
+                <TimetableEntryModal entry={selectedEntry} onClose={handleModalClose} />
+            )}
         </div>
     );
 };
 
-// --- Floating Windows and Chatbot ---
 
-const DraggableResizableWindow: React.FC<{
-    id: string;
-    initialPosition: { x: number, y: number };
-    initialSize: { width: number, height: number };
-    title: string;
-    onClose: (id: string) => void;
-    children: React.ReactNode;
-}> = ({ id, initialPosition, initialSize, title, onClose, children }) => {
-    const [position, setPosition] = useState(initialPosition);
-    const [size, setSize] = useState(initialSize);
-    const windowRef = useRef<HTMLDivElement>(null);
+const AnnouncementsView = () => {
+    const { announcements, setAnnouncements, currentUser } = useContext(AppContext);
+    const [isModalOpen, setModalOpen] = useState(false);
 
-    // Dragging logic
-    const handleDrag = useCallback((e: MouseEvent) => {
-        const dx = e.movementX;
-        const dy = e.movementY;
-        setPosition(pos => {
-            const newX = Math.max(0, Math.min(window.innerWidth - size.width, pos.x + dx));
-            const newY = Math.max(0, Math.min(window.innerHeight - size.height, pos.y + dy));
-            return { x: newX, y: newY };
-        });
-    }, [size.width, size.height]);
+    const handleReaction = (announcementId: string, emoji: string) => {
+        setAnnouncements((prevAnnouncements: Announcement[]) =>
+            prevAnnouncements.map(ann => {
+                if (ann.id === announcementId) {
+                    const reactions = { ...(ann.reactions || {}) };
+                    if (!reactions[emoji]) reactions[emoji] = [];
 
-    const stopDrag = useCallback(() => {
-        window.removeEventListener('mousemove', handleDrag);
-        window.removeEventListener('mouseup', stopDrag);
-    }, [handleDrag]);
+                    const userIndex = reactions[emoji].indexOf(currentUser.id);
+                    if (userIndex > -1) {
+                        reactions[emoji].splice(userIndex, 1);
+                        if (reactions[emoji].length === 0) delete reactions[emoji];
+                    } else {
+                        reactions[emoji].push(currentUser.id);
+                    }
+                    return { ...ann, reactions };
+                }
+                return ann;
+            })
+        );
+    };
 
-    const startDrag = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        window.addEventListener('mousemove', handleDrag);
-        window.addEventListener('mouseup', stopDrag);
-    }, [handleDrag, stopDrag]);
-
-
-    // Resizing logic
-    const handleResize = useCallback((e: MouseEvent) => {
-        const dx = e.movementX;
-        const dy = e.movementY;
-        setSize(s => ({
-            width: Math.max(300, s.width + dx),
-            height: Math.max(200, s.height + dy)
-        }));
-    }, []);
-
-    const stopResize = useCallback(() => {
-        window.removeEventListener('mousemove', handleResize);
-        window.removeEventListener('mouseup', stopResize);
-    }, [handleResize]);
-
-    const startResize = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.addEventListener('mousemove', handleResize);
-        window.addEventListener('mouseup', stopResize);
-    }, [handleResize, stopResize]);
-
+    const canPost = ['admin', 'hod', 'principal', 'creator'].includes(currentUser.role);
+    const sortedAnnouncements = [...announcements].sort((a, b) => b.timestamp - a.timestamp);
 
     return (
-        <div
-            ref={windowRef}
-            className="floating-window"
-            style={{
-                transform: `translate(${position.x}px, ${position.y}px)`,
-                width: `${size.width}px`,
-                height: `${size.height}px`,
-            }}
-        >
-            <div className="floating-window-header" onMouseDown={startDrag}>
-                <h3>{title}</h3>
-                <button onClick={() => onClose(id)} aria-label="Close window"><Icon name="close" /></button>
+        <div>
+            <div className="view-header">
+                <h2>Latest News & Updates</h2>
+                {canPost && <button className="btn btn-primary" onClick={() => setModalOpen(true)}>New Announcement</button>}
             </div>
-            <div className="floating-window-content">
-                {children}
+            <div className="announcement-list">
+                {sortedAnnouncements.map(ann => (
+                    <div key={ann.id} className="announcement-card stagger-item">
+                        <h3>{ann.title}</h3>
+                        <p>{ann.content}</p>
+                        <div className="announcement-footer">
+                            <div className="meta">
+                                <strong>{ann.author}</strong> - {formatDate(ann.timestamp)}
+                            </div>
+                            <div className="reactions">
+                                {['👍', '❤️', '🎉'].map(emoji => (
+                                    <button
+                                        key={emoji}
+                                        className={ann.reactions?.[emoji]?.includes(currentUser.id) ? 'active' : ''}
+                                        onClick={() => handleReaction(ann.id, emoji)}
+                                    >
+                                        {emoji} {ann.reactions?.[emoji]?.length || 0}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
-            <div className="resize-handle" onMouseDown={startResize}></div>
+            {isModalOpen && <AnnouncementModal onClose={() => setModalOpen(false)} />}
         </div>
     );
 };
 
-const WebViewWindow: React.FC<{ url: string }> = ({ url }) => {
-    const { setAiModalContent } = useAppContext();
-    const [isLoading, setIsLoading] = useState(false);
+const UserManagementView = () => {
+    const { users, setUsers } = useContext(AppContext);
+    const [filter, setFilter] = useState<'all' | 'pending_approval' | 'active' | 'rejected'>('all');
+    const [isModalOpen, setModalOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-    const summarizePage = async () => {
-        if (!ai) return;
-        setIsLoading(true);
-        setAiModalContent({ title: "Summarizing Content", content: "", isLoading: true });
+    const handleEditUser = (user: User) => {
+        setSelectedUser(user);
+        setModalOpen(true);
+    };
+
+    const handleApprove = (userId: string, status: 'active' | 'rejected') => {
+        setUsers(users.map(u => u.id === userId ? { ...u, status } : u));
+    };
+
+    const handleToggleLock = (userId: string) => {
+        setUsers(users.map(u => u.id === userId ? { ...u, isLocked: !u.isLocked } : u));
+    };
+
+    const filteredUsers = users.filter(user => filter === 'all' || user.status === filter);
+
+    return (
+        <div>
+            <div className="view-header">
+                <h2>Manage Users</h2>
+                 <select value={filter} onChange={(e) => setFilter(e.target.value as any)} className="form-control" style={{width: '200px'}}>
+                    <option value="all">All Users</option>
+                    <option value="pending_approval">Pending Approval</option>
+                    <option value="active">Active</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+             <div className="table-wrapper">
+                <table className="entry-list-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Department</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                       {filteredUsers.map(user => (
+                            <tr key={user.id}>
+                                <td data-label="Name">{user.name}</td>
+                                <td data-label="Role" style={{ textTransform: 'capitalize' }}>{user.role}</td>
+                                <td data-label="Department">{user.dept}</td>
+                                <td data-label="Status">
+                                    <span className={`status-badge status-${user.status}`}>{user.status.replace('_', ' ')}</span>
+                                     {user.isLocked && <span className="status-badge status-locked">Locked</span>}
+                                </td>
+                                <td data-label="Actions" className="entry-actions">
+                                    {user.status === 'pending_approval' && (
+                                        <>
+                                            <button className="btn btn-sm btn-success" onClick={() => handleApprove(user.id, 'active')}><Icons.check/> Approve</button>
+                                            <button className="btn btn-sm btn-danger" onClick={() => handleApprove(user.id, 'rejected')}><Icons.xmark/> Reject</button>
+                                        </>
+                                    )}
+                                    <button className="btn btn-sm btn-secondary" onClick={() => handleToggleLock(user.id)}>
+                                        {user.isLocked ? <Icons.unlock/> : <Icons.lock/>}
+                                    </button>
+                                    <button className="btn btn-sm btn-secondary" onClick={() => handleEditUser(user)}><Icons.edit/></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            {isModalOpen && <UserModal user={selectedUser} onClose={() => { setModalOpen(false); setSelectedUser(null); }} />}
+        </div>
+    );
+};
+
+const StudentDirectoryView = () => {
+    const { users } = useContext(AppContext);
+    const [filters, setFilters] = useState({ dept: 'all', year: 'all', search: '' });
+    const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters({ ...filters, [e.target.name]: e.target.value });
+    };
+
+    const students = useMemo(() => {
+        return users.filter(u => u.role === 'student')
+            .filter(s => filters.dept === 'all' || s.dept === filters.dept)
+            .filter(s => filters.year === 'all' || s.year === filters.year)
+            .filter(s => s.name.toLowerCase().includes(filters.search.toLowerCase()));
+    }, [users, filters]);
+
+    return (
+        <div className="directory-container">
+            <div className="directory-filters">
+                <input type="search" name="search" placeholder="Search by name..." className="form-control" onChange={handleFilterChange} />
+                <select name="dept" className="form-control" onChange={handleFilterChange}>
+                    <option value="all">All Departments</option>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <select name="year" className="form-control" onChange={handleFilterChange}>
+                    <option value="all">All Years</option>
+                    <option value="I">I Year</option>
+                    <option value="II">II Year</option>
+                    <option value="III">III Year</option>
+                    <option value="IV">IV Year</option>
+                </select>
+            </div>
+            <div className="student-grid">
+                {students.map(student => (
+                    <div key={student.id} className="student-card" onClick={() => setSelectedStudent(student)}>
+                        <div className="student-card-avatar"><Icons.userCircle /></div>
+                        <div className="student-card-info">
+                            <h4>{student.name}</h4>
+                            <p>{student.dept} - Year {student.year}</p>
+                            {student.aiRiskAnalysis && student.aiRiskAnalysis.riskLevel !== 'Low' && (
+                                <span className={`status-badge status-${student.aiRiskAnalysis.riskLevel === 'High' ? 'rejected' : 'pending-approval'}`}>{student.aiRiskAnalysis.riskLevel} Risk</span>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {selectedStudent && <StudentDetailModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />}
+        </div>
+    );
+};
+
+const CourseFilesView = () => {
+    const { courseFiles, setCourseFiles, currentUser } = useContext(AppContext);
+    const [selectedFile, setSelectedFile] = useState<CourseFile | null>(null);
+
+    const canReview = ['hod', 'principal'].includes(currentUser.role);
+
+    const handleReview = async (file: CourseFile) => {
+        if (!isAiEnabled || !ai) return;
+
+        setCourseFiles(files => files.map(f => f.id === file.id ? { 
+            ...f, 
+            aiReview: { 
+                summary: f.aiReview?.summary || '', 
+                suggestions: f.aiReview?.suggestions || [],
+                corrections: f.aiReview?.corrections || [],
+                status: 'pending', 
+                timestamp: Date.now() 
+            } 
+        } : f));
+        
         try {
-            // NOTE: In a real app, you can't access iframe content due to CORS.
-            // This is a simulation. You'd need a backend proxy to fetch the content.
-            const prompt = `Please summarize the content from the URL: ${url}. Focus on the key points and provide a concise overview.`;
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setAiModalContent({ title: "AI Summary", content: response.text, isLoading: false });
+            const prompt = `Review the following course file submission for quality. Subject: ${file.subject}, Semester: ${file.semester}. Files submitted: ${file.files.map(f=>f.name).join(', ')}. Provide a concise summary, a list of actionable suggestions for improvement, and identify any potential corrections in content (if any).`;
+             const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                 config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            summary: { type: Type.STRING },
+                            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            corrections: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        original: { type: Type.STRING },
+                                        corrected: { type: Type.STRING },
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            const reviewData = JSON.parse(response.text);
+            
+            const fullReview = { ...reviewData, status: 'complete', timestamp: Date.now() };
+            setCourseFiles(files => files.map(f => f.id === file.id ? { ...f, aiReview: fullReview } : f));
+            setSelectedFile(prev => prev ? { ...prev, aiReview: fullReview } : null);
+
         } catch (error) {
-            console.error("AI summarization failed:", error);
-            setAiModalContent({ title: "Error", content: "Failed to summarize the content.", isLoading: false });
-        } finally {
-            setIsLoading(false);
+            console.error("AI Review failed:", error);
+            setCourseFiles(files => files.map(f => f.id === file.id ? { ...f, aiReview: { ...f.aiReview, status: 'failed' } as CourseFile['aiReview'] } : f));
         }
     };
 
     return (
-        <div className="webview-container">
-            <iframe src={url} title={url}></iframe>
-            <div className="webview-footer">
-                <a href={url} target="_blank" rel="noopener noreferrer" className="open-new-tab-link"><Icon name="open_new" /></a>
-                <div className="webview-ai-actions">
-                    <button className="btn btn-secondary btn-sm" onClick={summarizePage} disabled={!isAiEnabled || isLoading}>
-                        {isLoading ? <LoadingSpinner size="sm" /> : <Icon name="ai_summarize" />} Summarize
-                    </button>
+        <div>
+             <div className="table-wrapper">
+                <table className="entry-list-table">
+                    <thead>
+                        <tr>
+                            <th>Faculty</th>
+                            <th>Subject</th>
+                            <th>Semester</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {courseFiles.map(file => (
+                            <tr key={file.id}>
+                                <td data-label="Faculty">{file.facultyName}</td>
+                                <td data-label="Subject">{file.subject}</td>
+                                <td data-label="Semester">{file.semester}</td>
+                                <td data-label="Status"><span className={`status-badge status-${file.status}`}>{file.status.replace('_', ' ')}</span></td>
+                                <td data-label="Submitted">{formatDate(file.submittedAt)}</td>
+                                <td data-label="Actions">
+                                    <button className="btn btn-sm btn-secondary" onClick={() => setSelectedFile(file)}>View Details</button>
+                                     {canReview && (!file.aiReview || file.aiReview.status !== 'pending') && (
+                                        <button className="btn btn-sm btn-primary" onClick={() => handleReview(file)} style={{gap: '0.25rem'}}>
+                                            <Icons.sparkles/> {file.aiReview ? 'Re-run' : 'AI'} Review
+                                        </button>
+                                    )}
+                                     {canReview && file.aiReview?.status === 'pending' && <span className="spinner"></span>}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+             </div>
+            {selectedFile && <CourseFileDetailModal file={selectedFile} onClose={() => setSelectedFile(null)} />}
+        </div>
+    );
+};
+
+const ResourcesView = () => {
+    const { resources } = useContext(AppContext);
+    const [filter, setFilter] = useState<{ type: 'all' | Resource['type'], dept: 'all' | string }>({ type: 'all', dept: 'all' });
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setFilter(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const filteredResources = resources.filter(res => 
+        (filter.type === 'all' || res.type === filter.type) &&
+        (filter.dept === 'all' || res.department === filter.dept || res.department === 'all')
+    );
+    
+    const resourceIcons = { book: <Icons.book />, notes: <Icons.notes />, project: <Icons.project />, lab: <Icons.lab />, other: <Icons.other /> };
+
+    return (
+         <div className="directory-container">
+            <div className="directory-filters">
+                <select name="type" className="form-control" onChange={handleFilterChange} value={filter.type}>
+                    <option value="all">All Types</option>
+                    <option value="book">Books</option>
+                    <option value="notes">Notes</option>
+                    <option value="project">Projects</option>
+                    <option value="lab">Lab Materials</option>
+                    <option value="other">Other</option>
+                </select>
+                <select name="dept" className="form-control" onChange={handleFilterChange} value={filter.dept}>
+                    <option value="all">All Departments</option>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+            </div>
+            <div className="resources-grid">
+                {filteredResources.map((res, i) => (
+                    <div key={res.id} className="resource-card stagger-item" style={{animationDelay: `${i * 50}ms`}}>
+                        <div className="resource-card-header">
+                            <div className="resource-icon">{resourceIcons[res.type]}</div>
+                            <div className="resource-info">
+                                <h4>{res.name}</h4>
+                                <p className="resource-meta">{res.department} / {res.subject}</p>
+                            </div>
+                        </div>
+                        <div className="resource-card-footer">
+                           <p className="resource-uploader">Uploaded by {res.uploaderName} on {formatDate(res.timestamp, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const AcademicCalendarView = () => {
+    const { calendarEvents } = useContext(AppContext);
+
+    const eventsByMonth = useMemo(() => {
+        const grouped: { [key: string]: CalendarEvent[] } = {};
+        const sortedEvents = [...calendarEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        sortedEvents.forEach(event => {
+            const month = formatDate(new Date(event.date).getTime(), { year: 'numeric', month: 'long' });
+            if (!grouped[month]) {
+                grouped[month] = [];
+            }
+            grouped[month].push(event);
+        });
+        return grouped;
+    }, [calendarEvents]);
+
+    return (
+        <div className="calendar-container">
+            {Object.entries(eventsByMonth).map(([month, events]) => (
+                <div key={month} className="calendar-month-group stagger-item">
+                    <h3>{month}</h3>
+                    <div className="calendar-event-list">
+                        {events.map(event => (
+                             <div key={event.id} className={`calendar-event-item ${event.type}`}>
+                                <div className="event-date">
+                                    <div className="date-day">{new Date(event.date).getDate()}</div>
+                                    <div className="date-month">{formatDate(new Date(event.date).getTime(), { month: 'short' })}</div>
+                                </div>
+                                <div className="event-details">
+                                    <p className="event-title">{event.title}</p>
+                                </div>
+                                <span className="event-type-badge">{event.type}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const SecurityView = () => {
+    const [view, setView] = useState<'alerts' | 'logs'>('alerts');
+    const { addNotification, setUsers } = useContext(AppContext);
+    const [alerts, setAlerts] = useState(MOCK_SECURITY_ALERTS);
+
+    const handleResolve = (alertId: string) => {
+        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, isResolved: true } : a));
+        addNotification('Alert marked as resolved.', 'success');
+    };
+
+    const handleAction = (alert: SecurityAlert) => {
+        if (alert.relatedUserId && alert.responsePlan?.recommendedAction === 'LOCK_USER') {
+            setUsers((prevUsers: User[]) => prevUsers.map(u => u.id === alert.relatedUserId ? { ...u, isLocked: true } : u));
+            addNotification(`User account ${alert.relatedUserId} has been locked.`, 'warning');
+            handleResolve(alert.id);
+        }
+    };
+    
+    return (
+        <div className="security-container">
+             <div className="control-group-inline" style={{ marginBottom: '2rem' }}>
+                <button className={`btn ${view === 'alerts' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('alerts')}>Security Alerts</button>
+                <button className={`btn ${view === 'logs' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setView('logs')}>Audit Logs</button>
+            </div>
+            
+            {view === 'alerts' && (
+                <div className="security-grid">
+                    {alerts.filter(a => !a.isResolved).map(alert => (
+                        <div key={alert.id} className={`alert-card severity-${alert.severity}`}>
+                            <div className="alert-card-header">
+                                <span className={`severity-icon severity-${alert.severity}`}>
+                                    {alert.severity === 'critical' ? <Icons.critical/> : <Icons.warning/>}
+                                </span>
+                                <h4>{alert.title}</h4>
+                            </div>
+                            <p className="alert-card-description">{alert.description}</p>
+                            <div className="alert-card-footer">
+                                <span>{formatDate(alert.timestamp)}</span>
+                                <div className="entry-actions">
+                                    {alert.responsePlan?.recommendedAction !== 'NONE' && (
+                                        <button className="btn btn-sm btn-warning" onClick={() => handleAction(alert)}>
+                                            Take Action
+                                        </button>
+                                    )}
+                                    <button className="btn btn-sm btn-secondary" onClick={() => handleResolve(alert.id)}>Resolve</button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {alerts.filter(a => !a.isResolved).length === 0 && <p>No active security alerts.</p>}
+                </div>
+            )}
+
+            {view === 'logs' && (
+                <div className="table-wrapper">
+                    <table className="entry-list-table audit-log-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th><th>User</th><th>Action</th><th>Status</th><th>IP Address</th><th>Details</th>
+                            </tr>
+                        </thead>
+                         <tbody>
+                            {MOCK_AUDIT_LOGS.map(log => (
+                                <tr key={log.id}>
+                                    <td data-label="Timestamp">{formatDate(log.timestamp)}</td>
+                                    <td data-label="User">{log.userName} ({log.userId})</td>
+                                    <td data-label="Action">{log.action}</td>
+                                    <td data-label="Status"><span className={`status-badge status-${log.status}`}>{log.status}</span></td>
+                                    <td data-label="IP Address">{log.ip}</td>
+                                    <td data-label="Details">{log.details || 'N/A'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const SettingsView = () => {
+    return (
+        <div className="settings-container">
+            <div className="settings-card">
+                <h3>Profile Settings</h3>
+                <div className="control-group">
+                    <label htmlFor="name">Name</label>
+                    <input id="name" type="text" className="form-control" defaultValue="Current User Name" />
+                </div>
+                 <div className="control-group">
+                    <label htmlFor="password">New Password</label>
+                    <input id="password" type="password" className="form-control" />
+                </div>
+                <button className="btn btn-primary">Update Profile</button>
+            </div>
+             <div className="settings-card">
+                <h3>Application Settings</h3>
+                 <div className="control-group">
+                    <label htmlFor="accentColor">Accent Color</label>
+                    <input id="accentColor" type="color" className="form-control" defaultValue={MOCK_SETTINGS.accentColor} style={{padding: '0.25rem', height: '40px'}}/>
+                </div>
+                <button className="btn btn-primary">Save Settings</button>
+            </div>
+        </div>
+    );
+};
+
+const AuthView = () => {
+    const { users, setUsers, setCurrentUser, addNotification } = useContext(AppContext);
+    const [isLogin, setIsLogin] = useState(true);
+    const [credentials, setCredentials] = useState({ id: '', password: '' });
+    const [signupData, setSignupData] = useState({ name: '', id: '', password: '', role: 'student' as UserRole, dept: 'CSE', year: 'I' });
+
+    const handleLogin = (e: React.FormEvent) => {
+        e.preventDefault();
+        const user = users.find(u => u.id === credentials.id && u.password === credentials.password);
+        if (user) {
+            if (user.isLocked) {
+                 addNotification('Your account is locked. Please contact an administrator.', 'error');
+                 return;
+            }
+             if (user.status === 'pending_approval') {
+                addNotification('Your account is pending approval.', 'warning');
+                return;
+            }
+            if (user.status === 'rejected') {
+                addNotification('Your account registration was rejected.', 'error');
+                return;
+            }
+            setCurrentUser(user);
+            addNotification(`Welcome back, ${user.name}!`, 'success');
+        } else {
+            addNotification('Invalid credentials. Please try again.', 'error');
+        }
+    };
+    
+    const handleSignup = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (users.find(u => u.id === signupData.id)) {
+            addNotification('User ID already exists. Please choose another one.', 'error');
+            return;
+        }
+
+        const newUser: User = {
+            ...signupData,
+            year: signupData.role === 'student' ? signupData.year : undefined,
+            status: 'pending_approval',
+            isLocked: false,
+        };
+        
+        setUsers((prevUsers: User[]) => [...prevUsers, newUser]);
+        addNotification('Registration request sent! An admin will review it shortly.', 'success');
+        setIsLogin(true);
+    };
+    
+    const handleCredsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCredentials({...credentials, [e.target.name]: e.target.value});
+    };
+    
+    const handleSignupChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setSignupData({...signupData, [e.target.name]: e.target.value});
+    };
+    
+    return (
+        <div className="login-view-container">
+            <div className="login-card">
+                <div className={`login-card-inner ${!isLogin ? 'is-flipped' : ''}`}>
+                    <div className="login-card-front">
+                        <div className="login-header">
+                            <span className="logo"><Icons.logo /></span>
+                            <h1>Welcome Back</h1>
+                            <p>Sign in to your AcademiaAI account.</p>
+                        </div>
+                        <form onSubmit={handleLogin}>
+                             <div className="control-group">
+                                <label htmlFor="id">User ID</label>
+                                <input type="text" id="id" name="id" className="form-control" required onChange={handleCredsChange} />
+                            </div>
+                            <div className="control-group">
+                                <label htmlFor="password">Password</label>
+                                <input type="password" id="password" name="password" className="form-control" required onChange={handleCredsChange} />
+                            </div>
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Login</button>
+                        </form>
+                         <div className="auth-hint">
+                            Hint: Try <strong>admin</strong> / <strong>password</strong> or <strong>stud001</strong> / <strong>password</strong>
+                        </div>
+                         <div className="auth-toggle">
+                            Don't have an account?
+                            <button onClick={() => setIsLogin(false)}>Sign Up</button>
+                        </div>
+                    </div>
+                    <div className="login-card-back">
+                        <div className="login-header">
+                            <span className="logo"><Icons.logo /></span>
+                             <h1>Create Account</h1>
+                            <p>Join the AcademiaAI platform.</p>
+                        </div>
+                         <form onSubmit={handleSignup}>
+                            <div className="control-group">
+                                <label>Full Name</label>
+                                <input type="text" name="name" className="form-control" required onChange={handleSignupChange} />
+                            </div>
+                             <div className="control-group">
+                                <label>User ID</label>
+                                <input type="text" name="id" className="form-control" required onChange={handleSignupChange} />
+                            </div>
+                             <div className="control-group">
+                                <label>Password</label>
+                                <input type="password" name="password" className="form-control" required onChange={handleSignupChange}/>
+                            </div>
+                            <div className="form-grid">
+                                <div className="control-group">
+                                    <label>Role</label>
+                                    <select name="role" className="form-control" value={signupData.role} onChange={handleSignupChange}>
+                                        <option value="student">Student</option>
+                                        <option value="faculty">Faculty</option>
+                                    </select>
+                                </div>
+                                <div className="control-group">
+                                    <label>Department</label>
+                                    <select name="dept" className="form-control" value={signupData.dept} onChange={handleSignupChange}>
+                                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Register</button>
+                        </form>
+                         <div className="auth-toggle">
+                            Already have an account?
+                            <button onClick={() => setIsLogin(true)}>Login</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-const ChatbotWindow: React.FC = () => {
-    const { setIsChatOpen, currentUser } = useAppContext();
-    const [chat, setChat] = useState<Chat | null>(null);
+
+// --- MODALS ---
+
+const Modal = ({ children, onClose, size = 'md' }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setIsOpen(true);
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
+    const handleOverlayClick = (e: React.MouseEvent) => {
+        if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+            onClose();
+        }
+    };
+    
+    return createPortal(
+        <div className={`modal-overlay ${isOpen ? 'open' : ''}`} onMouseDown={handleOverlayClick}>
+            <div className={`modal-content modal-${size}`} ref={modalRef}>
+                {children}
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+const TimetableEntryModal = ({ entry, onClose }: { entry: TimetableEntry, onClose: () => void }) => {
+    const { setTimetable } = useContext(AppContext);
+    const [editedEntry, setEditedEntry] = useState(entry);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setEditedEntry(prev => ({...prev, [name]: value}));
+    };
+    
+    const handleSave = () => {
+        setTimetable((prev: TimetableEntry[]) => prev.map(item => item.id === editedEntry.id ? editedEntry : item));
+        onClose();
+    };
+
+    return (
+        <Modal onClose={onClose}>
+            <div className="modal-header">
+                <h3>Edit Timetable Entry</h3>
+                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
+            </div>
+            <div className="modal-body">
+                <div className="control-group">
+                    <label>Subject</label>
+                    <input type="text" name="subject" value={editedEntry.subject} onChange={handleChange} className="form-control" />
+                </div>
+                <div className="control-group">
+                    <label>Faculty</label>
+                    <input type="text" name="faculty" value={editedEntry.faculty || ''} onChange={handleChange} className="form-control" />
+                </div>
+                 <div className="control-group">
+                    <label>Room</label>
+                    <input type="text" name="room" value={editedEntry.room || ''} onChange={handleChange} className="form-control" />
+                </div>
+            </div>
+            <div className="modal-footer">
+                <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+                <button onClick={handleSave} className="btn btn-primary">Save Changes</button>
+            </div>
+        </Modal>
+    );
+};
+
+const AnnouncementModal = ({ onClose }: { onClose: () => void }) => {
+    const { setAnnouncements, currentUser } = useContext(AppContext);
+    const [newAnn, setNewAnn] = useState({ title: '', content: '' });
+
+    const handleSave = () => {
+        const announcement: Announcement = {
+            id: `ann_${Date.now()}`,
+            title: newAnn.title,
+            content: newAnn.content,
+            author: currentUser.name,
+            timestamp: Date.now(),
+            targetRole: 'all', // Simplified for this modal
+            targetDept: 'all',
+        };
+        setAnnouncements((prev: Announcement[]) => [...prev, announcement]);
+        onClose();
+    };
+
+    return (
+        <Modal onClose={onClose}>
+            <div className="modal-header">
+                <h3>New Announcement</h3>
+                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
+            </div>
+            <div className="modal-body">
+                <div className="control-group">
+                    <label>Title</label>
+                    <input type="text" value={newAnn.title} onChange={e => setNewAnn({...newAnn, title: e.target.value})} className="form-control" />
+                </div>
+                <div className="control-group">
+                    <label>Content</label>
+                    <textarea value={newAnn.content} onChange={e => setNewAnn({...newAnn, content: e.target.value})} className="form-control" rows={5}></textarea>
+                </div>
+            </div>
+            <div className="modal-footer">
+                <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+                <button onClick={handleSave} className="btn btn-primary">Post Announcement</button>
+            </div>
+        </Modal>
+    );
+};
+
+const UserModal = ({ user, onClose }: { user: User | null, onClose: () => void }) => {
+    const { setUsers } = useContext(AppContext);
+    const [editedUser, setEditedUser] = useState<User | null>(user);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        if (!editedUser) return;
+        setEditedUser({ ...editedUser, [name]: value });
+    };
+
+    const handleSave = () => {
+        if (!editedUser) return;
+        setUsers((prev: User[]) => prev.map(u => u.id === editedUser.id ? editedUser : u));
+        onClose();
+    };
+    
+    if (!editedUser) return null;
+
+    return (
+         <Modal onClose={onClose}>
+            <div className="modal-header">
+                <h3>Edit User: {editedUser.name}</h3>
+                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
+            </div>
+            <div className="modal-body">
+                <div className="control-group">
+                    <label>Name</label>
+                    <input type="text" name="name" value={editedUser.name} onChange={handleChange} className="form-control" />
+                </div>
+                <div className="control-group">
+                    <label>Role</label>
+                     <select name="role" value={editedUser.role} onChange={handleChange} className="form-control">
+                        {USER_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                </div>
+                 <div className="control-group">
+                    <label>Department</label>
+                     <select name="dept" value={editedUser.dept} onChange={handleChange} className="form-control">
+                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                </div>
+            </div>
+            <div className="modal-footer">
+                <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+                <button onClick={handleSave} className="btn btn-primary">Save Changes</button>
+            </div>
+        </Modal>
+    );
+};
+
+const StudentDetailModal = ({ student, onClose }: { student: User, onClose: () => void }) => {
+    const { setUsers, addNotification } = useContext(AppContext);
+    
+    const handleGenerateAnalysis = async () => {
+        if (!isAiEnabled || !ai) {
+             addNotification('AI features are disabled.', 'error');
+             return;
+        }
+
+        const prompt = `Perform a risk analysis for student ${student.name}. Grades: ${JSON.stringify(student.grades)}. Attendance: ${JSON.stringify(student.attendance)}. Generate a risk level (Low, Moderate, High), a rationale for the assessment, and a list of recommended interventions.`;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            riskLevel: { type: Type.STRING, enum: ['Low', 'Moderate', 'High'] },
+                            rationale: { type: Type.STRING },
+                            interventions: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        }
+                    }
+                }
+            });
+            
+            const riskData = JSON.parse(response.text) as Omit<User['aiRiskAnalysis'], 'timestamp'>;
+            const analysis = { ...riskData, timestamp: Date.now() };
+
+            setUsers((prev: User[]) => prev.map(u => u.id === student.id ? { ...u, aiRiskAnalysis: analysis } : u));
+            addNotification('AI Risk Analysis complete!', 'success');
+        } catch (error) {
+            console.error("AI Risk analysis failed:", error);
+            addNotification('AI analysis failed.', 'error');
+        }
+    };
+    
+    return (
+        <Modal onClose={onClose} size="lg">
+            <div className="modal-header">
+                <h3>Student Profile: {student.name}</h3>
+                 <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
+            </div>
+            <div className="modal-body">
+                <div className="details-list">
+                    <p><strong>ID:</strong> {student.id}</p>
+                    <p><strong>Department:</strong> {student.dept}</p>
+                    <p><strong>Year:</strong> {student.year}</p>
+                    <p><strong>Status:</strong> {student.status}</p>
+                </div>
+
+                <div className="ai-review-section">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h4>AI Risk Analysis</h4>
+                        <button className="btn btn-sm btn-primary" onClick={handleGenerateAnalysis}><Icons.sparkles/> Generate/Update</button>
+                    </div>
+                    {student.aiRiskAnalysis ? (
+                         <div className="risk-analysis-modal">
+                            <div className="risk-level-display">
+                                <span className={`risk-level-badge risk-level-${student.aiRiskAnalysis.riskLevel.toLowerCase()}`}>{student.aiRiskAnalysis.riskLevel} Risk</span>
+                            </div>
+                            <h4>Rationale</h4>
+                            <p>{student.aiRiskAnalysis.rationale}</p>
+                            <h4>Recommended Interventions</h4>
+                            <ul>
+                               {student.aiRiskAnalysis.interventions.map((item, i) => <li key={i}>{item}</li>)}
+                            </ul>
+                             <span className="analysis-timestamp">Last updated: {formatDate(student.aiRiskAnalysis.timestamp)}</span>
+                        </div>
+                    ) : <p>No AI risk analysis has been performed yet.</p>}
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+const CourseFileDetailModal = ({ file, onClose }: { file: CourseFile, onClose: () => void }) => {
+    return (
+        <Modal onClose={onClose} size="lg">
+             <div className="modal-header">
+                <h3>Course File: {file.subject}</h3>
+                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
+            </div>
+            <div className="modal-body">
+                 <div className="details-list">
+                    <p><strong>Faculty:</strong> {file.facultyName}</p>
+                    <p><strong>Department:</strong> {file.department}</p>
+                    <p><strong>Semester:</strong> {file.semester}</p>
+                    <p><strong>Files:</strong> {file.files.map(f => f.name).join(', ')}</p>
+                    <p><strong>Status:</strong> <span className={`status-badge status-${file.status}`}>{file.status.replace('_', ' ')}</span></p>
+                </div>
+                 <div className="ai-review-section">
+                     <h4><Icons.sparkles/> AI Review</h4>
+                     {file.aiReview && file.aiReview.status === 'complete' ? (
+                        <div>
+                           <h5>Summary</h5>
+                           <p>{file.aiReview.summary}</p>
+                           <h5>Suggestions</h5>
+                           <ul>{file.aiReview.suggestions.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                        </div>
+                     ) : file.aiReview?.status === 'pending' ? (
+                        <p>AI Review in progress...</p>
+                     ) : (
+                         <p>No AI review available.</p>
+                     )}
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+const StudyPlanModal = ({ plan, setPlan, onClose }: { plan: StudyPlan, setPlan: React.Dispatch<React.SetStateAction<StudyPlan | null>>, onClose: () => void }) => {
+
+    const toggleTask = (weekIndex: number, dayIndex: number, taskIndex: number) => {
+        setPlan(currentPlan => {
+            if (!currentPlan) return null;
+            return {
+                ...currentPlan,
+                weeks: currentPlan.weeks.map((week, wIndex) => 
+                    wIndex !== weekIndex ? week : {
+                        ...week,
+                        days: week.days.map((day, dIndex) =>
+                            dIndex !== dayIndex ? day : {
+                                ...day,
+                                tasks: day.tasks.map((task, tIndex) =>
+                                    tIndex !== taskIndex ? task : { ...task, completed: !task.completed }
+                                )
+                            }
+                        )
+                    }
+                )
+            };
+        });
+    };
+    
+    return (
+         <Modal onClose={onClose} size="xl">
+             <div className="modal-header">
+                <h3>{plan.title}</h3>
+                <button onClick={onClose} className="close-modal-btn"><Icons.close/></button>
+            </div>
+            <div className="modal-body study-plan-view">
+                {plan.weeks.map((week, wIdx) => (
+                    <div key={week.week} className="plan-week">
+                        <h4>Week {week.week}</h4>
+                        {week.days.map((day, dIdx) => (
+                            <div key={`${wIdx}-${dIdx}`} className="plan-day">
+                                <p className="plan-day-header">{day.day}<span>{day.topic}</span></p>
+                                <ul className="plan-tasks">
+                                    {day.tasks.map((task, tIdx) => (
+                                        <li key={`${wIdx}-${dIdx}-${tIdx}`}>
+                                            <input 
+                                                type="checkbox" 
+                                                id={`task-${wIdx}-${dIdx}-${tIdx}`} 
+                                                checked={task.completed} 
+                                                onChange={() => toggleTask(wIdx, dIdx, tIdx)} 
+                                            />
+                                            <label htmlFor={`task-${wIdx}-${dIdx}-${tIdx}`}>{task.text}</label>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                ))}
+            </div>
+        </Modal>
+    );
+};
+
+// --- CHATBOT & NOTIFICATIONS ---
+
+const Chatbot = () => {
+    const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isListening, setIsListening] = useState(false);
+    const chatRef = useRef<Chat | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const recognitionRef = useRef<any>(null); // SpeechRecognition instance
+    const { addNotification } = useContext(AppContext);
 
     useEffect(() => {
-        if (!ai) return;
-        const systemInstruction = `You are Academia AI, a helpful assistant for students, faculty, and administrators in an educational institution. 
-        Your primary role is to provide accurate, relevant, and concise information based on the user's role and context.
-        Current user: ${currentUser?.name} (Role: ${currentUser?.role}, Department: ${currentUser?.dept}).
-        You can answer questions about schedules, academic policies, find resources, and explain concepts.
-        If a user asks for information that might be on the web, use the Google Search tool. Always cite your sources when using search.
-        Keep responses friendly and professional. Format your responses with markdown for readability.`;
-
-        const newChat = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                systemInstruction,
-                tools: [{ googleSearch: {} }]
-            },
-        });
-        setChat(newChat);
-    }, [currentUser]);
+        if (isAiEnabled && ai && !chatRef.current) {
+            chatRef.current = ai.chats.create({ model: 'gemini-2.5-flash' });
+        }
+    }, []);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const getDisplayUrl = (uri: string) => {
-        try {
-            return new URL(uri).hostname;
-        } catch (e) {
-            // if parsing fails, return a truncated version of the original string
-            return uri.length > 30 ? uri.substring(0, 27) + '...' : uri;
+    const handleSend = async (messageText = input) => {
+        if (!messageText.trim() || isLoading) return;
+        
+        if (!isAiEnabled || !chatRef.current) {
+            addNotification("AI Chat is not available.", 'error');
+            return;
         }
-    };
 
-    const sendMessage = async () => {
-        if (!chat || !input.trim()) return;
-        const userMessage: ChatMessage = { id: Date.now().toString(), role: 'user', text: input };
+        const userMessage: ChatMessage = { id: `msg_${Date.now()}`, role: 'user', text: messageText };
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
 
         try {
-            const result: GenerateContentResponse = await chat.sendMessage({ message: input });
-            const modelResponse = result;
-            const sources = modelResponse.candidates?.[0]?.groundingMetadata?.groundingChunks
-                ?.map(chunk => chunk.web)
-                .filter(web => web?.uri && web?.title) as { uri: string, title: string }[] | undefined;
-
-            const modelMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                role: 'model',
-                text: modelResponse.text,
-                sources: sources,
-            };
+            const response = await chatRef.current.sendMessage({ message: messageText });
+            const modelMessage: ChatMessage = { id: `msg_${Date.now() + 1}`, role: 'model', text: response.text };
             setMessages(prev => [...prev, modelMessage]);
         } catch (error) {
             console.error("Chat error:", error);
-            const errorMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                role: 'model',
-                text: "Sorry, I encountered an error. Please try again.",
-                isError: true
-            };
+            const errorMessage: ChatMessage = { id: `msg_${Date.now() + 1}`, role: 'model', text: 'Sorry, I encountered an error. Please try again.', isError: true };
             setMessages(prev => [...prev, errorMessage]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleSpeech = () => {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Speech recognition not supported in this browser.");
-            return;
-        }
-
-        if (isListening) {
-            recognitionRef.current?.stop();
-            setIsListening(false);
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-        recognitionRef.current = recognition;
-
-        recognition.onstart = () => setIsListening(true);
-        recognition.onend = () => setIsListening(false);
-        recognition.onerror = (event: any) => {
-            console.error("Speech recognition error", event.error);
-            setIsListening(false);
-        };
-        recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            setInput(transcript);
-        };
-
-        recognition.start();
-    };
-
-    return (
-        <div className="chatbot-window">
-            <div className="chatbot-header">
-                <h3>AI Assistant</h3>
-                <button onClick={() => setIsChatOpen(false)}><Icon name="close" /></button>
-            </div>
-            <div className="chatbot-messages">
-                {messages.length === 0 ? (
-                    <div className="chat-empty-state">
-                        <p>Hi, I'm your Academia AI assistant!</p>
-                        <p>You can ask me things like:</p>
-                        <ul>
-                            <li><code>"When is my Data Structures class?"</code></li>
-                            <li><code>"Summarize the latest announcement."</code></li>
-                            <li><code>"Explain the concept of recursion."</code></li>
-                        </ul>
-                    </div>
-                ) : (
-                    messages.map((msg, index) => (
-                        <div key={msg.id} className={`chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}>
-                            <div className="chat-bubble">
-                                <div dangerouslySetInnerHTML={{ __html: marked.parse(msg.text) }} />
-                                {msg.imageUrl && <img src={msg.imageUrl} alt="Chat content" className="chat-image" />}
-                                {msg.sources && msg.sources.length > 0 && (
-                                    <div className="chat-sources">
-                                        <h4>Sources:</h4>
-                                        <ul>
-                                            {msg.sources.map((source, i) => (
-                                                <li key={i}>
-                                                    <a href={source.uri} target="_blank" rel="noopener noreferrer">
-                                                        <Icon name="link" />
-                                                        <span>{source.title || getDisplayUrl(source.uri)}</span>
-                                                    </a>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))
-                )}
-                {isLoading && (
-                    <div className="chat-message model">
-                        <div className="chat-bubble">
-                            <div className="loading-dots"><span></span><span></span><span></span></div>
-                        </div>
-                    </div>
-                )}
-                <div ref={messagesEndRef} />
-            </div>
-            <form className="chatbot-input-form" onSubmit={(e) => { e.preventDefault(); sendMessage(); }}>
-                <input
-                    type="text"
-                    placeholder="Ask me anything..."
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    disabled={isLoading}
-                />
-                <button type="button" onClick={handleSpeech} className={`mic-btn ${isListening ? 'listening' : ''}`} disabled={isLoading}>
-                    <Icon name="mic" />
-                </button>
-                <button type="submit" disabled={isLoading || !input.trim()}>
-                    <Icon name="send" />
-                </button>
-            </form>
-        </div>
-    );
-};
-
-const ChatbotFab: React.FC = () => {
-    const { isChatOpen, setIsChatOpen } = useAppContext();
-    const fabRef = useRef<HTMLButtonElement>(null);
-    const [position, setPosition] = useState({ x: 32, y: 32 }); // position from bottom-right
-    const isDraggingRef = useRef(false);
-
-    const toggleChat = () => {
-        if (!isDraggingRef.current) {
-            setIsChatOpen(prev => !prev);
-        }
-    };
-
-    // Dragging logic for the FAB
-    useEffect(() => {
-        const fab = fabRef.current;
-        if (!fab) return;
-
-        let offset = { x: 0, y: 0 };
-
-        const onMouseMove = (e: MouseEvent) => {
-            isDraggingRef.current = true;
-            fab.classList.add('dragging');
-            setPosition({
-                x: window.innerWidth - (e.clientX - offset.x),
-                y: window.innerHeight - (e.clientY - offset.y),
-            });
-        };
-
-        const onMouseUp = () => {
-            fab.classList.remove('dragging');
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            // Use a timeout to differentiate drag from click
-            setTimeout(() => { isDraggingRef.current = false; }, 100);
-        };
-
-        const onMouseDown = (e: MouseEvent) => {
-            offset = { x: e.clientX - fab.getBoundingClientRect().left, y: e.clientY - fab.getBoundingClientRect().top };
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        };
-
-        fab.addEventListener('mousedown', onMouseDown);
-
-        return () => {
-            fab.removeEventListener('mousedown', onMouseDown);
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-        };
-    }, []);
-
     return (
         <>
-            <button
-                ref={fabRef}
-                className="chatbot-fab"
-                onClick={toggleChat}
-                style={{ right: `${position.x}px`, bottom: `${position.y}px` }}
-                aria-label="Toggle AI Assistant"
-            >
-                <Icon name={isChatOpen ? 'close' : 'ai_sparkle'} />
+            <button className="chatbot-fab" onClick={() => setIsOpen(!isOpen)} aria-label={isOpen ? "Close chat" : "Open chat"}>
+                {isOpen ? <Icons.close /> : <Icons.sparkles />}
             </button>
-            {isChatOpen && <ChatbotWindow />}
+            {isOpen && (
+                <div className="chatbot-window">
+                    <div className="chatbot-header">
+                        <h3>AI Assistant</h3>
+                        <button onClick={() => setIsOpen(false)}><Icons.close /></button>
+                    </div>
+                    <div className="chatbot-messages">
+                        {messages.length === 0 && (
+                            <div className="chat-empty-state">
+                                <Icons.sparkles/>
+                                <p>Ask me anything about the university, subjects, or schedules!</p>
+                            </div>
+                        )}
+                        {messages.map(msg => (
+                            <div key={msg.id} className={`chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}>
+                                <div className="chat-bubble" dangerouslySetInnerHTML={{ __html: marked.parse(msg.text) }}></div>
+                            </div>
+                        ))}
+                         {isLoading && (
+                            <div className="chat-message model">
+                                <div className="chat-bubble"><span className="loading-dots"><span></span><span></span><span></span></span></div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </div>
+                    <form className="chatbot-input-form" onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
+                        <input type="text" placeholder="Type a message..." value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} />
+                        <button type="submit" disabled={!input.trim() || isLoading} aria-label="Send message"><Icons.send /></button>
+                    </form>
+                </div>
+            )}
         </>
     );
 };
 
-const AIStudyTool: React.FC = () => {
-    const { studyToolContent, setStudyToolContent } = useAppContext();
-    const [isLoading, setIsLoading] = useState(false);
-    const [generatedContent, setGeneratedContent] = useState('');
+const notificationIcons = {
+    info: <Icons.info />,
+    success: <Icons.check />,
+    error: <Icons.xmark />,
+    warning: <Icons.warning />,
+};
 
-    const handleClose = () => {
-        setStudyToolContent(null);
-        setGeneratedContent('');
+const NotificationContainer = ({ notifications, setNotifications }) => {
+    const dismissNotification = (id: string) => {
+        setNotifications((prev: AppNotification[]) => prev.filter(n => n.id !== id));
     };
-
-    const handleGenerate = async () => {
-        if (!ai || !studyToolContent) return;
-        setIsLoading(true);
-        setGeneratedContent('');
-        const prompt = studyToolContent.type === 'studyPlan'
-            ? "Based on a standard computer science curriculum for a second-year student, create a 7-day study plan to prepare for a Data Structures final exam. The plan should cover topics like Arrays, Linked Lists, Stacks, Queues, Trees, Graphs, and Sorting Algorithms. Include daily topics, suggested study times, and practice problems."
-            : "Summarize the key concepts of Object-Oriented Programming.";
-
-        try {
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setGeneratedContent(marked.parse(response.text) as string);
-        } catch (error) {
-            console.error("AI tool error:", error);
-            setGeneratedContent("<p>Sorry, there was an error generating the content.</p>");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    if (!studyToolContent) return null;
 
     return (
-        <Modal isOpen={true} onClose={handleClose} title={studyToolContent.title} size="lg">
-            {!generatedContent && !isLoading && (
-                <div>
-                    <p>Click the button below to generate your content using AI.</p>
-                    <button className="btn btn-primary" onClick={handleGenerate}>Generate</button>
+        <div className="notification-container">
+            {notifications.map((notif: AppNotification) => (
+                <div key={notif.id} className={`notification-item ${notif.type}`}>
+                    <div className="notification-icon">{notificationIcons[notif.type]}</div>
+                    <span>{notif.message}</span>
+                    <button onClick={() => dismissNotification(notif.id)} className="notification-dismiss">&times;</button>
                 </div>
-            )}
-            {isLoading && (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-                    <LoadingSpinner />
-                </div>
-            )}
-            {generatedContent && (
-                <div className="study-plan-content" dangerouslySetInnerHTML={{ __html: generatedContent }} />
-            )}
-        </Modal>
+            ))}
+        </div>
     );
 };
 
 
-// --- App Component ---
-const App: React.FC = () => {
-    const [currentUser, setCurrentUser] = usePersistentState<User | null>('currentUser', null);
-    const [currentView, setCurrentView] = usePersistentState<AppView>('currentView', 'auth');
-    const [theme, setTheme] = usePersistentState<'light' | 'dark'>('theme', 'light');
-    const [users, setUsers] = usePersistentState<User[]>('users', MOCK_USERS);
-    const [announcements, setAnnouncements] = usePersistentState<Announcement[]>('announcements', MOCK_ANNOUNCEMENTS);
-    const [timetable, setTimetable] = usePersistentState<TimetableEntry[]>('timetable', MOCK_TIMETABLE);
-    const [isChatOpen, setIsChatOpen] = useState(false);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
-    const [notifications, setNotifications] = useState<AppNotification[]>([]);
-    const [aiModalContent, setAiModalContent] = useState<AIModalContent | null>(null);
-    const [studyToolContent, setStudyToolContent] = useState<StudyToolContent | null>(null);
-
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme);
-    }, [theme]);
-
-    useEffect(() => {
-        if (currentUser) {
-            setCurrentView('dashboard');
-        } else {
-            setCurrentView('auth');
-        }
-    }, [currentUser]);
-
-    const addNotification = useCallback((notification: Omit<AppNotification, 'id'>) => {
-        const newNotification = { ...notification, id: Date.now().toString() };
-        setNotifications(prev => [...prev, newNotification]);
-        setTimeout(() => {
-            setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
-        }, 5000);
-    }, []);
-
-    const login = async (id: string, pass: string): Promise<boolean> => {
-        // Mock login: in a real app, this would be an API call
-        console.log(`Attempting login for user: ${id}`);
-        const user = users.find(u => u.id === id); // Password check omitted for mock
-        if (user && user.status === 'active') {
-            setCurrentUser(user);
-            addNotification({ type: 'success', message: `Welcome back, ${user.name}!` });
-            return true;
-        }
-        return false;
-    };
-
-    const logout = () => {
-        setCurrentUser(null);
-        addNotification({ type: 'info', message: 'You have been logged out.' });
-    };
-
-    const signup = async (user: Omit<User, 'id' | 'status'>): Promise<boolean> => {
-        // Mock signup
-        const newId = `user_${Date.now()}`;
-        const newUser: User = { ...user, id: newId, status: 'pending_approval' };
-        setUsers(prev => [...prev, newUser]);
-        return true;
-    };
-
-    const updateUser = (updatedUser: User) => {
-        setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
-    };
-
-    const addAnnouncement = (ann: Omit<Announcement, 'id' | 'timestamp' | 'reactions'>) => {
-        const newAnnouncement: Announcement = { ...ann, id: `ann_${Date.now()}`, timestamp: Date.now() };
-        setAnnouncements(prev => [newAnnouncement, ...prev]);
-        addNotification({ type: 'success', message: 'Announcement posted.' });
-    };
-
-    const reactToAnnouncement = (annId: string, emoji: string) => {
-        if (!currentUser) return;
-        const userId = currentUser.id;
-        setAnnouncements(prev => prev.map(ann => {
-            if (ann.id === annId) {
-                const reactions = { ...(ann.reactions || {}) };
-                const usersWhoReacted = reactions[emoji] || [];
-                if (usersWhoReacted.includes(userId)) {
-                    reactions[emoji] = usersWhoReacted.filter(id => id !== userId);
-                } else {
-                    reactions[emoji] = [...usersWhoReacted, userId];
-                }
-                return { ...ann, reactions };
-            }
-            return ann;
-        }));
-    };
-
-    const approveUser = (id: string) => {
-        setUsers(prev => prev.map(u => u.id === id ? { ...u, status: 'active' } : u));
-        addNotification({ type: 'success', message: 'User approved.' });
-    };
-
-    const rejectUser = (id: string) => {
-        setUsers(prev => prev.map(u => u.id === id ? { ...u, status: 'rejected' } : u));
-        addNotification({ type: 'warning', message: 'User rejected.' });
-    };
-
-    const updateTimetableEntry = (entry: TimetableEntry) => {
-        setTimetable(prev => prev.map(t => t.id === entry.id ? entry : t));
-    };
-    const addTimetableEntry = (entry: Omit<TimetableEntry, 'id'>) => {
-        const newEntry = { ...entry, id: `tt_${Date.now()}` };
-        setTimetable(prev => [...prev, newEntry]);
-    };
-    const deleteTimetableEntry = (id: string) => {
-        setTimetable(prev => prev.filter(t => t.id !== id));
-    };
-
-    const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
-
-
-    const contextValue = useMemo(() => ({
-        currentUser,
-        currentView,
-        theme,
-        settings: MOCK_SETTINGS,
-        users,
-        announcements,
-        timetable,
-        isChatOpen,
-        isSidebarOpen,
-        notifications,
-        aiModalContent,
-        studyToolContent,
-        login,
-        logout,
-        signup,
-        setCurrentView,
-        setTheme,
-        updateUser,
-        addAnnouncement,
-        reactToAnnouncement,
-        updateTimetableEntry,
-        addTimetableEntry,
-        deleteTimetableEntry,
-        approveUser,
-        rejectUser,
-        setIsChatOpen,
-        toggleSidebar,
-        addNotification,
-        setAiModalContent,
-        setStudyToolContent,
-    }), [
-        currentUser, currentView, theme, users, announcements, timetable, isChatOpen,
-        isSidebarOpen, notifications, addNotification, aiModalContent, studyToolContent
-    ]);
-
-    const renderView = () => {
-        if (!currentUser) return <AuthView />;
-        switch (currentView) {
-            case 'dashboard': return <DashboardView />;
-            case 'timetable': return <TimetableView />;
-            case 'manage': return <ManageTimetableView />;
-            case 'approvals': return <ApprovalsView />;
-            case 'announcements': return <AnnouncementsView />;
-            case 'settings': return <SettingsView />;
-            default: return <DashboardView />;
-        }
-    };
-
-    return (
-        <AppContext.Provider value={contextValue}>
-            <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
-                {currentUser ? (
-                    <>
-                        <Sidebar />
-                        <main className="main-content">
-                            <Header />
-                            <div className="page-content">{renderView()}</div>
-                        </main>
-                        <ChatbotFab />
-                    </>
-                ) : (
-                    <AuthView />
-                )}
-                <NotificationArea />
-                <Modal
-                    isOpen={!!aiModalContent}
-                    onClose={() => setAiModalContent(null)}
-                    title={aiModalContent?.title || "AI Assistant"}
-                    size="lg"
-                >
-                    {aiModalContent?.isLoading ? (
-                        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}><LoadingSpinner /></div>
-                    ) : (
-                        <div className="ai-modal-content" dangerouslySetInnerHTML={{ __html: marked.parse(aiModalContent?.content || "") }} />
-                    )}
-                </Modal>
-                <AIStudyTool />
-            </div>
-        </AppContext.Provider>
-    );
-};
-
-// --- Mount Application ---
-const container = document.getElementById('root');
-if (container) {
-    const root = createRoot(container);
-    root.render(<App />);
-} else {
-    console.error("Root container not found. App could not be mounted.");
-}
+const root = createRoot(document.getElementById('root')!);
+root.render(<App />);
