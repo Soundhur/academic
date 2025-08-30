@@ -3027,34 +3027,21 @@ const StudyPlanModal = ({ onSave, onClose, addNotification }: { onSave: (plan: S
     );
 };
 
+interface ResolutionOption {
+    summary: string;
+    entries: Omit<TimetableEntry, 'id'>[];
+}
+
 const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, setTimetable, filter }: { onClose: () => void; settings: AppSettings; addNotification: (m: string, t: AppNotification['type']) => void; timetable: TimetableEntry[]; setTimetable: React.Dispatch<React.SetStateAction<TimetableEntry[]>>; filter: { department: string; year: string | undefined } }) => {
     const [query, setQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('Thinking...');
-    const [suggestion, setSuggestion] = useState<TimetableEntry[] | null>(null);
-    // FIX: A conflicting entry is a *proposed* entry from AI and does not have an ID yet.
-    // The type is updated to Omit the 'id' property to match the actual data shape, resolving the type error.
+    const [suggestion, setSuggestion] = useState<(Omit<TimetableEntry, 'id'>)[] | null>(null);
     const [conflicts, setConflicts] = useState<{ conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[] | null>(null);
-    const [resolution, setResolution] = useState<TimetableEntry[] | null>(null);
+    const [resolutionOptions, setResolutionOptions] = useState<ResolutionOption[] | null>(null);
+    const [selectedResolutionIndex, setSelectedResolutionIndex] = useState<number | null>(null);
 
-    const schema = {
-        type: Type.OBJECT,
-        properties: {
-            entries: { type: Type.ARRAY, items: {
-                type: Type.OBJECT,
-                properties: {
-                    day: { type: Type.STRING },
-                    timeIndex: { type: Type.INTEGER },
-                    subject: { type: Type.STRING },
-                    type: { type: Type.STRING, enum: ['class', 'lab', 'break', 'common'] },
-                    faculty: { type: Type.STRING },
-                    room: { type: Type.STRING }
-                }
-            }}
-        }
-    };
-    
-    // FIX: The signature of `handleResolveConflict` is updated to accept the correct type for `detectedConflicts`, which includes the `conflictingEntry` property.
+
     const handleResolveConflict = async (originalQuery: string, detectedConflicts: { conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[]) => {
         if (!ai) return;
         setLoadingMessage('Conflict found, resolving...');
@@ -3065,20 +3052,55 @@ const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, s
             
             const resolvePrompt = `You are a timetable scheduling assistant. The user's original request was: "${originalQuery}".
             Your first attempt to schedule this resulted in the following conflicts: ${conflictDetails}
-            Please find an alternative schedule that fulfills the original request but avoids these specific conflicts. Suggest alternative time slots, days or rooms.
-            Provide a new, conflict-free array of one or more timetable entry objects.
+            Please find up to 3 distinct alternative schedules that fulfill the original request but avoid these specific conflicts. For each alternative, provide a short summary and an array of entry objects.
             Department: ${filter.department}, Year: ${filter.year}.
             Available Time Slots: ${JSON.stringify(settings.timeSlots)}.
             Existing schedule for this class: ${JSON.stringify(timetable.filter(e => e.department === filter.department && e.year === filter.year))}.`;
             
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: resolvePrompt, config: { responseMimeType: 'application/json', responseSchema: schema } });
-            const { entries: resolvedEntries } = JSON.parse(response.text);
+             const resolutionSchema = {
+                type: Type.OBJECT,
+                properties: {
+                    resolutions: {
+                        type: Type.ARRAY,
+                        description: "An array of up to 3 distinct resolution options. Each option is a complete set of timetable entries that resolves the conflict.",
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                summary: { type: Type.STRING, description: "A very brief, user-friendly summary of this resolution option. e.g., 'Move to Wednesday at 2 PM in room CS104'." },
+                                entries: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            day: { type: Type.STRING },
+                                            timeIndex: { type: Type.INTEGER },
+                                            subject: { type: Type.STRING },
+                                            type: { type: Type.STRING, enum: ['class', 'lab', 'break', 'common'] },
+                                            faculty: { type: Type.STRING },
+                                            room: { type: Type.STRING }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
 
-            const resolvedEntriesWithDeptAndYear = resolvedEntries.map((e: Omit<TimetableEntry, 'id'|'department'|'year'>) => ({...e, department: filter.department, year: filter.year}));
-            
-            setResolution(resolvedEntriesWithDeptAndYear);
-            addNotification("Found a conflict-free alternative!", "success");
+            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: resolvePrompt, config: { responseMimeType: 'application/json', responseSchema: resolutionSchema } });
+            const { resolutions } = JSON.parse(response.text);
 
+            if (resolutions && resolutions.length > 0) {
+                 const resolutionsWithDeptAndYear = resolutions.map((res: ResolutionOption) => ({
+                    ...res,
+                    entries: res.entries.map(e => ({...e, department: filter.department, year: filter.year}))
+                }));
+                setResolutionOptions(resolutionsWithDeptAndYear);
+                setSelectedResolutionIndex(0);
+                addNotification("Found conflict-free alternatives!", "success");
+            } else {
+                 addNotification("Sorry, I couldn't automatically resolve the conflict.", "error");
+            }
         } catch (error) {
             console.error("AI conflict resolution failed:", error);
             addNotification("Sorry, I couldn't automatically resolve the conflict.", "error");
@@ -3096,9 +3118,26 @@ const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, s
         setLoadingMessage('Thinking...');
         setSuggestion(null);
         setConflicts(null);
-        setResolution(null);
+        setResolutionOptions(null);
+        setSelectedResolutionIndex(null);
 
         try {
+             const schema = {
+                type: Type.OBJECT,
+                properties: {
+                    entries: { type: Type.ARRAY, items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            day: { type: Type.STRING },
+                            timeIndex: { type: Type.INTEGER },
+                            subject: { type: Type.STRING },
+                            type: { type: Type.STRING, enum: ['class', 'lab', 'break', 'common'] },
+                            faculty: { type: Type.STRING },
+                            room: { type: Type.STRING }
+                        }
+                    }}
+                }
+            };
             const existingSchedule = timetable.filter(e => e.department === filter.department && e.year === filter.year);
             const prompt = `You are a timetable scheduling assistant. Based on the user command, schedule a class.
             User Command: "${query}"
@@ -3111,22 +3150,21 @@ const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, s
             const { entries: initialEntries } = JSON.parse(response.text);
             
             const detectedConflicts: { conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[] = [];
-            initialEntries.forEach((newEntry: Omit<TimetableEntry, 'id' | 'department' | 'year'>) => {
-                const existing = existingSchedule.find(e => e.day === newEntry.day && e.timeIndex === newEntry.timeIndex);
+            const entriesWithDeptAndYear = initialEntries.map((newEntry: Omit<TimetableEntry, 'id' | 'department' | 'year'>) => {
+                const entry = {...newEntry, department: filter.department, year: filter.year};
+                const existing = existingSchedule.find(e => e.day === entry.day && e.timeIndex === entry.timeIndex);
                 if (existing) {
-                    const newEntryWithMeta = {...newEntry, department: filter.department!, year: filter.year! };
-                    detectedConflicts.push({ conflictingEntry: newEntryWithMeta, existingEntry: existing });
+                    detectedConflicts.push({ conflictingEntry: entry, existingEntry: existing });
                 }
+                return entry;
             });
             
-            const entriesWithDeptAndYear = initialEntries.map((e: Omit<TimetableEntry, 'id' | 'department' | 'year'>) => ({...e, department: filter.department, year: filter.year}));
+            setSuggestion(entriesWithDeptAndYear);
 
             if (detectedConflicts.length > 0) {
-                setSuggestion(entriesWithDeptAndYear);
                 setConflicts(detectedConflicts);
                 await handleResolveConflict(query, detectedConflicts);
             } else {
-                setSuggestion(entriesWithDeptAndYear);
                 setIsLoading(false);
             }
 
@@ -3138,11 +3176,18 @@ const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, s
     };
     
     const handleApply = () => {
-        const entriesToApply = resolution || suggestion;
-        if (!entriesToApply) return;
+        let entriesToApply: Omit<TimetableEntry, 'id'>[] = [];
+
+        if (resolutionOptions && selectedResolutionIndex !== null) {
+            entriesToApply = resolutionOptions[selectedResolutionIndex].entries;
+        } else if (suggestion && !conflicts) {
+            entriesToApply = suggestion;
+        }
+
+        if (entriesToApply.length === 0) return;
 
         const newEntries = entriesToApply.map(e => ({ ...e, id: `tt_${Date.now()}_${Math.random()}`}));
-        setTimetable(prev => [...prev, ...newEntries]);
+        setTimetable(prev => [...prev.filter(p => !newEntries.some(n => n.day === p.day && n.timeIndex === p.timeIndex && n.department === p.department && n.year === p.year)), ...newEntries]);
         addNotification("Timetable updated successfully!", "success");
         onClose();
     };
@@ -3150,7 +3195,9 @@ const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, s
     const handleClear = () => {
         setSuggestion(null);
         setConflicts(null);
-        setResolution(null);
+        setResolutionOptions(null);
+        setSelectedResolutionIndex(null);
+        setQuery('');
     };
 
     return (
@@ -3175,16 +3222,28 @@ const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, s
                         )}
                     </div>
                 )}
-
-                {resolution && !isLoading && (
-                    <div className="resolution-suggestion">
-                        <h4><Icon name="sparkles" className="w-5 h-5"/> Resolution Suggestion</h4>
-                         {resolution.map((entry, i) => (
-                             <p key={i}>- Schedule <strong>{entry.subject}</strong> on {entry.day} at {settings.timeSlots[entry.timeIndex]}</p>
-                        ))}
+                
+                {resolutionOptions && !isLoading && (
+                    <div className="resolution-options">
+                        <h4><Icon name="sparkles" className="w-5 h-5"/> Resolution Options</h4>
+                        <div className="radio-group">
+                            {resolutionOptions.map((option, index) => (
+                                <div key={index}>
+                                    <input
+                                        type="radio"
+                                        id={`res-option-${index}`}
+                                        name="resolution-option"
+                                        value={index}
+                                        checked={selectedResolutionIndex === index}
+                                        onChange={() => setSelectedResolutionIndex(index)}
+                                    />
+                                    <label htmlFor={`res-option-${index}`}>{option.summary}</label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
-                
+
                 {suggestion && !conflicts && !isLoading && (
                      <div className="ai-suggestion-panel">
                         <h4>AI Suggestion:</h4>
@@ -3197,22 +3256,22 @@ const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, s
              </div>
              <div className="modal-footer">
                  <div>
-                    {(suggestion || resolution) && !isLoading && (
+                    {(suggestion || resolutionOptions) && !isLoading && (
                         <button type="button" className="btn btn-secondary" onClick={handleClear}>Clear</button>
                     )}
                 </div>
                 <div className="flex gap-2">
                     <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
                     
-                    {(!suggestion && !resolution) ? (
-                        <button className="btn btn-primary" onClick={handleGenerate} disabled={isLoading}>
+                    {(!suggestion && !resolutionOptions) ? (
+                        <button className="btn btn-primary" onClick={handleGenerate} disabled={isLoading || !query}>
                             {isLoading ? <><span className="spinner"></span> {loadingMessage}</> : 'Generate Schedule'}
                         </button>
                     ) : (
-                         <button className="btn btn-primary" onClick={handleApply} disabled={isLoading || (!!conflicts && !resolution)}>
+                         <button className="btn btn-primary" onClick={handleApply} disabled={isLoading || (!!conflicts && !resolutionOptions)}>
                             {isLoading 
                                 ? <><span className="spinner"></span> {loadingMessage}</> 
-                                : (resolution ? 'Apply Resolution' : 'Apply Suggestion')
+                                : (resolutionOptions ? 'Apply Selected Resolution' : 'Apply Suggestion')
                             }
                         </button>
                     )}
