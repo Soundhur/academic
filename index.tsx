@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { GoogleGenAI, Chat, Type, GenerateContentResponse, Modality } from "@google/genai";
@@ -34,7 +34,7 @@ interface TimetableEntry {
     day: string;
     timeIndex: number;
     subject: string;
-    type: 'break' | 'class' | 'common';
+    type: 'break' | 'class' | 'common' | 'lab';
     faculty?: string;
     room?: string;
 }
@@ -77,6 +77,7 @@ interface User {
         interventions: string[];
         timestamp: number;
     };
+    studyPlans?: StudyPlan[];
 }
 
 interface Resource {
@@ -133,6 +134,11 @@ interface AppNotification {
     type: 'info' | 'success' | 'error' | 'warning';
 }
 
+interface HistoricalNotification extends AppNotification {
+    timestamp: number;
+    isRead: boolean;
+}
+
 interface AuditLogEntry {
     id: string;
     timestamp: number;
@@ -161,13 +167,22 @@ interface SecurityAlert {
     };
 }
 
+interface AppTheme {
+    name: string;
+    colors: {
+        '--accent-primary': string;
+        '--accent-primary-hover': string;
+    };
+}
 interface AppSettings {
     timeSlots: string[];
     accentColor: string;
     theme: 'light' | 'dark';
+    activeTheme: string;
 }
 
 interface StudyPlan {
+    id: string;
     title: string;
     weeks: {
         week: number;
@@ -189,8 +204,13 @@ interface QuizQuestion {
 const DEPARTMENTS = ["CSE", "ECE", "EEE", "MCA", "AI&DS", "CYBERSECURITY", "MECHANICAL", "TAMIL", "ENGLISH", "MATHS", "LIB", "NSS", "NET", "Administration", "IT"];
 const YEARS = ["I", "II", "III", "IV"];
 const ROLES: UserRole[] = ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal'];
-// FIX: Define the missing DAYS constant.
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const THEMES: AppTheme[] = [
+    { name: 'Default Blue', colors: { '--accent-primary': '#3B82F6', '--accent-primary-hover': '#2563EB' } },
+    { name: 'Ocean Green', colors: { '--accent-primary': '#10b981', '--accent-primary-hover': '#059669' } },
+    { name: 'Sunset Orange', colors: { '--accent-primary': '#f59e0b', '--accent-primary-hover': '#d97706' } },
+    { name: 'Royal Purple', colors: { '--accent-primary': '#8b5cf6', '--accent-primary-hover': '#7c3aed' } },
+];
 
 // --- MOCK DATA ---
 const initialUsers: User[] = [
@@ -198,8 +218,8 @@ const initialUsers: User[] = [
     { id: 'user_2', name: 'Admin User', role: 'admin', dept: 'IT', status: 'active', isLocked: false },
     { id: 'user_3', name: 'Prof. Samuel Chen', role: 'hod', dept: 'CSE', status: 'active', isLocked: false },
     { id: 'user_4', name: 'Prof. Aisha Khan', role: 'faculty', dept: 'ECE', status: 'active', isLocked: false },
-    { id: 'user_5', name: 'John Doe', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, { subject: 'Algorithms', score: 92 }], attendance: { present: 78, total: 85 }, isLocked: false },
-    { id: 'user_6', name: 'Jane Smith', role: 'student', dept: 'CSE', year: 'II', status: 'pending_approval', isLocked: false },
+    { id: 'user_5', name: 'John Doe', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, { subject: 'Algorithms', score: 92 }], attendance: { present: 78, total: 85 }, isLocked: false, studyPlans: [] },
+    { id: 'user_6', name: 'Jane Smith', role: 'student', dept: 'CSE', year: 'II', status: 'pending_approval', isLocked: false, studyPlans: [] },
     { id: 'user_7', name: 'Creator', role: 'creator', dept: 'IT', status: 'active', isLocked: false },
 ];
 
@@ -241,8 +261,9 @@ const initialSecurityAlerts: SecurityAlert[] = [
 
 const initialAppSettings: AppSettings = {
     timeSlots: ["9:00 - 10:00", "10:00 - 11:00", "11:00 - 12:00", "12:00 - 1:00", "2:00 - 3:00", "3:00 - 4:00"],
-    accentColor: '#3B82F6',
+    accentColor: '#3B82F6', // Legacy, now managed by theme
     theme: 'light',
+    activeTheme: 'Default Blue',
 };
 
 // --- UTILITY FUNCTIONS ---
@@ -270,22 +291,49 @@ const useLocalStorage = <T,>(key: string, initialValue: T): [T, React.Dispatch<R
     return [storedValue, setValue];
 };
 
-const useNotifications = () => {
-    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+const useAppNotifications = () => {
+    const [notifications, setNotifications] = useLocalStorage<HistoricalNotification[]>('app_notifications_history', []);
+    const [toastQueue, setToastQueue] = useState<AppNotification[]>([]);
 
     const addNotification = (message: string, type: AppNotification['type'] = 'info') => {
         const id = `notif_${Date.now()}`;
-        setNotifications(prev => [...prev, { id, message, type }]);
+        const newNotification: HistoricalNotification = { id, message, type, timestamp: Date.now(), isRead: false };
+
+        setNotifications(prev => [newNotification, ...prev.slice(0, 19)]); // Keep last 20
+        setToastQueue(prev => [...prev, { id, message, type }]);
+
         setTimeout(() => {
-            setNotifications(prev => prev.filter(n => n.id !== id));
+            setToastQueue(prev => prev.filter(n => n.id !== id));
         }, 5000);
     };
 
-    const removeNotification = (id: string) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+    const markAllAsRead = () => {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    };
+    
+    const clearNotifications = () => {
+        setNotifications([]);
     };
 
-    return { notifications, addNotification, removeNotification };
+    const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
+
+    return { notifications, toastQueue, addNotification, markAllAsRead, clearNotifications, unreadCount };
+};
+
+const formatRelativeTime = (timestamp: number) => {
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - timestamp) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    return "Just now";
 };
 
 
@@ -326,6 +374,9 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         'x-mark': <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />,
         'chevron-left': <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />,
         'chevron-right': <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />,
+        'chevron-up': <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />,
+        'chevron-down': <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />,
+        'chevron-up-down': <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />,
         info: <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />,
         warning: <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />,
         success: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
@@ -337,6 +388,7 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         'eye-slash': <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.754 0 8.774 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21M12 15a3 3 0 100-6 3 3 0 000 6z" />,
         palette: <path strokeLinecap="round" strokeLinejoin="round" d="M12.075 4.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v1.5a2.25 2.25 0 002.25 2.25h3.075m0-3.75C9.435 4.75 9 5.336 9 6.125v1.75a1.125 1.125 0 102.25 0V6.125c0-.79-.435-1.375-1.125-1.375zM15 9.75a2.25 2.25 0 012.25-2.25h1.5a2.25 2.25 0 012.25 2.25v1.5a2.25 2.25 0 01-2.25 2.25h-1.5a2.25 2.25 0 01-2.25-2.25v-1.5zM15 9.75c0 .79.435 1.375 1.125 1.375h1.75a1.125 1.125 0 100-2.25h-1.75c-.69 0-1.125.585-1.125 1.375zM4.5 15.75a2.25 2.25 0 002.25 2.25h1.5a2.25 2.25 0 002.25-2.25v-1.5a2.25 2.25 0 00-2.25-2.25h-1.5a2.25 2.25 0 00-2.25 2.25v1.5zM4.5 15.75c0 .79.435 1.375 1.125 1.375h1.75a1.125 1.125 0 100-2.25h-1.75C4.935 14.375 4.5 14.96 4.5 15.75z" />,
         key: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />,
+        lightbulb: <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v2.25M12 14.25v5.25M15 17.25v2.25M8.25 12h7.5M12 1.5c-3.314 0-6 2.686-6 6 0 2.033.993 3.843 2.5 4.995V12h7v-1.505c1.507-1.152 2.5-2.962 2.5-4.995 0-3.314-2.686-6-6-6z" />,
         sliders: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />,
         'calendar-check': <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
         megaphone: <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />,
@@ -344,6 +396,7 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         'bar-chart': <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />,
         'shield-exclamation': <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />,
         today: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18M12 15a2.25 2.25 0 110-4.5 2.25 2.25 0 010 4.5z" />,
+        'study-plan': <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6-2.292m0 0V11.25m0 10.042V18.75M12 11.25L15 13.5M12 11.25L9 13.5" />,
     };
 
     return (
@@ -483,7 +536,9 @@ const AuthView = ({ setView, setCurrentUser, users, addUser, addNotification }: 
                             Don't have an account? <button onClick={() => setIsFlipped(true)}>Sign Up</button>
                         </div>
                          <div className="auth-hint">
-                            <p>Demo Login: <strong>user_5</strong> / (any password)</p>
+                            <p><strong>Demo Logins (any password):</strong></p>
+                            <p>Admin: <strong>user_2</strong> | HOD: <strong>user_3</strong></p>
+                            <p>Faculty: <strong>user_4</strong> | Student: <strong>user_5</strong></p>
                         </div>
                     </div>
                     <div className="login-card-back">
@@ -531,7 +586,9 @@ const AuthView = ({ setView, setCurrentUser, users, addUser, addNotification }: 
     );
 };
 
-const DashboardView = ({ currentUser, announcements, calendarEvents, users, securityAlerts, setView }: { currentUser: User; announcements: Announcement[]; calendarEvents: CalendarEvent[]; users: User[]; securityAlerts: SecurityAlert[]; setView: (view: AppView) => void }) => {
+const DashboardView = ({ currentUser, announcements, calendarEvents, users, securityAlerts, setView, setUsers, addNotification }: { currentUser: User; announcements: Announcement[]; calendarEvents: CalendarEvent[]; users: User[]; securityAlerts: SecurityAlert[]; setView: (view: AppView) => void; setUsers: React.Dispatch<React.SetStateAction<User[]>>; addNotification: (m: string, t: AppNotification['type']) => void }) => {
+    const [isStudyPlanModalOpen, setStudyPlanModalOpen] = useState(false);
+
     const getUpcomingEvents = () => {
         const today = new Date().toISOString().split('T')[0];
         return calendarEvents
@@ -548,6 +605,16 @@ const DashboardView = ({ currentUser, announcements, calendarEvents, users, secu
 
     const pendingApprovalsCount = users.filter(u => u.status === 'pending_approval').length;
     const unresolvedAlerts = securityAlerts.filter(a => !a.isResolved);
+    
+    const handleSaveStudyPlan = (plan: StudyPlan) => {
+        const updatedUser = {
+            ...currentUser,
+            studyPlans: [...(currentUser.studyPlans || []), plan],
+        };
+        setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+        addNotification("Study plan saved!", "success");
+        setStudyPlanModalOpen(false);
+    };
 
     return (
         <div className="dashboard-container">
@@ -598,21 +665,39 @@ const DashboardView = ({ currentUser, announcements, calendarEvents, users, secu
                     </div>
                 )}
 
-                {currentUser.role === 'student' && currentUser.grades && currentUser.attendance && (
-                     <div className="dashboard-card full-width stagger-item" style={{ animationDelay: '0.3s' }}>
-                         <h3><Icon name="bar-chart" className="inline-block mr-2 w-5 h-5" />My Stats</h3>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                             <div>
-                                <h4>Grades</h4>
-                                <BarChart data={currentUser.grades.map(g => ({ label: g.subject, value: g.score }))} />
-                             </div>
-                             <div>
-                                 <h4>Attendance</h4>
-                                 <p className="text-3xl font-bold">{((currentUser.attendance.present / currentUser.attendance.total) * 100).toFixed(1)}%</p>
-                                 <p className="text-secondary">{currentUser.attendance.present} / {currentUser.attendance.total} classes attended</p>
+                {currentUser.role === 'student' && (
+                     <>
+                        <div className="dashboard-card stagger-item" style={{ animationDelay: '0.3s' }}>
+                            <h3><Icon name="study-plan" className="inline-block mr-2 w-5 h-5" />AI Study Plan</h3>
+                            <div className="feed-item-card">
+                                <div className="feed-item-icon"><Icon name="sparkles" /></div>
+                                <div>
+                                    <p className="feed-item-title">Plan your studies effectively.</p>
+                                    <button className="btn-link" onClick={() => setStudyPlanModalOpen(true)}>Generate a new plan</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="dashboard-card full-width stagger-item" style={{ animationDelay: '0.4s' }}>
+                             <h3><Icon name="bar-chart" className="inline-block mr-2 w-5 h-5" />My Stats</h3>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                 <div>
+                                    <h4>Grades</h4>
+                                    {currentUser.grades && currentUser.grades.length > 0 ? (
+                                        <BarChart data={currentUser.grades.map(g => ({ label: g.subject, value: g.score }))} />
+                                    ) : <p className="text-secondary text-sm">No grades recorded yet.</p>}
+                                 </div>
+                                 <div>
+                                     <h4>Attendance</h4>
+                                     {currentUser.attendance ? (
+                                        <>
+                                            <p className="text-3xl font-bold">{((currentUser.attendance.present / currentUser.attendance.total) * 100).toFixed(1)}%</p>
+                                            <p className="text-secondary">{currentUser.attendance.present} / {currentUser.attendance.total} classes attended</p>
+                                        </>
+                                     ) : <p className="text-secondary text-sm">No attendance data available.</p>}
+                                 </div>
                              </div>
                          </div>
-                     </div>
+                     </>
                 )}
                 
                 {currentUser.role === 'admin' && unresolvedAlerts.length > 0 && (
@@ -633,16 +718,19 @@ const DashboardView = ({ currentUser, announcements, calendarEvents, users, secu
                     </div>
                 )}
             </div>
+            {isStudyPlanModalOpen && <StudyPlanModal onSave={handleSaveStudyPlan} onClose={() => setStudyPlanModalOpen(false)} addNotification={addNotification} />}
         </div>
     );
 };
 
-const TimetableView = ({ currentUser, timetable, settings, setTimetable }: { currentUser: User; timetable: TimetableEntry[]; settings: AppSettings; setTimetable: React.Dispatch<React.SetStateAction<TimetableEntry[]>> }) => {
+const TimetableView = ({ currentUser, timetable, settings, setTimetable, addNotification }: { currentUser: User; timetable: TimetableEntry[]; settings: AppSettings; setTimetable: React.Dispatch<React.SetStateAction<TimetableEntry[]>>; addNotification: (m: string, t: AppNotification['type']) => void }) => {
     const [filter, setFilter] = useState({
         department: currentUser.role === 'student' || currentUser.role === 'faculty' ? currentUser.dept : 'CSE',
         year: currentUser.role === 'student' ? currentUser.year : 'II',
     });
     const [editingCell, setEditingCell] = useState<TimetableEntry | null>(null);
+    const [isAIAssistantOpen, setAIAssistantOpen] = useState(false);
+
 
     const filteredTimetable = useMemo(() => {
         return timetable.filter(entry => entry.department === filter.department && entry.year === filter.year);
@@ -706,6 +794,7 @@ const TimetableView = ({ currentUser, timetable, settings, setTimetable }: { cur
                             <label htmlFor="type">Type</label>
                             <select id="type" className="form-control" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as TimetableEntry['type'] })}>
                                 <option value="class">Class</option>
+                                <option value="lab">Lab</option>
                                 <option value="break">Break</option>
                                 <option value="common">Common Hour</option>
                             </select>
@@ -738,6 +827,14 @@ const TimetableView = ({ currentUser, timetable, settings, setTimetable }: { cur
     return (
         <>
             <div className="timetable-header">
+                 <div className="view-header !mb-0 flex-grow">
+                    <h2 className="text-2xl font-bold">Timetable</h2>
+                    {['admin', 'hod', 'creator'].includes(currentUser.role) && (
+                        <button className="btn btn-primary" onClick={() => setAIAssistantOpen(true)}>
+                            <Icon name="robot" className="w-4 h-4" /> AI Assistant
+                        </button>
+                    )}
+                </div>
                 <div className="timetable-controls">
                     <div className="control-group-inline">
                         <label htmlFor="dept-filter">Dept:</label>
@@ -790,6 +887,7 @@ const TimetableView = ({ currentUser, timetable, settings, setTimetable }: { cur
                 </div>
             </div>
             {editingCell && <TimetableModal entry={editingCell} onSave={handleSave} onClose={() => setEditingCell(null)} />}
+            {isAIAssistantOpen && <AITimetableAssistant onClose={() => setAIAssistantOpen(false)} settings={settings} addNotification={addNotification} timetable={timetable} setTimetable={setTimetable} filter={filter} />}
         </>
     );
 };
@@ -1137,14 +1235,14 @@ const AcademicCalendarView = ({ events, setEvents, currentUser, addNotification 
 
 const SettingsView = ({ settings, setSettings, currentUser, addNotification }: { settings: AppSettings, setSettings: React.Dispatch<React.SetStateAction<AppSettings>>, currentUser: User, addNotification: (message: string, type: AppNotification['type']) => void }) => {
     const [theme, setTheme] = useState(settings.theme);
-    const [accentColor, setAccentColor] = useState(settings.accentColor);
+    const [activeTheme, setActiveTheme] = useState(settings.activeTheme);
     const [newTimeSlot, setNewTimeSlot] = useState("");
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
 
     const handleSaveAppearance = () => {
-        setSettings(s => ({ ...s, theme, accentColor }));
+        setSettings(s => ({ ...s, theme, activeTheme }));
         addNotification('Appearance settings saved!', 'success');
     };
     
@@ -1171,8 +1269,6 @@ const SettingsView = ({ settings, setSettings, currentUser, addNotification }: {
             addNotification('Password must be at least 6 characters long.', 'error');
             return;
         }
-        // In a real app, you'd verify the current password and make an API call.
-        // Here we'll simulate success.
         console.log("Password changed for user:", currentUser.id);
         addNotification('Password changed successfully!', 'success');
         setCurrentPassword("");
@@ -1184,24 +1280,34 @@ const SettingsView = ({ settings, setSettings, currentUser, addNotification }: {
         <div className="flex flex-col gap-8">
             <div className="view-header"><h2 className="text-2xl font-bold">Settings</h2></div>
             <div className="grid md:grid-cols-2 gap-8">
-                {/* Appearance Settings */}
                 <div className="dashboard-card">
                     <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><Icon name="palette"/>Appearance</h3>
                     <div className="control-group">
-                        <label>Theme</label>
+                        <label>Mode</label>
                         <div className="flex gap-4">
                             <button onClick={() => setTheme('light')} className={`btn ${theme === 'light' ? 'btn-primary' : 'btn-secondary'}`}>Light</button>
                             <button onClick={() => setTheme('dark')} className={`btn ${theme === 'dark' ? 'btn-primary' : 'btn-secondary'}`}>Dark</button>
                         </div>
                     </div>
                     <div className="control-group">
-                        <label htmlFor="accent-color">Accent Color</label>
-                        <input type="color" id="accent-color" value={accentColor} onChange={e => setAccentColor(e.target.value)} className="w-16 h-8 p-0 border-none rounded"/>
+                        <label>Theme</label>
+                        <div className="theme-swatches">
+                            {THEMES.map(t => (
+                                <button
+                                    key={t.name}
+                                    className={`theme-swatch ${activeTheme === t.name ? 'active' : ''}`}
+                                    style={{ backgroundColor: t.colors['--accent-primary'] }}
+                                    onClick={() => setActiveTheme(t.name)}
+                                    aria-label={`Select ${t.name} theme`}
+                                >
+                                    {activeTheme === t.name && <Icon name="check" className="w-5 h-5 text-white" />}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     <button onClick={handleSaveAppearance} className="btn btn-primary mt-2">Save Appearance</button>
                 </div>
 
-                {/* Profile Management */}
                  <div className="dashboard-card">
                     <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><Icon name="user"/>Profile Management</h3>
                     <form onSubmit={handlePasswordChange}>
@@ -1248,6 +1354,7 @@ const UserManagementView = ({ users, setUsers, addNotification }: { users: User[
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ role: 'all', dept: 'all', status: 'all' });
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [generatingSummaryFor, setGeneratingSummaryFor] = useState<string | null>(null);
 
     const handleFilterChange = (filterName: string, value: string) => {
         setFilters(prev => ({ ...prev, [filterName]: value }));
@@ -1262,6 +1369,30 @@ const UserManagementView = ({ users, setUsers, addNotification }: { users: User[
                 )
             );
             addNotification(`User '${user.name}' has been ${user.isLocked ? 'unlocked' : 'locked'}.`, 'info');
+        }
+    };
+    
+    const handleGenerateSummary = async (user: User) => {
+        if (!ai) {
+            addNotification("AI features are disabled.", "error");
+            return;
+        }
+        setGeneratingSummaryFor(user.id);
+        try {
+            let promptContext = `User: ${user.name}, Role: ${user.role}, Department: ${user.dept}, Status: ${user.status}.`;
+            if (user.role === 'student') {
+                promptContext += ` Year: ${user.year}. Grades: ${JSON.stringify(user.grades || [])}. Attendance: ${JSON.stringify(user.attendance || {})}.`;
+            }
+            const prompt = `Generate a concise, one-paragraph summary for the following user, highlighting their academic standing, role, and any notable points (e.g., high-achiever, poor attendance, pending status). Context: ${promptContext}`;
+            
+            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, aiSummary: response.text } : u));
+            addNotification(`AI summary generated for ${user.name}.`, 'success');
+        } catch (error) {
+            console.error("AI summary generation failed:", error);
+            addNotification("Failed to generate AI summary.", "error");
+        } finally {
+            setGeneratingSummaryFor(null);
         }
     };
 
@@ -1390,6 +1521,7 @@ const UserManagementView = ({ users, setUsers, addNotification }: { users: User[
                             <th>Role</th>
                             <th>Department</th>
                             <th>Status</th>
+                            <th>AI Summary</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -1411,22 +1543,31 @@ const UserManagementView = ({ users, setUsers, addNotification }: { users: User[
                                 <td><span className={`role-badge role-${user.role.replace(/ /g, '-')}`}>{user.role} {user.role === 'student' && `(${user.year})`}</span></td>
                                 <td>{user.dept}</td>
                                 <td><span className={`status-badge status-${user.status}`}>{user.status.replace('_', ' ')}</span></td>
+                                <td className="ai-summary-cell">
+                                    {user.aiSummary && <p className="text-xs text-secondary">{user.aiSummary}</p>}
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => handleGenerateSummary(user)}
+                                        disabled={generatingSummaryFor === user.id}
+                                    >
+                                        {generatingSummaryFor === user.id ? <span className="spinner"></span> : <Icon name="sparkles" className="w-4 h-4" />}
+                                    </button>
+                                </td>
                                 <td>
                                     <button className="btn btn-secondary btn-sm" onClick={() => setEditingUser(user)}>
-                                        <Icon name="edit" className="w-4 h-4"/> Edit
+                                        <Icon name="edit" className="w-4 h-4"/>
                                     </button>
                                     <button 
                                         className={`btn btn-sm ${user.isLocked ? 'btn-secondary' : 'btn-danger-outline'}`} 
                                         onClick={() => handleToggleLock(user.id)}
                                     >
                                         <Icon name={user.isLocked ? 'key' : 'lock'} className="w-4 h-4"/> 
-                                        {user.isLocked ? 'Unlock' : 'Lock'}
                                     </button>
                                 </td>
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan={5} className="text-center py-8 text-secondary">
+                                <td colSpan={6} className="text-center py-8 text-secondary">
                                     No users found matching your criteria.
                                 </td>
                             </tr>
@@ -1854,6 +1995,487 @@ const SecurityView = ({ securityAlerts, setSecurityAlerts, users, setUsers, addN
     );
 };
 
+const ResourceModal = ({ resource, onSave, onClose, addNotification }: { resource: Resource, onSave: (r: Resource) => void, onClose: () => void, addNotification: (message: string, type: AppNotification['type']) => void }) => {
+    const [formData, setFormData] = useState(resource);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!formData.name || !formData.subject) {
+            addNotification("Please fill in the resource name and subject.", "error");
+            return;
+        }
+        onSave(formData);
+    };
+    
+    return (
+        <Modal onClose={onClose}>
+            <form onSubmit={handleSubmit}>
+                <div className="modal-header">
+                    <h3>{resource.id.startsWith('new_') ? 'Upload Resource' : 'Edit Resource'}</h3>
+                    <button type="button" onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
+                </div>
+                <div className="modal-body">
+                     <div className="control-group">
+                        <label htmlFor="res-name">Resource Name</label>
+                        <input id="res-name" type="text" className="form-control" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g., Chapter 1 Notes.pdf" required />
+                    </div>
+                    <div className="control-group">
+                        <label htmlFor="res-subject">Subject</label>
+                        <input id="res-subject" type="text" className="form-control" value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} placeholder="e.g., Data Structures" required />
+                    </div>
+                    <div className="form-grid">
+                        <div className="control-group">
+                            <label htmlFor="res-type">Type</label>
+                            <select id="res-type" className="form-control" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as Resource['type']})}>
+                                <option value="notes">Notes</option>
+                                <option value="book">Book</option>
+                                <option value="project">Project</option>
+                                <option value="lab">Lab Manual</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                         <div className="control-group">
+                            <label htmlFor="res-dept">Department</label>
+                            <select id="res-dept" className="form-control" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})}>
+                               {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                    <button type="submit" className="btn btn-primary">Save Resource</button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
+
+const QuizModal = ({ resource, onClose, addNotification }: { resource: Resource; onClose: () => void; addNotification: (m: string, t: AppNotification['type']) => void; }) => {
+    const [quizState, setQuizState] = useState<'loading' | 'active' | 'finished'>('loading');
+    const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+    const [score, setScore] = useState(0);
+
+    useEffect(() => {
+        const fetchQuiz = async () => {
+            if (!ai) {
+                addNotification("AI features are disabled.", "error");
+                onClose();
+                return;
+            }
+            try {
+                const prompt = `Generate a 5-question multiple-choice quiz about "${resource.subject}". Each question should have 4 options and a clear correct answer.`;
+                const quizSchema = {
+                    type: Type.OBJECT,
+                    properties: {
+                        questions: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    question: { type: Type.STRING },
+                                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                    correctAnswerIndex: { type: Type.INTEGER },
+                                },
+                            },
+                        },
+                    },
+                };
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: { responseMimeType: 'application/json', responseSchema: quizSchema },
+                });
+                
+                const quizData = JSON.parse(response.text);
+                if (quizData.questions && quizData.questions.length > 0) {
+                    setQuestions(quizData.questions);
+                    setQuizState('active');
+                } else {
+                    throw new Error("Invalid quiz data received.");
+                }
+            } catch (error) {
+                console.error("Failed to generate quiz:", error);
+                addNotification("Could not generate a quiz for this resource.", "error");
+                onClose();
+            }
+        };
+        fetchQuiz();
+    }, [resource, addNotification, onClose]);
+
+    const handleAnswerSelect = (answerIndex: number) => {
+        if (selectedAnswer !== null) return; // Prevent changing answer
+        setSelectedAnswer(answerIndex);
+        if (answerIndex === questions[currentQuestionIndex].correctAnswerIndex) {
+            setScore(prev => prev + 1);
+        }
+    };
+
+    const handleNextQuestion = () => {
+        if (currentQuestionIndex < questions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+            setSelectedAnswer(null);
+        } else {
+            setQuizState('finished');
+        }
+    };
+    
+    const handleRetake = () => {
+        setScore(0);
+        setCurrentQuestionIndex(0);
+        setSelectedAnswer(null);
+        setQuizState('loading');
+        // Re-fetch questions for a new quiz
+        const fetchQuiz = async () => {
+             if (!ai) return;
+             try {
+                const prompt = `Generate a NEW 5-question multiple-choice quiz about "${resource.subject}".`;
+                const quizSchema = { /* same schema */ type: Type.OBJECT, properties: { questions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { question: { type: Type.STRING }, options: { type: Type.ARRAY, items: { type: Type.STRING } }, correctAnswerIndex: { type: Type.INTEGER } } } } } };
+                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: quizSchema } });
+                const quizData = JSON.parse(response.text);
+                setQuestions(quizData.questions);
+                setQuizState('active');
+             } catch(e) { onClose(); }
+        };
+        fetchQuiz();
+    };
+
+    const currentQuestion = questions[currentQuestionIndex];
+
+    return (
+        <Modal onClose={onClose} size="large">
+            <div className="modal-header">
+                <h3>Quiz: {resource.name}</h3>
+                <button type="button" onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
+            </div>
+            <div className="modal-body quiz-modal-content">
+                {quizState === 'loading' && (
+                    <div className="spinner-container">
+                        <div className="spinner"></div>
+                        <p className="ml-4 text-secondary">Generating your quiz...</p>
+                    </div>
+                )}
+                {quizState === 'active' && currentQuestion && (
+                    <>
+                        <div className="quiz-progress-header">
+                            <p>Question {currentQuestionIndex + 1} of {questions.length}</p>
+                            <div className="quiz-progress-bar-container">
+                                <div className="quiz-progress-bar" style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}></div>
+                            </div>
+                        </div>
+                        <div className="quiz-question-container">
+                            <h4 className="text-xl font-semibold">{currentQuestion.question}</h4>
+                            <div className="quiz-options">
+                                {currentQuestion.options.map((option, index) => {
+                                    const isCorrect = index === currentQuestion.correctAnswerIndex;
+                                    const isSelected = selectedAnswer === index;
+                                    let btnClass = 'quiz-option-btn';
+                                    if (selectedAnswer !== null) {
+                                        if (isCorrect) btnClass += ' correct';
+                                        else if (isSelected) btnClass += ' incorrect';
+                                    } else if (isSelected) {
+                                        btnClass += ' selected';
+                                    }
+                                    return (
+                                        <button key={index} className={btnClass} onClick={() => handleAnswerSelect(index)} disabled={selectedAnswer !== null}>
+                                            {option}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )}
+                {quizState === 'finished' && (
+                    <div className="quiz-results">
+                        <Icon name="check" className="w-16 h-16 text-green-500"/>
+                        <h3 className="text-2xl font-bold mt-4">Quiz Complete!</h3>
+                        <p className="text-secondary mt-2">You scored</p>
+                        <p className="text-5xl font-bold my-2">{score} <span className="text-2xl text-secondary">/ {questions.length}</span></p>
+                    </div>
+                )}
+            </div>
+            <div className="modal-footer">
+                {quizState === 'active' && selectedAnswer !== null && (
+                    <button className="btn btn-primary" onClick={handleNextQuestion}>
+                        {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+                    </button>
+                )}
+                {quizState === 'finished' && (
+                    <>
+                        <button className="btn btn-secondary" onClick={handleRetake}>Retake Quiz</button>
+                        <button className="btn btn-primary" onClick={onClose}>Close</button>
+                    </>
+                )}
+            </div>
+        </Modal>
+    );
+};
+
+
+const ResourcesView = ({ resources, setResources, currentUser, addNotification }: { resources: Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>, currentUser: User, addNotification: (message: string, type: AppNotification['type']) => void }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingResource, setEditingResource] = useState<Resource | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState({ department: 'all', type: 'all' });
+    type SortableKeys = 'name' | 'department' | 'subject' | 'uploaderName' | 'timestamp';
+    const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' }>({ key: 'timestamp', direction: 'descending' });
+
+    const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+    const [selectedResourceForQuiz, setSelectedResourceForQuiz] = useState<Resource | null>(null);
+
+
+    const canUpload = ['faculty', 'hod', 'principal', 'admin', 'creator'].includes(currentUser.role);
+
+    const canManageResource = (resource: Resource) => {
+        if (['admin', 'principal', 'creator'].includes(currentUser.role)) {
+            return true;
+        }
+        if (currentUser.role === 'hod' && currentUser.dept === resource.department) {
+            return true;
+        }
+        if (currentUser.id === resource.uploaderId) {
+            return true;
+        }
+        return false;
+    };
+
+    const requestSort = (key: SortableKeys) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const filteredResources = useMemo(() => {
+        let sortableResources = [...resources];
+        sortableResources.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+
+            if (aValue < bValue) {
+                return sortConfig.direction === 'ascending' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+
+        return sortableResources
+            .filter(res => {
+                const searchMatch = searchTerm === '' || 
+                                  res.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                  res.subject.toLowerCase().includes(searchTerm.toLowerCase());
+                const deptMatch = filters.department === 'all' || res.department === filters.department;
+                const typeMatch = filters.type === 'all' || res.type === filters.type;
+                return searchMatch && deptMatch && typeMatch;
+            });
+    }, [resources, searchTerm, filters, sortConfig]);
+
+    const handleUploadClick = () => {
+        setEditingResource({
+            id: `new_${Date.now()}`,
+            name: '',
+            type: 'notes',
+            department: currentUser.dept,
+            subject: '',
+            uploaderId: currentUser.id,
+            uploaderName: currentUser.name,
+            timestamp: Date.now(),
+        });
+        setIsModalOpen(true);
+    };
+    
+    const handleEdit = (resource: Resource) => {
+        setEditingResource(resource);
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = (resourceId: string) => {
+        if (window.confirm('Are you sure you want to delete this resource?')) {
+            setResources(prev => prev.filter(res => res.id !== resourceId));
+            addNotification('Resource deleted successfully.', 'info');
+        }
+    };
+    
+    const handleSave = (resource: Resource) => {
+        if (resource.id.startsWith('new_')) {
+            setResources(prev => [{ ...resource, id: `res_${Date.now()}` }, ...prev]);
+            addNotification('Resource uploaded successfully!', 'success');
+        } else {
+            setResources(prev => prev.map(res => res.id === resource.id ? resource : res));
+            addNotification('Resource updated successfully!', 'success');
+        }
+        setIsModalOpen(false);
+        setEditingResource(null);
+    };
+
+    const handleDownload = (resource: Resource) => {
+        addNotification(`Preparing download for "${resource.name}"...`, 'info');
+        try {
+            const filename = resource.name.replace(/[^a-z0-9_.-]/gi, '_').toLowerCase();
+            const fileContent = JSON.stringify(resource, null, 2);
+            const blob = new Blob([fileContent], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `${filename}.json`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Download failed:", error);
+            addNotification("Failed to prepare download.", "error");
+        }
+    };
+
+    const handleGenerateQuiz = (resource: Resource) => {
+        setSelectedResourceForQuiz(resource);
+        setIsQuizModalOpen(true);
+    };
+
+    const resourceTypeStyles: { [key in Resource['type']]: { icon: string; className: string; } } = {
+        book: { icon: 'book', className: 'resource-icon-bg-book' },
+        notes: { icon: 'notes', className: 'resource-icon-bg-notes' },
+        project: { icon: 'project', className: 'resource-icon-bg-project' },
+        lab: { icon: 'lab', className: 'resource-icon-bg-lab' },
+        other: { icon: 'other', className: 'resource-icon-bg-other' },
+    };
+
+    const getSortableHeader = (key: SortableKeys, title: string) => {
+        const isActive = sortConfig.key === key;
+        const icon = isActive
+            ? <Icon name={sortConfig.direction === 'ascending' ? 'chevron-up' : 'chevron-down'} className="w-4 h-4 text-accent" />
+            : <Icon name="chevron-up-down" className="w-4 h-4 text-secondary opacity-50" />;
+
+        return (
+            <th onClick={() => requestSort(key)} className="sortable-header">
+                <div className="flex items-center gap-1">
+                    {title}
+                    {icon}
+                </div>
+            </th>
+        );
+    };
+
+
+    return (
+        <>
+            <div className="view-header">
+                <h2 className="text-2xl font-bold">Resources</h2>
+                {canUpload && (
+                    <button className="btn btn-primary" onClick={handleUploadClick}>
+                        <Icon name="upload" className="w-4 h-4" /> Upload Resource
+                    </button>
+                )}
+            </div>
+
+            <div className="dashboard-card mb-6">
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div className="control-group !mb-0 col-span-1 md:col-span-1">
+                        <label htmlFor="search-res">Search Name/Subject</label>
+                        <input id="search-res" type="text" className="form-control" placeholder="e.g., Data Structures" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    </div>
+                     <div className="control-group !mb-0">
+                        <label htmlFor="filter-res-dept">Filter by Department</label>
+                        <select id="filter-res-dept" className="form-control" value={filters.department} onChange={e => setFilters(f => ({...f, department: e.target.value}))}>
+                            <option value="all">All Departments</option>
+                            {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                        </select>
+                    </div>
+                     <div className="control-group !mb-0">
+                        <label htmlFor="filter-res-type">Filter by Type</label>
+                        <select id="filter-res-type" className="form-control" value={filters.type} onChange={e => setFilters(f => ({...f, type: e.target.value}))}>
+                            <option value="all">All Types</option>
+                            <option value="book">Book</option>
+                            <option value="notes">Notes</option>
+                            <option value="project">Project</option>
+                            <option value="lab">Lab Manual</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                 </div>
+            </div>
+
+            <div className="table-wrapper">
+                <table className="entry-list-table">
+                    <thead>
+                        <tr>
+                            {getSortableHeader('name', 'Name')}
+                            {getSortableHeader('department', 'Department')}
+                            {getSortableHeader('subject', 'Subject')}
+                            {getSortableHeader('uploaderName', 'Uploader')}
+                            {getSortableHeader('timestamp', 'Date')}
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                         {filteredResources.length > 0 ? filteredResources.map(res => {
+                            const typeStyle = resourceTypeStyles[res.type];
+                            return (
+                                <tr key={res.id}>
+                                    <td>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`resource-icon-container ${typeStyle.className}`}>
+                                                <Icon name={typeStyle.icon} className="w-5 h-5"/>
+                                            </div>
+                                            <div>
+                                                <div className="font-bold">{res.name}</div>
+                                                <div className="text-sm text-secondary capitalize">{res.type}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{res.department}</td>
+                                    <td>{res.subject}</td>
+                                    <td>{res.uploaderName}</td>
+                                    <td>{new Date(res.timestamp).toLocaleDateString()}</td>
+                                    <td>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {['book', 'notes'].includes(res.type) && (
+                                                <button className="btn btn-secondary btn-sm" onClick={() => handleGenerateQuiz(res)} title="Generate Quiz">
+                                                    <Icon name="lightbulb" className="w-4 h-4"/>
+                                                </button>
+                                            )}
+                                            <button className="btn btn-secondary btn-sm" onClick={() => handleDownload(res)} title="Download">
+                                                <Icon name="download" className="w-4 h-4"/>
+                                            </button>
+                                            {canManageResource(res) && (
+                                                <>
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(res)} title="Edit">
+                                                        <Icon name="edit" className="w-4 h-4"/>
+                                                    </button>
+                                                     <button className="btn btn-danger-outline btn-sm" onClick={() => handleDelete(res.id)} title="Delete">
+                                                        <Icon name="trash" className="w-4 h-4"/>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )
+                         }) : (
+                            <tr>
+                                <td colSpan={6} className="text-center py-8 text-secondary">
+                                    No resources found.
+                                </td>
+                            </tr>
+                         )}
+                    </tbody>
+                </table>
+            </div>
+            
+            {isModalOpen && editingResource && <ResourceModal resource={editingResource} onSave={handleSave} onClose={() => setIsModalOpen(false)} addNotification={addNotification} />}
+            {isQuizModalOpen && selectedResourceForQuiz && <QuizModal resource={selectedResourceForQuiz} onClose={() => setIsQuizModalOpen(false)} addNotification={addNotification} />}
+        </>
+    );
+};
+
+
 // --- MAIN APP COMPONENT ---
 const App = () => {
     // --- State Management ---
@@ -1868,20 +2490,24 @@ const App = () => {
     
     const [currentUser, setCurrentUser] = useLocalStorage<User | null>('app_current_user', null);
     const [currentView, setCurrentView] = useLocalStorage<AppView>('app_current_view', 'auth');
+    const [chatMessages, setChatMessages] = useLocalStorage<ChatMessage[]>('app_chat_messages', []);
 
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCommandBarOpen, setCommandBarOpen] = useState(false);
     const [isChatOpen, setChatOpen] = useState(false);
-    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [isNotificationCenterOpen, setNotificationCenterOpen] = useState(false);
     const chatRef = useRef<Chat | null>(null);
 
-    const { notifications, addNotification, removeNotification } = useNotifications();
+    const { notifications, toastQueue, addNotification, markAllAsRead, clearNotifications, unreadCount } = useAppNotifications();
 
     // --- Effects ---
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', settings.theme);
-        document.documentElement.style.setProperty('--accent-primary', settings.accentColor);
-    }, [settings.theme, settings.accentColor]);
+        const activeTheme = THEMES.find(t => t.name === settings.activeTheme) || THEMES[0];
+        for (const [key, value] of Object.entries(activeTheme.colors)) {
+            document.documentElement.style.setProperty(key, value);
+        }
+    }, [settings.theme, settings.activeTheme]);
     
     useEffect(() => {
         if (!currentUser) {
@@ -1918,6 +2544,12 @@ const App = () => {
         addNotification("You have been logged out.", 'info');
     };
     
+    const handleClearChat = () => {
+        setChatMessages([]);
+        chatRef.current = null; // Reset chat context
+        addNotification("Chat history cleared.", "info");
+    };
+
     const handleSendMessage = async (message: string) => {
         if (!ai) return;
 
@@ -1926,9 +2558,10 @@ const App = () => {
 
         try {
             if (!chatRef.current) {
+                const systemInstruction = `You are a helpful academic assistant for a college portal. Be friendly and concise. The user is currently on the "${currentView}" page. Prioritize answers related to this page if applicable.`;
                 chatRef.current = ai.chats.create({
                     model: 'gemini-2.5-flash',
-                    config: { systemInstruction: "You are a helpful academic assistant for a college portal. Be friendly and concise." }
+                    config: { systemInstruction }
                 });
             }
 
@@ -2017,20 +2650,24 @@ const App = () => {
                     </div>
                     <div className="header-right">
                          <button className="header-action-btn" aria-label="Search (Ctrl+K)" onClick={() => setCommandBarOpen(true)}><Icon name="search"/></button>
-                         <button className="header-action-btn" aria-label="Notifications"><Icon name="bell"/></button>
+                         <button className="header-action-btn" aria-label="Notifications" onClick={() => { setNotificationCenterOpen(v => !v); if (unreadCount > 0) markAllAsRead(); }}>
+                             <Icon name="bell"/>
+                             {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+                         </button>
+                         {isNotificationCenterOpen && <NotificationCenter notifications={notifications} onClear={clearNotifications} onClose={() => setNotificationCenterOpen(false)}/>}
                     </div>
                 </header>
                 <div className="page-content">
-                    {currentView === 'dashboard' && <DashboardView currentUser={currentUser} announcements={announcements} calendarEvents={calendarEvents} users={users} securityAlerts={securityAlerts} setView={setCurrentView} />}
-                    {currentView === 'timetable' && <TimetableView currentUser={currentUser} timetable={timetable} settings={settings} setTimetable={setTimetable} />}
+                    {currentView === 'dashboard' && <DashboardView currentUser={currentUser} announcements={announcements} calendarEvents={calendarEvents} users={users} securityAlerts={securityAlerts} setView={setCurrentView} setUsers={setUsers} addNotification={addNotification} />}
+                    {currentView === 'timetable' && <TimetableView currentUser={currentUser} timetable={timetable} settings={settings} setTimetable={setTimetable} addNotification={addNotification} />}
                     {currentView === 'announcements' && <AnnouncementsView announcements={announcements} setAnnouncements={setAnnouncements} currentUser={currentUser} addNotification={addNotification}/>}
                     {currentView === 'academicCalendar' && <AcademicCalendarView events={calendarEvents} setEvents={setCalendarEvents} currentUser={currentUser} addNotification={addNotification} />}
                     {currentView === 'userManagement' && <UserManagementView users={users} setUsers={setUsers} addNotification={addNotification} />}
                     {currentView === 'security' && <SecurityView securityAlerts={securityAlerts} setSecurityAlerts={setSecurityAlerts} users={users} setUsers={setUsers} addNotification={addNotification} />}
                     {currentView === 'settings' && <SettingsView settings={settings} setSettings={setSettings} currentUser={currentUser} addNotification={addNotification} />}
                     {currentView === 'courseFiles' && <CourseFilesView courseFiles={courseFiles} setCourseFiles={setCourseFiles} currentUser={currentUser} addNotification={addNotification} />}
-                    {/* Placeholder for other views */}
-                    {![ 'dashboard', 'timetable', 'academicCalendar', 'settings', 'announcements', 'userManagement', 'courseFiles', 'security'].includes(currentView) && (
+                    {currentView === 'resources' && <ResourcesView resources={resources} setResources={setResources} currentUser={currentUser} addNotification={addNotification} />}
+                    {![ 'dashboard', 'timetable', 'academicCalendar', 'settings', 'announcements', 'userManagement', 'courseFiles', 'security', 'resources'].includes(currentView) && (
                         <div className="flex flex-col items-center justify-center h-full text-center">
                             <Icon name={currentView} className="w-16 h-16 text-secondary mb-4" />
                             <h2 className="text-2xl font-semibold">{getHeaderTitle(currentView)}</h2>
@@ -2040,12 +2677,12 @@ const App = () => {
                 </div>
             </main>
              <div className="notification-container">
-                {notifications.map(n => (
-                    <NotificationToast key={n.id} notification={n} onRemove={removeNotification} />
+                {toastQueue.map(n => (
+                    <NotificationToast key={n.id} notification={n} onRemove={() => {}} />
                 ))}
             </div>
             {isCommandBarOpen && <CommandBar onClose={() => setCommandBarOpen(false)} navItems={navItems.filter(i => i.roles.includes(currentUser.role))} users={users} setView={setCurrentView} currentUser={currentUser} />}
-            <Chatbot isOpen={isChatOpen} onToggle={() => setChatOpen(prev => !prev)} messages={chatMessages} onSendMessage={handleSendMessage} />
+            <Chatbot isOpen={isChatOpen} onToggle={() => setChatOpen(prev => !prev)} messages={chatMessages} onSendMessage={handleSendMessage} onClearChat={handleClearChat} currentView={currentView} />
         </div>
     );
 };
@@ -2166,7 +2803,47 @@ const CommandBar = ({ onClose, navItems, users, setView, currentUser }: { onClos
     );
 };
 
-const Chatbot = ({ isOpen, onToggle, messages, onSendMessage }: { isOpen: boolean, onToggle: () => void, messages: ChatMessage[], onSendMessage: (msg: string) => void }) => {
+const NotificationCenter = ({ notifications, onClear, onClose }: { notifications: HistoricalNotification[], onClear: () => void, onClose: () => void }) => {
+    const popoverRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+                onClose();
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [onClose]);
+
+    return (
+        <div className="notification-center-popover" ref={popoverRef}>
+            <div className="notification-center-header">
+                <h3>Notifications</h3>
+                <button onClick={onClear} className="btn-link text-xs">Clear All</button>
+            </div>
+            <div className="notification-center-list">
+                {notifications.length > 0 ? notifications.map(n => (
+                    <div key={n.id} className="notification-item">
+                         <div className={`toast-icon text-${n.type}`}><Icon name={n.type} /></div>
+                         <div className="notification-item-content">
+                             <p>{n.message}</p>
+                             <small>{formatRelativeTime(n.timestamp)}</small>
+                         </div>
+                    </div>
+                )) : (
+                    <div className="notification-empty">
+                        <Icon name="bell" className="w-12 h-12 text-secondary" />
+                        <p>No new notifications</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
+const Chatbot = ({ isOpen, onToggle, messages, onSendMessage, onClearChat, currentView }: { isOpen: boolean, onToggle: () => void, messages: ChatMessage[], onSendMessage: (msg: string) => void, onClearChat: () => void, currentView: AppView }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -2181,6 +2858,19 @@ const Chatbot = ({ isOpen, onToggle, messages, onSendMessage }: { isOpen: boolea
             setInput('');
         }
     };
+    
+    // Fix: Separated 'default' suggestions and made the main suggestions object a Partial Record.
+    const promptSuggestions: Partial<Record<AppView, string[]>> = {
+        dashboard: ["Summarize my day.", "Any important deadlines?", "What are the latest announcements?"],
+        timetable: ["What's my next class?", "Show me Friday's schedule.", "Who teaches Algorithms?"],
+        announcements: ["What's the latest important news?", "Summarize the guest lecture announcement."],
+        academicCalendar: ["When do mid-term exams start?", "Are there any holidays this month?"],
+        userManagement: ["How many students are pending approval?", "Show me all HODs."],
+    };
+
+    const defaultSuggestions = ["What can you do?", "Explain the dashboard.", "How do I change my theme?"];
+
+    const suggestions = promptSuggestions[currentView] || defaultSuggestions;
 
     return (
         <div className="chatbot-container">
@@ -2188,9 +2878,19 @@ const Chatbot = ({ isOpen, onToggle, messages, onSendMessage }: { isOpen: boolea
                 <div className="chatbot-window">
                     <div className="chatbot-header">
                         <span>AI Assistant</span>
-                        <button onClick={onToggle}><Icon name="close" className="w-5 h-5"/></button>
+                        <div>
+                            <button onClick={onClearChat} className="btn-link text-xs mr-2">New Chat</button>
+                            <button onClick={onToggle}><Icon name="close" className="w-5 h-5"/></button>
+                        </div>
                     </div>
                     <div className="chatbot-messages">
+                       {messages.length === 0 && (
+                            <div className="chat-prompts">
+                                {suggestions.map((prompt, i) => (
+                                    <button key={i} onClick={() => onSendMessage(prompt)}>{prompt}</button>
+                                ))}
+                            </div>
+                       )}
                        {messages.map((msg, index) => (
                            <div key={index} className={`chat-bubble ${msg.role} ${msg.isError ? 'error' : ''}`}>
                                {msg.text === '...' ? <div className="spinner"/> : <div dangerouslySetInnerHTML={{ __html: marked(msg.text) }} />}
@@ -2208,6 +2908,317 @@ const Chatbot = ({ isOpen, onToggle, messages, onSendMessage }: { isOpen: boolea
                 <Icon name={isOpen ? "close" : "sparkles"} />
             </button>
         </div>
+    );
+};
+
+const StudyPlanModal = ({ onSave, onClose, addNotification }: { onSave: (plan: StudyPlan) => void; onClose: () => void; addNotification: (m: string, t: AppNotification['type']) => void; }) => {
+    const [subject, setSubject] = useState('');
+    const [duration, setDuration] = useState(4); // weeks
+    const [isLoading, setIsLoading] = useState(false);
+    const [generatedPlan, setGeneratedPlan] = useState<StudyPlan | null>(null);
+
+    const handleGenerate = async () => {
+        if (!ai || !subject) {
+            addNotification("Please enter a subject.", "warning");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const prompt = `Create a detailed ${duration}-week study plan for the subject "${subject}". Break it down by week, and for each week, provide a daily plan (Monday to Saturday) with a main topic and 2-3 specific, actionable tasks.`;
+            const planSchema = {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    weeks: { type: Type.ARRAY, items: {
+                        type: Type.OBJECT, properties: {
+                            week: { type: Type.INTEGER },
+                            days: { type: Type.ARRAY, items: {
+                                type: Type.OBJECT, properties: {
+                                    day: { type: Type.STRING },
+                                    topic: { type: Type.STRING },
+                                    tasks: { type: Type.ARRAY, items: {
+                                        type: Type.OBJECT, properties: {
+                                            text: { type: Type.STRING },
+                                            completed: { type: Type.BOOLEAN },
+                                        }
+                                    }}
+                                }
+                            }}
+                        }
+                    }}
+                }
+            };
+            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: planSchema } });
+            const planData = JSON.parse(response.text);
+            setGeneratedPlan({ id: `plan_${Date.now()}`, ...planData });
+
+        } catch (error) {
+            console.error("Study plan generation failed:", error);
+            addNotification("Failed to generate study plan.", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleTaskToggle = (weekIndex: number, dayIndex: number, taskIndex: number) => {
+        if (!generatedPlan) return;
+        const newPlan = { ...generatedPlan };
+        newPlan.weeks[weekIndex].days[dayIndex].tasks[taskIndex].completed = !newPlan.weeks[weekIndex].days[dayIndex].tasks[taskIndex].completed;
+        setGeneratedPlan(newPlan);
+    };
+
+    return (
+        <Modal onClose={onClose} size="large">
+             <div className="modal-header">
+                <h3><Icon name="study-plan" className="w-6 h-6"/> AI Study Plan Generator</h3>
+                <button onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
+            </div>
+            <div className="modal-body">
+                {!generatedPlan ? (
+                    <>
+                        <div className="control-group">
+                            <label htmlFor="subject-plan">Subject</label>
+                            <input type="text" id="subject-plan" className="form-control" value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g., Data Structures and Algorithms" />
+                        </div>
+                         <div className="control-group">
+                            <label htmlFor="duration-plan">Duration (in weeks)</label>
+                            <input type="number" id="duration-plan" className="form-control" value={duration} onChange={e => setDuration(parseInt(e.target.value, 10))} min="1" max="12" />
+                        </div>
+                    </>
+                ) : (
+                    <div className="study-plan-display">
+                        <h3 className="text-xl font-bold mb-4">{generatedPlan.title}</h3>
+                        {generatedPlan.weeks.map((week, weekIndex) => (
+                            <details key={week.week} className="study-plan-week" open>
+                                <summary>Week {week.week}</summary>
+                                <div className="study-plan-days">
+                                    {week.days.map((day, dayIndex) => (
+                                        <div key={day.day} className="study-plan-day">
+                                            <h4>{day.day} - <span className="font-normal text-secondary">{day.topic}</span></h4>
+                                            <ul>
+                                                {day.tasks.map((task, taskIndex) => (
+                                                    <li key={taskIndex}>
+                                                        <input type="checkbox" id={`task-${weekIndex}-${dayIndex}-${taskIndex}`} checked={task.completed} onChange={() => handleTaskToggle(weekIndex, dayIndex, taskIndex)} />
+                                                        <label htmlFor={`task-${weekIndex}-${dayIndex}-${taskIndex}`}>{task.text}</label>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                            </details>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <div className="modal-footer">
+                {!generatedPlan ? (
+                     <button className="btn btn-primary" onClick={handleGenerate} disabled={isLoading}>
+                        {isLoading ? <><span className="spinner"></span> Generating...</> : 'Generate Plan'}
+                    </button>
+                ) : (
+                    <>
+                        <button className="btn btn-secondary" onClick={() => setGeneratedPlan(null)}>Start Over</button>
+                        <button className="btn btn-primary" onClick={() => onSave(generatedPlan)}>Save Plan</button>
+                    </>
+                )}
+            </div>
+        </Modal>
+    );
+};
+
+const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, setTimetable, filter }: { onClose: () => void; settings: AppSettings; addNotification: (m: string, t: AppNotification['type']) => void; timetable: TimetableEntry[]; setTimetable: React.Dispatch<React.SetStateAction<TimetableEntry[]>>; filter: { department: string; year: string | undefined } }) => {
+    const [query, setQuery] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('Thinking...');
+    const [suggestion, setSuggestion] = useState<TimetableEntry[] | null>(null);
+    // FIX: A conflicting entry is a *proposed* entry from AI and does not have an ID yet.
+    // The type is updated to Omit the 'id' property to match the actual data shape, resolving the type error.
+    const [conflicts, setConflicts] = useState<{ conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[] | null>(null);
+    const [resolution, setResolution] = useState<TimetableEntry[] | null>(null);
+
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            entries: { type: Type.ARRAY, items: {
+                type: Type.OBJECT,
+                properties: {
+                    day: { type: Type.STRING },
+                    timeIndex: { type: Type.INTEGER },
+                    subject: { type: Type.STRING },
+                    type: { type: Type.STRING, enum: ['class', 'lab', 'break', 'common'] },
+                    faculty: { type: Type.STRING },
+                    room: { type: Type.STRING }
+                }
+            }}
+        }
+    };
+    
+    // FIX: The signature of `handleResolveConflict` is updated to accept the correct type for `detectedConflicts`, which includes the `conflictingEntry` property.
+    const handleResolveConflict = async (originalQuery: string, detectedConflicts: { conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[]) => {
+        if (!ai) return;
+        setLoadingMessage('Conflict found, resolving...');
+        try {
+            const conflictDetails = detectedConflicts.map(c => 
+                `The slot on ${c.existingEntry.day} at ${settings.timeSlots[c.existingEntry.timeIndex]} is already taken by '${c.existingEntry.subject}'.`
+            ).join(' ');
+            
+            const resolvePrompt = `You are a timetable scheduling assistant. The user's original request was: "${originalQuery}".
+            Your first attempt to schedule this resulted in the following conflicts: ${conflictDetails}
+            Please find an alternative schedule that fulfills the original request but avoids these specific conflicts. Suggest alternative time slots, days or rooms.
+            Provide a new, conflict-free array of one or more timetable entry objects.
+            Department: ${filter.department}, Year: ${filter.year}.
+            Available Time Slots: ${JSON.stringify(settings.timeSlots)}.
+            Existing schedule for this class: ${JSON.stringify(timetable.filter(e => e.department === filter.department && e.year === filter.year))}.`;
+            
+            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: resolvePrompt, config: { responseMimeType: 'application/json', responseSchema: schema } });
+            const { entries: resolvedEntries } = JSON.parse(response.text);
+
+            const resolvedEntriesWithDeptAndYear = resolvedEntries.map((e: Omit<TimetableEntry, 'id'|'department'|'year'>) => ({...e, department: filter.department, year: filter.year}));
+            
+            setResolution(resolvedEntriesWithDeptAndYear);
+            addNotification("Found a conflict-free alternative!", "success");
+
+        } catch (error) {
+            console.error("AI conflict resolution failed:", error);
+            addNotification("Sorry, I couldn't automatically resolve the conflict.", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGenerate = async () => {
+        if (!ai || !query) {
+            addNotification("Please enter a command.", "warning");
+            return;
+        }
+        setIsLoading(true);
+        setLoadingMessage('Thinking...');
+        setSuggestion(null);
+        setConflicts(null);
+        setResolution(null);
+
+        try {
+            const existingSchedule = timetable.filter(e => e.department === filter.department && e.year === filter.year);
+            const prompt = `You are a timetable scheduling assistant. Based on the user command, schedule a class.
+            User Command: "${query}"
+            Department: ${filter.department}, Year: ${filter.year}.
+            Available Time Slots: ${JSON.stringify(settings.timeSlots)}.
+            Existing schedule for this class (don't overwrite these): ${JSON.stringify(existingSchedule)}.
+            Parse the user's command and find available slots. Return an array of one or more timetable entry objects to be added. If it is a lab, it usually takes 2 consecutive hours.`;
+            
+            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: schema } });
+            const { entries: initialEntries } = JSON.parse(response.text);
+            
+            const detectedConflicts: { conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[] = [];
+            initialEntries.forEach((newEntry: Omit<TimetableEntry, 'id' | 'department' | 'year'>) => {
+                const existing = existingSchedule.find(e => e.day === newEntry.day && e.timeIndex === newEntry.timeIndex);
+                if (existing) {
+                    const newEntryWithMeta = {...newEntry, department: filter.department!, year: filter.year! };
+                    detectedConflicts.push({ conflictingEntry: newEntryWithMeta, existingEntry: existing });
+                }
+            });
+            
+            const entriesWithDeptAndYear = initialEntries.map((e: Omit<TimetableEntry, 'id' | 'department' | 'year'>) => ({...e, department: filter.department, year: filter.year}));
+
+            if (detectedConflicts.length > 0) {
+                setSuggestion(entriesWithDeptAndYear);
+                setConflicts(detectedConflicts);
+                await handleResolveConflict(query, detectedConflicts);
+            } else {
+                setSuggestion(entriesWithDeptAndYear);
+                setIsLoading(false);
+            }
+
+        } catch (error) {
+            console.error("AI timetable assistance failed:", error);
+            addNotification("Sorry, I couldn't understand that request.", "error");
+            setIsLoading(false);
+        }
+    };
+    
+    const handleApply = () => {
+        const entriesToApply = resolution || suggestion;
+        if (!entriesToApply) return;
+
+        const newEntries = entriesToApply.map(e => ({ ...e, id: `tt_${Date.now()}_${Math.random()}`}));
+        setTimetable(prev => [...prev, ...newEntries]);
+        addNotification("Timetable updated successfully!", "success");
+        onClose();
+    };
+    
+    const handleClear = () => {
+        setSuggestion(null);
+        setConflicts(null);
+        setResolution(null);
+    };
+
+    return (
+        <Modal onClose={onClose}>
+            <div className="modal-header">
+                <h3><Icon name="robot" className="w-6 h-6"/> AI Timetable Assistant</h3>
+                <button onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
+            </div>
+             <div className="modal-body">
+                <p className="text-secondary mb-4">Describe the class you want to schedule in plain language.</p>
+                <div className="control-group">
+                    <textarea className="form-control" rows={3} value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g., Schedule a 2-hour lab for 'Advanced Networking' for CSE III year on Wednesday afternoon."/>
+                </div>
+                
+                 {conflicts && (
+                    <div className="conflict-details">
+                        <h4><Icon name="warning" className="w-5 h-5"/> Conflicts Detected</h4>
+                        {conflicts.map((c, i) => 
+                            <p key={i}>
+                                Slot on <strong>{c.existingEntry.day} at {settings.timeSlots[c.existingEntry.timeIndex]}</strong> is taken by <strong>'{c.existingEntry.subject}'</strong>.
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {resolution && !isLoading && (
+                    <div className="resolution-suggestion">
+                        <h4><Icon name="sparkles" className="w-5 h-5"/> Resolution Suggestion</h4>
+                         {resolution.map((entry, i) => (
+                             <p key={i}>- Schedule <strong>{entry.subject}</strong> on {entry.day} at {settings.timeSlots[entry.timeIndex]}</p>
+                        ))}
+                    </div>
+                )}
+                
+                {suggestion && !conflicts && !isLoading && (
+                     <div className="ai-suggestion-panel">
+                        <h4>AI Suggestion:</h4>
+                         {suggestion.map((entry, i) => (
+                             <p key={i}>- Add <strong>{entry.subject}</strong> on {entry.day} at {settings.timeSlots[entry.timeIndex]}</p>
+                        ))}
+                    </div>
+                )}
+
+             </div>
+             <div className="modal-footer">
+                 <div>
+                    {(suggestion || resolution) && !isLoading && (
+                        <button type="button" className="btn btn-secondary" onClick={handleClear}>Clear</button>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                    
+                    {(!suggestion && !resolution) ? (
+                        <button className="btn btn-primary" onClick={handleGenerate} disabled={isLoading}>
+                            {isLoading ? <><span className="spinner"></span> {loadingMessage}</> : 'Generate Schedule'}
+                        </button>
+                    ) : (
+                         <button className="btn btn-primary" onClick={handleApply} disabled={isLoading || (!!conflicts && !resolution)}>
+                            {isLoading 
+                                ? <><span className="spinner"></span> {loadingMessage}</> 
+                                : (resolution ? 'Apply Resolution' : 'Apply Suggestion')
+                            }
+                        </button>
+                    )}
+                </div>
+            </div>
+        </Modal>
     );
 };
 
