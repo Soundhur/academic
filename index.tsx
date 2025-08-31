@@ -57,7 +57,33 @@ interface ChatMessage {
 }
 
 type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'class advisor' | 'principal' | 'creator';
-type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar' | 'courseFiles';
+type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar' | 'courseFiles' | 'studentAnalytics' | 'careerCounselor';
+
+interface CareerProfile {
+    interests: string[];
+    skills: string[];
+    careerGoals: string;
+}
+
+interface CareerReport {
+    suggestedPaths: { title: string; description: string; relevance: string; }[];
+    skillsToDevelop: string[];
+    recommendedCourses: { title: string; platform: string; url: string; }[];
+    timestamp: number;
+}
+
+interface StudyPlan {
+    id: string;
+    title: string;
+    weeks: {
+        week: number;
+        days: {
+            day: string;
+            topic: string;
+            tasks: { text: string; completed: boolean; }[];
+        }[];
+    }[];
+}
 
 interface User {
     id: string;
@@ -78,6 +104,8 @@ interface User {
         timestamp: number;
     };
     studyPlans?: StudyPlan[];
+    careerProfile?: CareerProfile;
+    careerReport?: CareerReport;
 }
 
 interface Resource {
@@ -181,19 +209,6 @@ interface AppSettings {
     activeTheme: string;
 }
 
-interface StudyPlan {
-    id: string;
-    title: string;
-    weeks: {
-        week: number;
-        days: {
-            day: string;
-            topic: string;
-            tasks: { text: string; completed: boolean; }[];
-        }[];
-    }[];
-}
-
 interface QuizQuestion {
     question: string;
     options: string[];
@@ -218,9 +233,10 @@ const initialUsers: User[] = [
     { id: 'user_2', name: 'Admin User', role: 'admin', dept: 'IT', status: 'active', isLocked: false },
     { id: 'user_3', name: 'Prof. Samuel Chen', role: 'hod', dept: 'CSE', status: 'active', isLocked: false },
     { id: 'user_4', name: 'Prof. Aisha Khan', role: 'faculty', dept: 'ECE', status: 'active', isLocked: false },
-    { id: 'user_5', name: 'John Doe', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, { subject: 'Algorithms', score: 92 }], attendance: { present: 78, total: 85 }, isLocked: false, studyPlans: [] },
+    { id: 'user_5', name: 'John Doe', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, { subject: 'Algorithms', score: 92 }], attendance: { present: 78, total: 85 }, isLocked: false, studyPlans: [], careerProfile: { interests: ['Web Development', 'AI/ML'], skills: ['React', 'Python'], careerGoals: 'Become a full-stack developer at a tech company.' } },
     { id: 'user_6', name: 'Jane Smith', role: 'student', dept: 'CSE', year: 'II', status: 'pending_approval', isLocked: false, studyPlans: [] },
     { id: 'user_7', name: 'Creator', role: 'creator', dept: 'IT', status: 'active', isLocked: false },
+    { id: 'user_8', name: 'Emily White', role: 'student', dept: 'ECE', year: 'I', status: 'active', grades: [{ subject: 'Basic Electronics', score: 55 }, { subject: 'Circuit Theory', score: 62 }], attendance: { present: 60, total: 85 }, isLocked: false, studyPlans: [] }
 ];
 
 const initialTimetable: TimetableEntry[] = [
@@ -238,6 +254,9 @@ const initialAnnouncements: Announcement[] = [
 const initialResources: Resource[] = [
     { id: 'res_1', name: 'Data Structures Notes', type: 'notes', department: 'CSE', subject: 'Data Structures', uploaderId: 'user_3', uploaderName: 'Prof. Samuel Chen', timestamp: Date.now() },
     { id: 'res_2', name: 'Digital Circuits Textbook', type: 'book', department: 'ECE', subject: 'Digital Circuits', uploaderId: 'user_4', uploaderName: 'Prof. Aisha Khan', timestamp: Date.now() - 172800000 },
+    { id: 'res_3', name: 'Algorithms Lab Manual', type: 'lab', department: 'CSE', subject: 'Algorithms', uploaderId: 'user_3', uploaderName: 'Prof. Samuel Chen', timestamp: Date.now() - 86400000 },
+    { id: 'res_4', name: 'Intro to Python Notes', type: 'notes', department: 'CSE', subject: 'Python Programming', uploaderId: 'user_3', uploaderName: 'Prof. Samuel Chen', timestamp: Date.now() - 2*86400000 },
+
 ];
 
 const initialCourseFiles: CourseFile[] = [
@@ -344,7 +363,7 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         dashboard: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25a2.25 2.25 0 01-2.25 2.25h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />,
         timetable: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18M-7.5 12h13.5" />,
         manage: <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />,
-        settings: <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-1.007 1.11-1.11h2.596c.55.103 1.02.568 1.11 1.11l.09 1.586c.294.049.58.12.856.216l1.373-.793c.49-.283 1.096-.046 1.378.444l1.3 2.252c.282.49-.046 1.096-.444 1.378l-1.148.664c.06.27.11.543.15.82l.09 1.586c-.103.55-.568 1.02-1.11 1.11h-2.596c-.55-.103-1.02-.568-1.11-1.11l-.09-1.586a7.447 7.447 0 01-.856-.216l-1.373.793c-.49.283-1.096.046-1.378-.444l-1.3-2.252c-.282-.49.046 1.096.444-1.378l1.148-.664a7.452 7.452 0 01.15-.82l.09-1.586zM12 15a3 3 0 100-6 3 3 0 000 6z" />,
+        settings: <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-1.007 1.11-1.11h2.596c.55.103 1.02.568 1.11 1.11l.09 1.586c.294.049.58.12.856.216l1.373-.793c.49-.283 1.096-.046 1.378.444l1.3 2.252c.282.49-.046 1.096-.444 1.378l-1.148.664c.06.27.11.543.15.82l.09 1.586c-.103.55-.568 1.02-1.11 1.11h-2.596c-.55-.103-1.02-.568-1.11-1.11l-.09-1.586a7.447 7.447 0 01-.856-.216l-1.373.793c-.49.283-1.096.046-1.378-.444l-1.3-2.252c-.282.49.046 1.096.444-1.378l1.148-.664a7.452 7.452 0 01.15-.82l.09-1.586zM12 15a3 3 0 100-6 3 3 0 000 6z" />,
         approvals: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
         announcements: <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 1.87c.23-.46.89-.46 1.12 0l1.45 2.92a1 1 0 00.95.69h3.19c.53 0 .76.68.35 1l-2.58 1.88a1 1 0 00-.36 1.11l.98 3.23c.16.53-.43 1-.89.69L12 11.35a1 1 0 00-1.1 0l-2.52 1.82c-.46.31-1.05-.16-.89-.69l.98-3.23a1 1 0 00-.36-1.11L5.53 7.48c-.4-.32-.18-1 .35-1h3.19a1 1 0 00.95-.69l1.45-2.92z" />,
         studentDirectory: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 00-5.658-1.682M15 19.128v-3.872M15 19.128c.328.054.66.085.996.085A9.37 9.37 0 0024 10.072V8.5h-4.232c-.332 0-.652-.085-.94-.246l-2.22-1.11a1.2 1.2 0 00-1.22 0L12 7.254c-.288.16-.608.246-.94.246H6.828v1.572A9.37 9.37 0 0015 19.128zM1.5 9.375c0-4.04 3.28-7.32 7.32-7.32s7.32 3.28 7.32 7.32c0 1.63-2.427 4.19-7.32 4.19S1.5 11.005 1.5 9.375z" />,
@@ -364,6 +383,7 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         upload: <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />,
         download: <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />,
         book: <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6-2.292m0 0v14.25" />,
+        'book-open': <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6-2.292m0 0V11.25m6-4.75V18" />,
         notes: <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />,
         project: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1.125-1.5M9 16.5l1.125-1.5m0 0l1.125 1.5M10.125 15l1.125-1.5" />,
         lab: <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21a3 3 0 003-3h3a3 3 0 003 3M7.5 3a3 3 0 00-3 3v1.5M7.5 3h9a3 3 0 013 3v1.5M12 12a3 3 0 013 3m-3-3a3 3 0 00-3 3m3-3V6M6 12a3 3 0 013-3h6a3 3 0 013 3m-9 3a3 3 0 00-3 3" />,
@@ -397,6 +417,7 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         'shield-exclamation': <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />,
         today: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18M12 15a2.25 2.25 0 110-4.5 2.25 2.25 0 010 4.5z" />,
         'study-plan': <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6-2.292m0 0V11.25m0 10.042V18.75M12 11.25L15 13.5M12 11.25L9 13.5" />,
+        'briefcase': <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10.5 7.5h3M10.5 3.75h3V7.5h-3V3.75z" />,
     };
 
     return (
@@ -459,6 +480,286 @@ const BarChart = ({ data }: { data: { label: string; value: number }[] }) => {
                     <div className="bar-label">{item.label}</div>
                 </div>
             ))}
+        </div>
+    );
+};
+
+const StudyPlanModal = ({ onSave, onClose, addNotification }: { onSave: (plan: StudyPlan) => void, onClose: () => void, addNotification: (m: string, t: AppNotification['type']) => void }) => {
+    const [topic, setTopic] = useState('');
+    const [duration, setDuration] = useState(4); // weeks
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleGenerate = async () => {
+        if (!ai || !topic) {
+            addNotification("Please enter a topic or subject for your study plan.", "warning");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const prompt = `Generate a structured ${duration}-week study plan for the topic: "${topic}". The plan should cover key concepts progressively. For each day of the week (Monday to Friday), specify a topic and list 2-3 specific learning tasks.`;
+            const schema = {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING },
+                    weeks: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                week: { type: Type.INTEGER },
+                                days: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            day: { type: Type.STRING },
+                                            topic: { type: Type.STRING },
+                                            tasks: {
+                                                type: Type.ARRAY,
+                                                items: {
+                                                    type: Type.OBJECT,
+                                                    properties: {
+                                                        text: { type: Type.STRING },
+                                                        completed: { type: Type.BOOLEAN }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: { responseMimeType: 'application/json', responseSchema: schema }
+            });
+            const planData = JSON.parse(response.text);
+            const newPlan: StudyPlan = { ...planData, id: `plan_${Date.now()}` };
+            
+            // Initialize completed status for tasks
+            newPlan.weeks.forEach(week => {
+                week.days.forEach(day => {
+                    day.tasks.forEach(task => task.completed = false);
+                });
+            });
+
+            onSave(newPlan);
+        } catch (error) {
+            console.error("Study plan generation failed:", error);
+            addNotification("Failed to generate study plan. Please try again.", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Modal onClose={onClose}>
+            <div className="modal-header">
+                <h3>Generate AI Study Plan</h3>
+                <button onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
+            </div>
+            <div className="modal-body">
+                <p className="text-secondary mb-4">Let our AI assistant create a personalized study schedule for you.</p>
+                <div className="control-group">
+                    <label htmlFor="study-topic">Subject / Topic</label>
+                    <input id="study-topic" type="text" className="form-control" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g., Advanced JavaScript and React" />
+                </div>
+                <div className="control-group">
+                    <label htmlFor="study-duration">Duration (in weeks)</label>
+                    <input id="study-duration" type="number" className="form-control" value={duration} onChange={e => setDuration(Number(e.target.value))} min="1" max="12" />
+                </div>
+            </div>
+            <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={handleGenerate} disabled={isLoading || !topic.trim()}>
+                    {isLoading ? <><span className="spinner"></span> Generating...</> : <><Icon name="sparkles" className="w-4 h-4" /> Generate Plan</>}
+                </button>
+            </div>
+        </Modal>
+    );
+};
+
+const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, setTimetable, filter }: { onClose: () => void, settings: AppSettings, addNotification: (m: string, t: AppNotification['type']) => void, timetable: TimetableEntry[], setTimetable: React.Dispatch<React.SetStateAction<TimetableEntry[]>>, filter: { department: string, year: string | undefined } }) => {
+    const [prompt, setPrompt] = useState('');
+    const [generatedEntries, setGeneratedEntries] = useState<TimetableEntry[] | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleGenerate = async () => {
+        if (!ai || !prompt) {
+            addNotification("Please provide instructions for the timetable.", "warning");
+            return;
+        }
+        setIsLoading(true);
+        setGeneratedEntries(null);
+        try {
+            const existingSchedule = timetable.filter(e => e.department === filter.department && e.year === filter.year).map(e => `${e.day} at ${settings.timeSlots[e.timeIndex]}: ${e.subject}`).join(', ');
+
+            const aiPrompt = `
+                You are an AI assistant creating a weekly class schedule for a college.
+                Department: ${filter.department}
+                Year: ${filter.year}
+                Available Time Slots with their index: ${settings.timeSlots.map((s, i) => `${s} (index ${i})`).join(', ')}
+                Days of the week: ${DAYS.join(', ')}
+
+                Existing schedule for this department/year to avoid conflicts: ${existingSchedule || 'None'}
+
+                User's instructions: "${prompt}"
+
+                Generate a list of new timetable entries based on the instructions. Adhere strictly to the provided time slots and their indices. Provide subjects, faculty, and room numbers if specified. The output must be a valid JSON array. If a user asks for a time that spans multiple slots (e.g., 2pm to 4pm), create separate entries for each slot index.
+            `;
+
+            const schema = {
+                type: Type.OBJECT,
+                properties: {
+                    schedule: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                day: { type: Type.STRING, enum: DAYS },
+                                timeIndex: { type: Type.INTEGER },
+                                subject: { type: Type.STRING },
+                                type: { type: Type.STRING, enum: ['class', 'lab', 'break', 'common'] },
+                                faculty: { type: Type.STRING },
+                                room: { type: Type.STRING }
+                            }
+                        }
+                    }
+                }
+            };
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: aiPrompt,
+                config: { responseMimeType: 'application/json', responseSchema: schema }
+            });
+
+            const result = JSON.parse(response.text);
+            const newEntries: TimetableEntry[] = result.schedule.map((item: any) => ({
+                ...item,
+                id: `ai_${Date.now()}_${Math.random()}`,
+                department: filter.department,
+                year: filter.year || 'I'
+            })).filter((e: TimetableEntry) => e.timeIndex >= 0 && e.timeIndex < settings.timeSlots.length); // Filter out invalid time indices
+            setGeneratedEntries(newEntries);
+        } catch (error) {
+            console.error("Timetable generation failed:", error);
+            addNotification("Failed to generate timetable. The request might be too complex or invalid. Please try again with clearer instructions.", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleApplyChanges = () => {
+        if (!generatedEntries) return;
+        // Basic conflict check: remove existing entries at the same slot
+        const updatedTimetable = timetable.filter(entry => {
+            if (entry.department !== filter.department || entry.year !== filter.year) {
+                return true;
+            }
+            // Check if a generated entry will replace this slot
+            return !generatedEntries.some(gen => gen.day === entry.day && gen.timeIndex === entry.timeIndex);
+        });
+
+        const finalTimetable = [...updatedTimetable, ...generatedEntries.map(e => ({...e, id: `tt_${Date.now()}_${Math.random()}`}))];
+        setTimetable(finalTimetable);
+        addNotification(`${generatedEntries.length} new entries added to the timetable.`, "success");
+        onClose();
+    };
+
+    return (
+        <Modal onClose={onClose} size="large">
+            <div className="modal-header">
+                <h3>AI Timetable Assistant</h3>
+                <button onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
+            </div>
+            <div className="modal-body">
+                <p className="text-secondary mb-4">Describe the timetable you want to create. For example: "Add Data Structures class with Prof. Chen in CS101 on Monday at 9am. Add an Algorithms lab on Wednesday from 2pm to 4pm."</p>
+                <div className="control-group">
+                    <label htmlFor="ai-timetable-prompt">Instructions</label>
+                    <textarea id="ai-timetable-prompt" rows={4} className="form-control" value={prompt} onChange={e => setPrompt(e.target.value)} />
+                </div>
+                <div className="flex justify-end">
+                    <button className="btn btn-primary" onClick={handleGenerate} disabled={isLoading || !prompt.trim()}>
+                         {isLoading ? <><span className="spinner"></span> Generating...</> : <><Icon name="sparkles" className="w-4 h-4" /> Generate Preview</>}
+                    </button>
+                </div>
+                {generatedEntries && (
+                    <div className="mt-4">
+                        <h4 className="font-semibold">Generated Preview</h4>
+                        {generatedEntries.length > 0 ? (
+                            <ul className="list-disc pl-5 mt-2 text-sm text-secondary">
+                                {generatedEntries.map(entry => (
+                                    <li key={entry.id}>
+                                        <strong>{entry.day}, {settings.timeSlots[entry.timeIndex]}:</strong> {entry.subject} ({entry.type})
+                                        {entry.faculty && ` with ${entry.faculty}`}
+                                        {entry.room && ` in ${entry.room}`}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-secondary text-sm mt-2">The AI could not generate any entries based on your instructions. Please try being more specific.</p>
+                        )}
+                    </div>
+                )}
+            </div>
+            <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={handleApplyChanges} disabled={!generatedEntries || generatedEntries.length === 0}>
+                    Apply Changes
+                </button>
+            </div>
+        </Modal>
+    );
+};
+
+const NotificationCenter = ({ notifications, onClear, onClose }: { notifications: HistoricalNotification[], onClear: () => void, onClose: () => void }) => {
+    const centerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (centerRef.current && !centerRef.current.contains(event.target as Node)) {
+                const target = event.target as HTMLElement;
+                // Don't close if clicking the bell icon again
+                if(!target.closest('.header-action-btn')) {
+                    onClose();
+                }
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [onClose]);
+
+    return (
+        <div className="notification-center" ref={centerRef}>
+            <div className="notification-center-header">
+                <h4>Notifications</h4>
+                <button className="btn-link" onClick={onClear}>Clear All</button>
+            </div>
+            <div className="notification-center-body">
+                {notifications.length > 0 ? (
+                    notifications.map(n => (
+                        <div key={n.id} className={`notification-item ${n.isRead ? 'read' : ''}`}>
+                            <div className={`notification-icon icon-${n.type}`}>
+                                <Icon name={n.type} />
+                            </div>
+                            <div className="notification-content">
+                                <p>{n.message}</p>
+                                <span className="timestamp">{formatRelativeTime(n.timestamp)}</span>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="empty-notifications">
+                        <Icon name="bell" className="w-12 h-12 text-secondary opacity-50 mb-2"/>
+                        <p className="text-secondary">No notifications yet.</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -979,14 +1280,16 @@ const AnnouncementsView = ({ announcements, setAnnouncements, currentUser, addNo
                             <input id="ann-title" type="text" className="form-control" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required/>
                         </div>
                         <div className="control-group">
-                            <label htmlFor="ann-content">Content</label>
-                             <div className="ai-generator-section">
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={handleGenerateContent} disabled={isAiGenerating || !isAiEnabled}>
-                                    {isAiGenerating ? <span className="spinner"></span> : <Icon name="sparkles" className="w-4 h-4"/>}
-                                    {isAiGenerating ? 'Generating...' : 'Generate with AI'}
-                                </button>
-                                {!isAiEnabled && <p className="text-xs text-secondary mt-1">AI features disabled. API key not set.</p>}
+                            <div className="flex justify-between items-center mb-2">
+                                <label htmlFor="ann-content" className="!mb-0">Content</label>
+                                <div className="ai-generator-section">
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={handleGenerateContent} disabled={isAiGenerating || !isAiEnabled || !formData.title.trim()}>
+                                        {isAiGenerating ? <span className="spinner"></span> : <Icon name="sparkles" className="w-4 h-4"/>}
+                                        {isAiGenerating ? 'Generating...' : 'Generate with AI'}
+                                    </button>
+                                </div>
                             </div>
+                            {!isAiEnabled && <p className="text-xs text-secondary mt-1">AI features disabled. API key not set.</p>}
                             <textarea id="ann-content" rows={8} className="form-control" value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} required></textarea>
                         </div>
                         <div className="form-grid">
@@ -1173,8 +1476,8 @@ const AcademicCalendarView = ({ events, setEvents, currentUser, addNotification 
                         <div className="modal-footer">
                             {event.title && <button type="button" className="btn btn-danger-outline" onClick={() => onDelete(event.id)}>Delete</button>}
                             <div>
-                               <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-                               <button type="submit" className="btn btn-primary">Save</button>
+                                <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                                <button type="submit" className="btn btn-primary">Save</button>
                             </div>
                         </div>
                     )}
@@ -1185,1100 +1488,81 @@ const AcademicCalendarView = ({ events, setEvents, currentUser, addNotification 
 
     return (
         <>
-            <div className="view-header">
-                <h2 className="text-2xl font-bold">Academic Calendar</h2>
-                {['admin', 'hod', 'principal'].includes(currentUser.role) && (
-                    <button className="btn btn-primary" onClick={() => openModal(null, new Date())}>
-                        <Icon name="plus" className="w-4 h-4" /> Add Event
-                    </button>
-                )}
-            </div>
-            
-            <div className="p-4 bg-secondary rounded-lg shadow-sm mb-4 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-tertiary"><Icon name="chevron-left" className="w-5 h-5" /></button>
-                    <span className="text-lg font-semibold w-32 text-center">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-                    <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-tertiary"><Icon name="chevron-right" className="w-5 h-5" /></button>
-                    <button onClick={handleToday} className="btn btn-secondary btn-sm"><Icon name="today" className="w-4 h-4"/> Today</button>
-                </div>
-                <div className="flex flex-wrap items-center gap-4">
-                    {Object.keys(filters).map(key => (
-                         <div key={key} className="control-group-inline">
-                             <input type="checkbox" id={`filter-${key}`} checked={filters[key as keyof typeof filters]} onChange={() => handleFilterChange(key as keyof typeof filters)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"/>
-                             <label htmlFor={`filter-${key}`} className="capitalize ml-2 text-sm">{key}</label>
-                         </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-7 gap-1">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <div key={day} className="text-center font-bold text-secondary p-2">{day}</div>)}
-                {days.map((d, i) => (
-                    <div key={i} className={`h-32 border border-border-color bg-secondary rounded-md p-2 flex flex-col ${d.day ? 'cursor-pointer hover:bg-tertiary' : 'bg-tertiary'}`} onClick={() => d.date && openModal(null, d.date)}>
-                        {d.day && <span className="font-semibold">{d.day}</span>}
-                        <div className="flex-grow overflow-y-auto text-xs mt-1">
-                           {d.date && eventsByDate.get(d.date.toISOString().split('T')[0])?.map(event => (
-                               <div key={event.id} onClick={(e) => {e.stopPropagation(); openModal(event)}} className={`p-1 my-1 rounded-md text-white bg-opacity-80 cursor-pointer ${
-                                   {exam: 'bg-red-500', holiday: 'bg-green-500', event: 'bg-blue-500', deadline: 'bg-yellow-500'}[event.type]
-                               }`}>
-                                   {event.title}
-                               </div>
-                           ))}
-                        </div>
+            <div className="calendar-container">
+                <div className="calendar-header">
+                    <div className="calendar-nav">
+                        <button onClick={handlePrevMonth}><Icon name="chevron-left" /></button>
+                        <h2 className="text-xl font-bold">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h2>
+                        <button onClick={handleNextMonth}><Icon name="chevron-right" /></button>
+                        <button onClick={handleToday} className="btn btn-secondary btn-sm">Today</button>
                     </div>
-                ))}
-            </div>
-             {isModalOpen && selectedEvent && <CalendarEventModal event={selectedEvent} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onClose={() => setIsModalOpen(false)} />}
-        </>
-    );
-};
-
-const SettingsView = ({ settings, setSettings, currentUser, addNotification }: { settings: AppSettings, setSettings: React.Dispatch<React.SetStateAction<AppSettings>>, currentUser: User, addNotification: (message: string, type: AppNotification['type']) => void }) => {
-    const [theme, setTheme] = useState(settings.theme);
-    const [activeTheme, setActiveTheme] = useState(settings.activeTheme);
-    const [newTimeSlot, setNewTimeSlot] = useState("");
-    const [currentPassword, setCurrentPassword] = useState("");
-    const [newPassword, setNewPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-
-    const handleSaveAppearance = () => {
-        setSettings(s => ({ ...s, theme, activeTheme }));
-        addNotification('Appearance settings saved!', 'success');
-    };
-    
-    const handleAddTimeSlot = () => {
-        if (newTimeSlot.trim()) {
-            setSettings(s => ({ ...s, timeSlots: [...s.timeSlots, newTimeSlot.trim()] }));
-            setNewTimeSlot("");
-            addNotification('Time slot added.', 'success');
-        }
-    };
-    
-    const handleRemoveTimeSlot = (index: number) => {
-        setSettings(s => ({ ...s, timeSlots: s.timeSlots.filter((_, i) => i !== index) }));
-        addNotification('Time slot removed.', 'info');
-    };
-    
-    const handlePasswordChange = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (newPassword !== confirmPassword) {
-            addNotification('New passwords do not match.', 'error');
-            return;
-        }
-        if (newPassword.length < 6) {
-            addNotification('Password must be at least 6 characters long.', 'error');
-            return;
-        }
-        console.log("Password changed for user:", currentUser.id);
-        addNotification('Password changed successfully!', 'success');
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-    };
-
-    return (
-        <div className="flex flex-col gap-8">
-            <div className="view-header"><h2 className="text-2xl font-bold">Settings</h2></div>
-            <div className="grid md:grid-cols-2 gap-8">
-                <div className="dashboard-card">
-                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><Icon name="palette"/>Appearance</h3>
-                    <div className="control-group">
-                        <label>Mode</label>
-                        <div className="flex gap-4">
-                            <button onClick={() => setTheme('light')} className={`btn ${theme === 'light' ? 'btn-primary' : 'btn-secondary'}`}>Light</button>
-                            <button onClick={() => setTheme('dark')} className={`btn ${theme === 'dark' ? 'btn-primary' : 'btn-secondary'}`}>Dark</button>
-                        </div>
-                    </div>
-                    <div className="control-group">
-                        <label>Theme</label>
-                        <div className="theme-swatches">
-                            {THEMES.map(t => (
-                                <button
-                                    key={t.name}
-                                    className={`theme-swatch ${activeTheme === t.name ? 'active' : ''}`}
-                                    style={{ backgroundColor: t.colors['--accent-primary'] }}
-                                    onClick={() => setActiveTheme(t.name)}
-                                    aria-label={`Select ${t.name} theme`}
-                                >
-                                    {activeTheme === t.name && <Icon name="check" className="w-5 h-5 text-white" />}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <button onClick={handleSaveAppearance} className="btn btn-primary mt-2">Save Appearance</button>
-                </div>
-
-                 <div className="dashboard-card">
-                    <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><Icon name="user"/>Profile Management</h3>
-                    <form onSubmit={handlePasswordChange}>
-                        <div className="control-group">
-                            <label htmlFor="current-password">Current Password</label>
-                            <input type="password" id="current-password" className="form-control" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required/>
-                        </div>
-                        <div className="control-group">
-                            <label htmlFor="new-password">New Password</label>
-                            <input type="password" id="new-password" className="form-control" value={newPassword} onChange={e => setNewPassword(e.target.value)} required/>
-                        </div>
-                         <div className="control-group">
-                            <label htmlFor="confirm-password">Confirm New Password</label>
-                            <input type="password" id="confirm-password" className="form-control" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required/>
-                        </div>
-                        <button type="submit" className="btn btn-primary">Change Password</button>
-                    </form>
-                </div>
-            </div>
-
-            {['admin', 'creator'].includes(currentUser.role) && (
-                 <div className="dashboard-card">
-                     <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><Icon name="sliders"/>System Settings</h3>
-                     <h4>Time Slot Management</h4>
-                     <ul className="list-disc pl-5 my-2">
-                        {settings.timeSlots.map((slot, index) => (
-                           <li key={index} className="flex justify-between items-center mb-1">
-                               <span>{slot}</span>
-                               <button onClick={() => handleRemoveTimeSlot(index)} className="btn btn-danger-outline btn-sm">Remove</button>
-                           </li>
+                    <div className="calendar-filters">
+                        {Object.keys(filters).map(key => (
+                            <label key={key} className="filter-checkbox">
+                                <input type="checkbox" checked={filters[key as keyof typeof filters]} onChange={() => handleFilterChange(key as keyof typeof filters)} />
+                                <span className={`status-badge status-${key}`}>{key}</span>
+                            </label>
                         ))}
-                     </ul>
-                     <div className="flex gap-2 mt-4">
-                        <input type="text" className="form-control" value={newTimeSlot} onChange={e => setNewTimeSlot(e.target.value)} placeholder="e.g., 4:00 - 5:00"/>
-                        <button onClick={handleAddTimeSlot} className="btn btn-primary">Add</button>
-                     </div>
-                 </div>
-            )}
-        </div>
-    );
-};
-
-const UserManagementView = ({ users, setUsers, addNotification }: { users: User[], setUsers: React.Dispatch<React.SetStateAction<User[]>>, addNotification: (message: string, type: AppNotification['type']) => void }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ role: 'all', dept: 'all', status: 'all' });
-    const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [generatingSummaryFor, setGeneratingSummaryFor] = useState<string | null>(null);
-
-    const handleFilterChange = (filterName: string, value: string) => {
-        setFilters(prev => ({ ...prev, [filterName]: value }));
-    };
-
-    const handleToggleLock = (userId: string) => {
-        const user = users.find(u => u.id === userId);
-        if (user) {
-            setUsers(prevUsers =>
-                prevUsers.map(u =>
-                    u.id === userId ? { ...u, isLocked: !u.isLocked } : u
-                )
-            );
-            addNotification(`User '${user.name}' has been ${user.isLocked ? 'unlocked' : 'locked'}.`, 'info');
-        }
-    };
-    
-    const handleGenerateSummary = async (user: User) => {
-        if (!ai) {
-            addNotification("AI features are disabled.", "error");
-            return;
-        }
-        setGeneratingSummaryFor(user.id);
-        try {
-            let promptContext = `User: ${user.name}, Role: ${user.role}, Department: ${user.dept}, Status: ${user.status}.`;
-            if (user.role === 'student') {
-                promptContext += ` Year: ${user.year}. Grades: ${JSON.stringify(user.grades || [])}. Attendance: ${JSON.stringify(user.attendance || {})}.`;
-            }
-            const prompt = `Generate a concise, one-paragraph summary for the following user, highlighting their academic standing, role, and any notable points (e.g., high-achiever, poor attendance, pending status). Context: ${promptContext}`;
-            
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, aiSummary: response.text } : u));
-            addNotification(`AI summary generated for ${user.name}.`, 'success');
-        } catch (error) {
-            console.error("AI summary generation failed:", error);
-            addNotification("Failed to generate AI summary.", "error");
-        } finally {
-            setGeneratingSummaryFor(null);
-        }
-    };
-
-    const filteredUsers = useMemo(() => {
-        return users.filter(user => {
-            if (user.role === 'creator') return false; // Exclude creator from management
-            const nameMatch = user.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const roleMatch = filters.role === 'all' || user.role === filters.role;
-            const deptMatch = filters.dept === 'all' || user.dept === filters.dept;
-            const statusMatch = filters.status === 'all' || user.status === filters.status;
-            return nameMatch && roleMatch && deptMatch && statusMatch;
-        }).sort((a,b) => a.name.localeCompare(b.name));
-    }, [users, searchTerm, filters]);
-    
-    const handleSaveUser = (updatedUser: User) => {
-        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-        addNotification(`User '${updatedUser.name}' has been updated.`, 'success');
-        setEditingUser(null);
-    };
-
-    const UserEditModal = ({ user, onSave, onClose }: { user: User, onSave: (u: User) => void, onClose: () => void }) => {
-        const [formData, setFormData] = useState(user);
-        
-        const handleSubmit = (e: React.FormEvent) => {
-            e.preventDefault();
-            onSave(formData);
-        };
-
-        return (
-            <Modal onClose={onClose}>
-                <form onSubmit={handleSubmit}>
-                    <div className="modal-header">
-                        <h3>Edit User: {user.name}</h3>
-                        <button type="button" onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
-                    </div>
-                    <div className="modal-body">
-                        <div className="control-group">
-                            <label htmlFor="edit-name">Name</label>
-                            <input id="edit-name" type="text" className="form-control" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
-                        </div>
-                         <div className="form-grid">
-                            <div className="control-group">
-                                <label htmlFor="edit-role">Role</label>
-                                <select id="edit-role" className="form-control" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
-                                    {ROLES.map(role => <option key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>)}
-                                </select>
-                            </div>
-                            <div className="control-group">
-                                <label htmlFor="edit-dept">Department</label>
-                                <select id="edit-dept" className="form-control" value={formData.dept} onChange={e => setFormData({...formData, dept: e.target.value})}>
-                                    {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="form-grid">
-                            <div className="control-group">
-                                <label htmlFor="edit-status">Status</label>
-                                <select id="edit-status" className="form-control" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as User['status']})}>
-                                    <option value="active">Active</option>
-                                    <option value="pending_approval">Pending Approval</option>
-                                    <option value="rejected">Rejected</option>
-                                </select>
-                            </div>
-                            {formData.role === 'student' && (
-                                <div className="control-group">
-                                    <label htmlFor="edit-year">Year</label>
-                                    <select id="edit-year" className="form-control" value={formData.year} onChange={e => setFormData({...formData, year: e.target.value})}>
-                                        {YEARS.map(year => <option key={year} value={year}>{year}</option>)}
-                                    </select>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-                        <button type="submit" className="btn btn-primary">Save Changes</button>
-                    </div>
-                </form>
-            </Modal>
-        );
-    };
-
-    return (
-        <>
-            <div className="view-header">
-                <h2 className="text-2xl font-bold">User Management</h2>
-            </div>
-
-            <div className="dashboard-card mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="control-group !mb-0">
-                        <label htmlFor="search-name">Search by Name</label>
-                        <input id="search-name" type="text" className="form-control" placeholder="e.g., John Doe" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                    </div>
-                    <div className="control-group !mb-0">
-                        <label htmlFor="filter-role">Filter by Role</label>
-                        <select id="filter-role" className="form-control" value={filters.role} onChange={e => handleFilterChange('role', e.target.value)}>
-                            <option value="all">All Roles</option>
-                            {ROLES.map(role => <option key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>)}
-                        </select>
-                    </div>
-                    <div className="control-group !mb-0">
-                        <label htmlFor="filter-dept">Filter by Department</label>
-                        <select id="filter-dept" className="form-control" value={filters.dept} onChange={e => handleFilterChange('dept', e.target.value)}>
-                            <option value="all">All Departments</option>
-                            {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-                        </select>
-                    </div>
-                    <div className="control-group !mb-0">
-                        <label htmlFor="filter-status">Filter by Status</label>
-                        <select id="filter-status" className="form-control" value={filters.status} onChange={e => handleFilterChange('status', e.target.value)}>
-                            <option value="all">All Statuses</option>
-                            <option value="active">Active</option>
-                            <option value="pending_approval">Pending</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
                     </div>
                 </div>
-            </div>
-
-            <div className="table-wrapper">
-                <table className="entry-list-table">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Role</th>
-                            <th>Department</th>
-                            <th>Status</th>
-                            <th>AI Summary</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredUsers.length > 0 ? filteredUsers.map(user => (
-                            <tr key={user.id} className={user.isLocked ? 'locked' : ''}>
-                                <td>
-                                    <div className="flex items-center gap-3">
-                                        <div className="avatar">{user.name.charAt(0)}</div>
-                                        <div>
-                                            <div className="font-bold flex items-center gap-2">
-                                                {user.name}
-                                                {user.isLocked && <Icon name="lock" className="w-4 h-4 icon-danger" />}
-                                            </div>
-                                            <div className="text-sm text-secondary">{user.id}</div>
-                                        </div>
+                <div className="calendar-grid">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <div key={day} className="calendar-day-header">{day}</div>)}
+                    {days.map(({ day, date }, index) => {
+                        const dateStr = date ? date.toISOString().split('T')[0] : '';
+                        const dayEvents = date ? eventsByDate.get(dateStr) || [] : [];
+                        const isToday = dateStr === new Date().toISOString().split('T')[0];
+                        const isAdmin = ['admin', 'hod', 'principal'].includes(currentUser.role);
+                        return (
+                            <div key={index} className={`calendar-day ${!day ? 'empty' : ''} ${isToday ? 'today' : ''} ${isAdmin ? 'editable' : ''}`} onClick={() => date && openModal(null, date)}>
+                                {day && <span className="day-number">{day}</span>}
+                                {dayEvents.map(event => (
+                                    <div key={event.id} className={`calendar-event event-${event.type}`} onClick={(e) => { e.stopPropagation(); openModal(event); }}>
+                                        {event.title}
                                     </div>
-                                </td>
-                                <td><span className={`role-badge role-${user.role.replace(/ /g, '-')}`}>{user.role} {user.role === 'student' && `(${user.year})`}</span></td>
-                                <td>{user.dept}</td>
-                                <td><span className={`status-badge status-${user.status}`}>{user.status.replace('_', ' ')}</span></td>
-                                <td className="ai-summary-cell">
-                                    {user.aiSummary && <p className="text-xs text-secondary">{user.aiSummary}</p>}
-                                    <button
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={() => handleGenerateSummary(user)}
-                                        disabled={generatingSummaryFor === user.id}
-                                    >
-                                        {generatingSummaryFor === user.id ? <span className="spinner"></span> : <Icon name="sparkles" className="w-4 h-4" />}
-                                    </button>
-                                </td>
-                                <td>
-                                    <button className="btn btn-secondary btn-sm" onClick={() => setEditingUser(user)}>
-                                        <Icon name="edit" className="w-4 h-4"/>
-                                    </button>
-                                    <button 
-                                        className={`btn btn-sm ${user.isLocked ? 'btn-secondary' : 'btn-danger-outline'}`} 
-                                        onClick={() => handleToggleLock(user.id)}
-                                    >
-                                        <Icon name={user.isLocked ? 'key' : 'lock'} className="w-4 h-4"/> 
-                                    </button>
-                                </td>
-                            </tr>
-                        )) : (
-                            <tr>
-                                <td colSpan={6} className="text-center py-8 text-secondary">
-                                    No users found matching your criteria.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                                ))}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
-
-            {editingUser && <UserEditModal user={editingUser} onSave={handleSaveUser} onClose={() => setEditingUser(null)} />}
+            {isModalOpen && selectedEvent && <CalendarEventModal event={selectedEvent} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onClose={() => setIsModalOpen(false)} />}
         </>
     );
 };
-
-const CourseFilesView = ({ courseFiles, setCourseFiles, currentUser, addNotification }: { courseFiles: CourseFile[], setCourseFiles: React.Dispatch<React.SetStateAction<CourseFile[]>>, currentUser: User, addNotification: (message: string, type: AppNotification['type']) => void }) => {
-    const [selectedCourseFile, setSelectedCourseFile] = useState<CourseFile | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    
-    const isReviewer = ['admin', 'hod', 'principal'].includes(currentUser.role);
-    const isFaculty = ['faculty', 'hod', 'principal', 'admin', 'creator'].includes(currentUser.role);
-
-    const filteredFiles = useMemo(() => {
-        if (isReviewer) {
-            return courseFiles.filter(cf => 
-                (currentUser.role === 'admin' || currentUser.role === 'principal' || cf.department === currentUser.dept)
-            ).sort((a,b) => {
-                const statusOrder = { 'pending_review': 1, 'needs_revision': 2, 'approved': 3 };
-                return statusOrder[a.status] - statusOrder[b.status] || b.submittedAt - a.submittedAt;
-            });
-        }
-        return courseFiles.filter(cf => cf.facultyId === currentUser.id).sort((a,b) => b.submittedAt - a.submittedAt);
-    }, [courseFiles, currentUser, isReviewer]);
-    
-    const handleOpenFile = (file: CourseFile) => {
-        setSelectedCourseFile(file);
-        setIsModalOpen(true);
-    };
-
-    const handleNewFile = () => {
-        setSelectedCourseFile({
-            id: `new_${Date.now()}`,
-            facultyId: currentUser.id,
-            facultyName: currentUser.name,
-            department: currentUser.dept,
-            subject: '',
-            semester: '1',
-            files: [],
-            status: 'pending_review',
-            submittedAt: Date.now(),
-        });
-        setIsModalOpen(true);
-    };
-    
-    const handleSaveFile = (file: CourseFile) => {
-        const fileToSave = { ...file, submittedAt: Date.now(), status: 'pending_review' as CourseFile['status'] };
-        if (file.id.startsWith('new_')) {
-            setCourseFiles(prev => [{ ...fileToSave, id: `cf_${Date.now()}` }, ...prev]);
-            addNotification('Course file submitted for review.', 'success');
-        } else {
-            setCourseFiles(prev => prev.map(cf => cf.id === file.id ? fileToSave : cf));
-            addNotification('Course file updated and re-submitted.', 'success');
-        }
-        setIsModalOpen(false);
-    };
-
-    return (
-        <>
-            <div className="view-header">
-                <h2 className="text-2xl font-bold">Course Files</h2>
-                {isFaculty && (
-                    <button className="btn btn-primary" onClick={handleNewFile}>
-                        <Icon name="plus" className="w-4 h-4" /> Submit New File
-                    </button>
-                )}
-            </div>
-            
-            <div className="course-files-grid">
-                {filteredFiles.length > 0 ? filteredFiles.map(cf => (
-                    <div key={cf.id} className="course-file-card stagger-item" onClick={() => handleOpenFile(cf)}>
-                        <div className="course-file-card-header">
-                            <span className={`status-badge status-${cf.status}`}>{cf.status.replace('_', ' ')}</span>
-                        </div>
-                        <div className="course-file-card-body">
-                             <h3 className="font-bold">{cf.subject}</h3>
-                             <p className="text-secondary text-sm">Semester {cf.semester} &bull; {cf.department}</p>
-                             <p className="text-secondary text-xs mt-2">Submitted by {isReviewer ? cf.facultyName : 'you'} on {new Date(cf.submittedAt).toLocaleDateString()}</p>
-                        </div>
-                        <div className="course-file-card-footer">
-                             <div className="flex items-center gap-2">
-                                <Icon name="courseFiles" className="w-4 h-4 text-secondary"/>
-                                <span className="text-xs text-secondary">{cf.files.length} file(s)</span>
-                             </div>
-                        </div>
-                    </div>
-                )) : (
-                    <div className="text-center text-secondary py-16 col-span-full">
-                        <Icon name="courseFiles" className="w-16 h-16 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold">No Course Files</h3>
-                        <p>{isReviewer ? "There are no course files to review." : "You have not submitted any course files yet."}</p>
-                    </div>
-                )}
-            </div>
-            {isModalOpen && selectedCourseFile && (
-                <CourseFileModal 
-                    courseFile={selectedCourseFile}
-                    onSave={handleSaveFile}
-                    onClose={() => setIsModalOpen(false)}
-                    currentUser={currentUser}
-                    addNotification={addNotification}
-                    setCourseFiles={setCourseFiles}
-                />
-            )}
-        </>
-    );
-};
-
-const CourseFileModal = ({ courseFile, onSave, onClose, currentUser, addNotification, setCourseFiles }: { courseFile: CourseFile, onSave: (cf: CourseFile) => void, onClose: () => void, currentUser: User, addNotification: (m: string, t: AppNotification['type']) => void, setCourseFiles: React.Dispatch<React.SetStateAction<CourseFile[]>> }) => {
-    const [formData, setFormData] = useState(courseFile);
-    const [newFileName, setNewFileName] = useState("");
-    const [newFileType, setNewFileType] = useState<'syllabus' | 'notes' | 'quiz'>('notes');
-    const [isGeneratingReview, setIsGeneratingReview] = useState(false);
-    
-    const isOwner = formData.facultyId === currentUser.id;
-    const isReviewer = ['admin', 'hod', 'principal'].includes(currentUser.role);
-    const canEdit = isOwner && formData.status !== 'approved';
-    const canReview = isReviewer && !isOwner;
-
-    const handleAddFile = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (newFileName.trim()) {
-            setFormData(prev => ({...prev, files: [...prev.files, { name: newFileName.trim(), type: newFileType }]}));
-            setNewFileName("");
-        }
-    };
-    
-    const handleRemoveFile = (index: number) => {
-        setFormData(prev => ({...prev, files: prev.files.filter((_, i) => i !== index)}));
-    };
-    
-    const handleStatusChange = (newStatus: CourseFile['status']) => {
-        const updatedFile = {...formData, status: newStatus};
-        setCourseFiles(prev => prev.map(cf => cf.id === updatedFile.id ? updatedFile : cf));
-        addNotification(`Submission status changed to ${newStatus.replace('_', ' ')}.`, 'success');
-        onClose();
-    };
-
-    const handleGenerateAiReview = async () => {
-        if (!ai) {
-            addNotification("AI features are disabled.", "error");
-            return;
-        }
-        setIsGeneratingReview(true);
-        try {
-            const prompt = `You are an academic quality assurance expert reviewing a course file submission for a college. Submission Details: Subject: ${formData.subject}, Semester: ${formData.semester}, Department: ${formData.department}, Faculty: ${formData.facultyName}, Files: ${formData.files.map(f => `${f.name} (${f.type})`).join(', ')}. Based on these details, provide a concise summary, 3-5 actionable suggestions for improvement (e.g., "Consider adding a quiz for Unit 2"), and identify one potential grammatical correction in a hypothetical document. Your tone should be constructive and helpful.`;
-            const responseSchema = {
-                type: Type.OBJECT, properties: {
-                    summary: { type: Type.STRING },
-                    suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    corrections: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { original: { type: Type.STRING }, corrected: { type: Type.STRING } } } },
-                }
-            };
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema } });
-            const reviewData = JSON.parse(response.text);
-            const newAiReview: CourseFile['aiReview'] = { ...reviewData, status: 'complete', timestamp: Date.now() };
-            const updatedFile = { ...formData, aiReview: newAiReview };
-            setFormData(updatedFile);
-            setCourseFiles(prev => prev.map(cf => cf.id === updatedFile.id ? updatedFile : cf));
-        } catch (e) {
-            console.error("AI review generation failed:", e);
-            addNotification("Failed to generate AI review.", "error");
-        } finally {
-            setIsGeneratingReview(false);
-        }
-    };
-
-    return (
-        <Modal onClose={onClose} size="large">
-            <div className="modal-header">
-                <h3>{courseFile.id.startsWith('new_') ? 'New Course File Submission' : 'View Course File'}</h3>
-                <button type="button" onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
-            </div>
-            <div className="modal-body">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        {canEdit ? (
-                            <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }}>
-                                <div className="control-group">
-                                    <label>Subject</label>
-                                    <input type="text" className="form-control" value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} required />
-                                </div>
-                                <div className="control-group">
-                                    <label>Semester</label>
-                                    <select className="form-control" value={formData.semester} onChange={e => setFormData({...formData, semester: e.target.value})}>
-                                        {Array.from({length: 8}, (_, i) => i + 1).map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </div>
-                                <div className="control-group">
-                                    <label>Files</label>
-                                    <ul className="mb-2 list-disc pl-5">
-                                        {formData.files.map((file, index) => (
-                                            <li key={index}> {file.name} ({file.type}) <button type="button" onClick={() => handleRemoveFile(index)} className="text-red-500 ml-2">&times;</button></li>
-                                        ))}
-                                    </ul>
-                                    <div className="flex gap-2">
-                                        <input type="text" className="form-control" placeholder="File name (e.g., Unit1.pdf)" value={newFileName} onChange={e => setNewFileName(e.target.value)} />
-                                        <select className="form-control" value={newFileType} onChange={e => setNewFileType(e.target.value as any)}>
-                                            <option value="syllabus">Syllabus</option>
-                                            <option value="notes">Notes</option>
-                                            <option value="quiz">Quiz</option>
-                                        </select>
-                                        <button type="button" onClick={handleAddFile} className="btn btn-secondary">Add</button>
-                                    </div>
-                                </div>
-                            </form>
-                        ) : (
-                            <div>
-                                <h4 className="text-lg font-semibold">{formData.subject}</h4>
-                                <p className="text-secondary">Semester {formData.semester} &bull; {formData.department}</p>
-                                <p className="text-secondary text-sm mt-2">Submitted by: {formData.facultyName}</p>
-                                <hr className="my-4"/>
-                                <h5 className="font-semibold mb-2">Submitted Files</h5>
-                                <ul className="list-disc pl-5">
-                                    {formData.files.map((file, i) => <li key={i}>{file.name} <span className="text-secondary text-sm">({file.type})</span></li>)}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        {isReviewer && (
-                             <div className="ai-review-panel">
-                                <h4 className="flex items-center gap-2 font-semibold"><Icon name="sparkles" /> AI Quality Review</h4>
-                                {formData.aiReview ? (
-                                    <div className="mt-2 text-sm">
-                                        <strong>Summary:</strong><p className="text-secondary">{formData.aiReview.summary}</p>
-                                        <strong className="mt-2 block">Suggestions:</strong>
-                                        <ul className="list-disc pl-5 text-secondary">
-                                            {formData.aiReview.suggestions.map((s, i) => <li key={i}>{s}</li>)}
-                                        </ul>
-                                        {formData.aiReview.corrections && formData.aiReview.corrections.length > 0 && <>
-                                            <strong className="mt-2 block">Example Correction:</strong>
-                                            <div className="text-secondary">
-                                                <p><span className="line-through">{formData.aiReview.corrections[0].original}</span></p>
-                                                <p className="text-green-600">{formData.aiReview.corrections[0].corrected}</p>
-                                            </div>
-                                        </>}
-                                    </div>
-                                ) : (
-                                    <div className="text-center p-4">
-                                        <p className="text-secondary text-sm mb-2">No review generated yet.</p>
-                                        <button className="btn btn-primary btn-sm" onClick={handleGenerateAiReview} disabled={isGeneratingReview || !isAiEnabled}>
-                                             {isGeneratingReview ? <><span className="spinner"></span> Generating...</> : 'Generate AI Review'}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-            <div className="modal-footer">
-                <span className={`status-badge status-${formData.status}`}>{formData.status.replace('_', ' ')}</span>
-                <div>
-                {canEdit && <button type="button" className="btn btn-primary" onClick={() => onSave(formData)}>Save & Submit</button>}
-                {canReview && formData.status === 'pending_review' && (
-                    <>
-                        <button type="button" className="btn btn-secondary" onClick={() => handleStatusChange('needs_revision')}>Request Revision</button>
-                        <button type="button" className="btn btn-success" onClick={() => handleStatusChange('approved')}>Approve</button>
-                    </>
-                )}
-                <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-const SecurityView = ({ securityAlerts, setSecurityAlerts, users, setUsers, addNotification }: { securityAlerts: SecurityAlert[], setSecurityAlerts: React.Dispatch<React.SetStateAction<SecurityAlert[]>>, users: User[], setUsers: React.Dispatch<React.SetStateAction<User[]>>, addNotification: (m: string, t: AppNotification['type']) => void }) => {
-    const [selectedAlert, setSelectedAlert] = useState<SecurityAlert | null>(null);
-    const [filters, setFilters] = useState({ severity: 'all', status: 'all' });
-    
-    const stats = useMemo(() => {
-        const unresolved = securityAlerts.filter(a => !a.isResolved).length;
-        const severities = securityAlerts.reduce((acc, alert) => {
-            acc[alert.severity] = (acc[alert.severity] || 0) + 1;
-            return acc;
-        }, {} as Record<SecurityAlert['severity'], number>);
-        return { total: securityAlerts.length, unresolved, ...severities };
-    }, [securityAlerts]);
-
-    const filteredAlerts = useMemo(() => {
-        return securityAlerts.filter(alert => {
-            const severityMatch = filters.severity === 'all' || alert.severity === filters.severity;
-            const statusMatch = filters.status === 'all' || (filters.status === 'resolved' ? alert.isResolved : !alert.isResolved);
-            return severityMatch && statusMatch;
-        }).sort((a,b) => b.timestamp - a.timestamp);
-    }, [securityAlerts, filters]);
-
-    const handleFilterChange = (filterName: string, value: string) => {
-        setFilters(prev => ({...prev, [filterName]: value}));
-    };
-
-    const toggleResolve = (alertId: string, isResolved: boolean) => {
-        setSecurityAlerts(prev => prev.map(a => a.id === alertId ? { ...a, isResolved: !isResolved } : a));
-        addNotification(`Alert marked as ${!isResolved ? 'resolved' : 'unresolved'}.`, 'info');
-        setSelectedAlert(prev => prev ? { ...prev, isResolved: !isResolved } : null);
-    };
-
-    const handleExecuteAction = (alert: SecurityAlert) => {
-        if (!alert.responsePlan || !alert.relatedUserId) return;
-
-        const { recommendedAction, investigation } = alert.responsePlan;
-        if (recommendedAction === 'LOCK_USER') {
-            const userToLock = users.find(u => u.id === alert.relatedUserId);
-            if (userToLock) {
-                setUsers(prev => prev.map(u => u.id === alert.relatedUserId ? { ...u, isLocked: true } : u));
-                addNotification(`Action executed: User '${userToLock.name}' has been locked.`, 'success');
-            } else {
-                addNotification('Could not find the user to lock.', 'error');
-            }
-        } else {
-            addNotification(`Action '${recommendedAction}' noted for monitoring.`, 'info');
-        }
-    };
-    
-    const AlertModal = ({ alert, onClose }: { alert: SecurityAlert, onClose: () => void }) => {
-        const relatedUser = users.find(u => u.id === alert.relatedUserId);
-        return (
-            <Modal onClose={onClose} size="large">
-                <div className="modal-header">
-                    <h3>Alert Details: {alert.title}</h3>
-                    <button type="button" onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
-                </div>
-                <div className="modal-body">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div><strong>Status:</strong> <span className={`status-badge ${alert.isResolved ? 'status-success' : 'status-danger'}`}>{alert.isResolved ? 'Resolved' : 'Unresolved'}</span></div>
-                        <div><strong>Severity:</strong> <span className={`status-badge status-${alert.severity}`}>{alert.severity}</span></div>
-                        <div><strong>Timestamp:</strong> {new Date(alert.timestamp).toLocaleString()}</div>
-                        {relatedUser && <div><strong>Related User:</strong> {relatedUser.name} ({relatedUser.id})</div>}
-                    </div>
-                    <p className="text-secondary mb-4">{alert.description}</p>
-                    {alert.responsePlan && (
-                        <div className="response-plan">
-                            <h4>Response Plan</h4>
-                            <p><strong>Containment:</strong> {alert.responsePlan.containment}</p>
-                            <p><strong>Investigation:</strong> {alert.responsePlan.investigation}</p>
-                            <p><strong>Recovery:</strong> {alert.responsePlan.recovery}</p>
-                             {alert.responsePlan.recommendedAction !== 'NONE' && (
-                                <div className="recommended-action">
-                                    <strong>Recommended Action:</strong>
-                                    <span>{alert.responsePlan.recommendedAction.replace('_', ' ')}</span>
-                                    <button 
-                                        className={`btn btn-sm ${alert.responsePlan.recommendedAction === 'LOCK_USER' ? 'btn-danger' : 'btn-secondary'}`}
-                                        onClick={() => handleExecuteAction(alert)}>
-                                            Execute Action
-                                    </button>
-                                </div>
-                             )}
-                        </div>
-                    )}
-                </div>
-                <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
-                    <button type="button" className={`btn ${alert.isResolved ? 'btn-secondary' : 'btn-success'}`} onClick={() => toggleResolve(alert.id, alert.isResolved)}>
-                        {alert.isResolved ? 'Re-open Alert' : 'Mark as Resolved'}
-                    </button>
-                </div>
-            </Modal>
-        );
-    };
-
-    return (
-        <>
-            <div className="view-header"><h2 className="text-2xl font-bold">Security Center</h2></div>
-            <div className="security-stats">
-                <div className="security-stat-card"><h4>Total Alerts</h4><p>{stats.total}</p></div>
-                <div className="security-stat-card unresolved"><h4>Unresolved</h4><p>{stats.unresolved}</p></div>
-                <div className="security-stat-card severity-critical"><h4>Critical</h4><p>{stats.critical || 0}</p></div>
-                <div className="security-stat-card severity-high"><h4>High</h4><p>{stats.high || 0}</p></div>
-                <div className="security-stat-card severity-medium"><h4>Medium</h4><p>{stats.medium || 0}</p></div>
-            </div>
-            <div className="dashboard-card mb-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="control-group !mb-0">
-                        <label htmlFor="filter-severity">Filter by Severity</label>
-                        <select id="filter-severity" className="form-control" value={filters.severity} onChange={e => handleFilterChange('severity', e.target.value)}>
-                            <option value="all">All Severities</option>
-                            <option value="critical">Critical</option>
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
-                        </select>
-                    </div>
-                    <div className="control-group !mb-0">
-                        <label htmlFor="filter-status">Filter by Status</label>
-                        <select id="filter-status" className="form-control" value={filters.status} onChange={e => handleFilterChange('status', e.target.value)}>
-                            <option value="all">All</option>
-                            <option value="unresolved">Unresolved</option>
-                            <option value="resolved">Resolved</option>
-                        </select>
-                    </div>
-                 </div>
-            </div>
-            <div className="alert-list">
-                {filteredAlerts.length > 0 ? filteredAlerts.map(alert => (
-                    <div key={alert.id} className={`alert-card severity-${alert.severity} ${alert.isResolved ? 'resolved' : ''}`} onClick={() => setSelectedAlert(alert)}>
-                        <div className="alert-card-header">
-                             <h3 className="font-bold">{alert.title}</h3>
-                             <span className={`status-badge status-${alert.severity}`}>{alert.severity}</span>
-                        </div>
-                        <p className="text-secondary text-sm my-2">{alert.description}</p>
-                        <div className="alert-card-footer">
-                            <span className="text-xs text-secondary">{new Date(alert.timestamp).toLocaleString()}</span>
-                            <span className={`status-badge ${alert.isResolved ? 'status-success' : 'status-danger'}`}>{alert.isResolved ? 'Resolved' : 'Unresolved'}</span>
-                        </div>
-                    </div>
-                )) : (
-                    <div className="text-center text-secondary py-16">
-                        <Icon name="security" className="w-16 h-16 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold">No Alerts Found</h3>
-                        <p>There are no security alerts matching your filters.</p>
-                    </div>
-                )}
-            </div>
-            {selectedAlert && <AlertModal alert={selectedAlert} onClose={() => setSelectedAlert(null)} />}
-        </>
-    );
-};
-
-const ResourceModal = ({ resource, onSave, onClose, addNotification }: { resource: Resource, onSave: (r: Resource) => void, onClose: () => void, addNotification: (message: string, type: AppNotification['type']) => void }) => {
-    const [formData, setFormData] = useState(resource);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if(!formData.name || !formData.subject) {
-            addNotification("Please fill in the resource name and subject.", "error");
-            return;
-        }
-        onSave(formData);
-    };
-    
-    return (
-        <Modal onClose={onClose}>
-            <form onSubmit={handleSubmit}>
-                <div className="modal-header">
-                    <h3>{resource.id.startsWith('new_') ? 'Upload Resource' : 'Edit Resource'}</h3>
-                    <button type="button" onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
-                </div>
-                <div className="modal-body">
-                     <div className="control-group">
-                        <label htmlFor="res-name">Resource Name</label>
-                        <input id="res-name" type="text" className="form-control" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g., Chapter 1 Notes.pdf" required />
-                    </div>
-                    <div className="control-group">
-                        <label htmlFor="res-subject">Subject</label>
-                        <input id="res-subject" type="text" className="form-control" value={formData.subject} onChange={e => setFormData({...formData, subject: e.target.value})} placeholder="e.g., Data Structures" required />
-                    </div>
-                    <div className="form-grid">
-                        <div className="control-group">
-                            <label htmlFor="res-type">Type</label>
-                            <select id="res-type" className="form-control" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as Resource['type']})}>
-                                <option value="notes">Notes</option>
-                                <option value="book">Book</option>
-                                <option value="project">Project</option>
-                                <option value="lab">Lab Manual</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                         <div className="control-group">
-                            <label htmlFor="res-dept">Department</label>
-                            <select id="res-dept" className="form-control" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})}>
-                               {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-                    <button type="submit" className="btn btn-primary">Save Resource</button>
-                </div>
-            </form>
-        </Modal>
-    );
-};
-
-const QuizModal = ({ resource, onClose, addNotification }: { resource: Resource; onClose: () => void; addNotification: (m: string, t: AppNotification['type']) => void; }) => {
-    const [quizState, setQuizState] = useState<'loading' | 'active' | 'finished'>('loading');
-    const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-    const [score, setScore] = useState(0);
-
-    useEffect(() => {
-        const fetchQuiz = async () => {
-            if (!ai) {
-                addNotification("AI features are disabled.", "error");
-                onClose();
-                return;
-            }
-            try {
-                const prompt = `Generate a 5-question multiple-choice quiz about "${resource.subject}". Each question should have 4 options and a clear correct answer.`;
-                const quizSchema = {
-                    type: Type.OBJECT,
-                    properties: {
-                        questions: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    question: { type: Type.STRING },
-                                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                    correctAnswerIndex: { type: Type.INTEGER },
-                                },
-                            },
-                        },
-                    },
-                };
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: { responseMimeType: 'application/json', responseSchema: quizSchema },
-                });
-                
-                const quizData = JSON.parse(response.text);
-                if (quizData.questions && quizData.questions.length > 0) {
-                    setQuestions(quizData.questions);
-                    setQuizState('active');
-                } else {
-                    throw new Error("Invalid quiz data received.");
-                }
-            } catch (error) {
-                console.error("Failed to generate quiz:", error);
-                addNotification("Could not generate a quiz for this resource.", "error");
-                onClose();
-            }
-        };
-        fetchQuiz();
-    }, [resource, addNotification, onClose]);
-
-    const handleAnswerSelect = (answerIndex: number) => {
-        if (selectedAnswer !== null) return; // Prevent changing answer
-        setSelectedAnswer(answerIndex);
-        if (answerIndex === questions[currentQuestionIndex].correctAnswerIndex) {
-            setScore(prev => prev + 1);
-        }
-    };
-
-    const handleNextQuestion = () => {
-        if (currentQuestionIndex < questions.length - 1) {
-            setCurrentQuestionIndex(prev => prev + 1);
-            setSelectedAnswer(null);
-        } else {
-            setQuizState('finished');
-        }
-    };
-    
-    const handleRetake = () => {
-        setScore(0);
-        setCurrentQuestionIndex(0);
-        setSelectedAnswer(null);
-        setQuizState('loading');
-        // Re-fetch questions for a new quiz
-        const fetchQuiz = async () => {
-             if (!ai) return;
-             try {
-                const prompt = `Generate a NEW 5-question multiple-choice quiz about "${resource.subject}".`;
-                const quizSchema = { /* same schema */ type: Type.OBJECT, properties: { questions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { question: { type: Type.STRING }, options: { type: Type.ARRAY, items: { type: Type.STRING } }, correctAnswerIndex: { type: Type.INTEGER } } } } } };
-                const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: quizSchema } });
-                const quizData = JSON.parse(response.text);
-                setQuestions(quizData.questions);
-                setQuizState('active');
-             } catch(e) { onClose(); }
-        };
-        fetchQuiz();
-    };
-
-    const currentQuestion = questions[currentQuestionIndex];
-
-    return (
-        <Modal onClose={onClose} size="large">
-            <div className="modal-header">
-                <h3>Quiz: {resource.name}</h3>
-                <button type="button" onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
-            </div>
-            <div className="modal-body quiz-modal-content">
-                {quizState === 'loading' && (
-                    <div className="spinner-container">
-                        <div className="spinner"></div>
-                        <p className="ml-4 text-secondary">Generating your quiz...</p>
-                    </div>
-                )}
-                {quizState === 'active' && currentQuestion && (
-                    <>
-                        <div className="quiz-progress-header">
-                            <p>Question {currentQuestionIndex + 1} of {questions.length}</p>
-                            <div className="quiz-progress-bar-container">
-                                <div className="quiz-progress-bar" style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}></div>
-                            </div>
-                        </div>
-                        <div className="quiz-question-container">
-                            <h4 className="text-xl font-semibold">{currentQuestion.question}</h4>
-                            <div className="quiz-options">
-                                {currentQuestion.options.map((option, index) => {
-                                    const isCorrect = index === currentQuestion.correctAnswerIndex;
-                                    const isSelected = selectedAnswer === index;
-                                    let btnClass = 'quiz-option-btn';
-                                    if (selectedAnswer !== null) {
-                                        if (isCorrect) btnClass += ' correct';
-                                        else if (isSelected) btnClass += ' incorrect';
-                                    } else if (isSelected) {
-                                        btnClass += ' selected';
-                                    }
-                                    return (
-                                        <button key={index} className={btnClass} onClick={() => handleAnswerSelect(index)} disabled={selectedAnswer !== null}>
-                                            {option}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </>
-                )}
-                {quizState === 'finished' && (
-                    <div className="quiz-results">
-                        <Icon name="check" className="w-16 h-16 text-green-500"/>
-                        <h3 className="text-2xl font-bold mt-4">Quiz Complete!</h3>
-                        <p className="text-secondary mt-2">You scored</p>
-                        <p className="text-5xl font-bold my-2">{score} <span className="text-2xl text-secondary">/ {questions.length}</span></p>
-                    </div>
-                )}
-            </div>
-            <div className="modal-footer">
-                {quizState === 'active' && selectedAnswer !== null && (
-                    <button className="btn btn-primary" onClick={handleNextQuestion}>
-                        {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
-                    </button>
-                )}
-                {quizState === 'finished' && (
-                    <>
-                        <button className="btn btn-secondary" onClick={handleRetake}>Retake Quiz</button>
-                        <button className="btn btn-primary" onClick={onClose}>Close</button>
-                    </>
-                )}
-            </div>
-        </Modal>
-    );
-};
-
 
 const ResourcesView = ({ resources, setResources, currentUser, addNotification }: { resources: Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>, currentUser: User, addNotification: (message: string, type: AppNotification['type']) => void }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [filter, setFilter] = useState({ department: 'all', type: 'all' });
     const [editingResource, setEditingResource] = useState<Resource | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ department: 'all', type: 'all' });
-    type SortableKeys = 'name' | 'department' | 'subject' | 'uploaderName' | 'timestamp';
-    const [sortConfig, setSortConfig] = useState<{ key: SortableKeys; direction: 'ascending' | 'descending' }>({ key: 'timestamp', direction: 'descending' });
-
-    const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
-    const [selectedResourceForQuiz, setSelectedResourceForQuiz] = useState<Resource | null>(null);
-
-
-    const canUpload = ['faculty', 'hod', 'principal', 'admin', 'creator'].includes(currentUser.role);
-
-    const canManageResource = (resource: Resource) => {
-        if (['admin', 'principal', 'creator'].includes(currentUser.role)) {
-            return true;
-        }
-        if (currentUser.role === 'hod' && currentUser.dept === resource.department) {
-            return true;
-        }
-        if (currentUser.id === resource.uploaderId) {
-            return true;
-        }
-        return false;
-    };
-
-    const requestSort = (key: SortableKeys) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
+    const [isGapAnalysisModalOpen, setGapAnalysisModalOpen] = useState(false);
+    const canManage = ['faculty', 'hod', 'admin', 'principal', 'creator'].includes(currentUser.role);
 
     const filteredResources = useMemo(() => {
-        let sortableResources = [...resources];
-        sortableResources.sort((a, b) => {
-            const aValue = a[sortConfig.key];
-            const bValue = b[sortConfig.key];
+        return resources
+            .filter(r => (filter.department === 'all' || r.department === filter.department) && (filter.type === 'all' || r.type === filter.type))
+            .sort((a, b) => b.timestamp - a.timestamp);
+    }, [resources, filter]);
 
-            if (aValue < bValue) {
-                return sortConfig.direction === 'ascending' ? -1 : 1;
-            }
-            if (aValue > bValue) {
-                return sortConfig.direction === 'ascending' ? 1 : -1;
-            }
-            return 0;
-        });
+    const handleSave = (resource: Resource) => {
+        if (resources.find(r => r.id === resource.id)) {
+            setResources(prev => prev.map(r => r.id === resource.id ? resource : r));
+            addNotification("Resource updated successfully", "success");
+        } else {
+            setResources(prev => [resource, ...prev]);
+            addNotification("Resource uploaded successfully", "success");
+        }
+        setEditingResource(null);
+    };
 
-        return sortableResources
-            .filter(res => {
-                const searchMatch = searchTerm === '' || 
-                                  res.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                  res.subject.toLowerCase().includes(searchTerm.toLowerCase());
-                const deptMatch = filters.department === 'all' || res.department === filters.department;
-                const typeMatch = filters.type === 'all' || res.type === filters.type;
-                return searchMatch && deptMatch && typeMatch;
-            });
-    }, [resources, searchTerm, filters, sortConfig]);
-
-    const handleUploadClick = () => {
+    const handleDelete = (id: string) => {
+        if (window.confirm("Are you sure you want to delete this resource?")) {
+            setResources(prev => prev.filter(r => r.id !== id));
+            addNotification("Resource deleted", "info");
+        }
+    };
+    
+    const openEditor = () => {
         setEditingResource({
-            id: `new_${Date.now()}`,
+            id: `res_${Date.now()}`,
             name: '',
             type: 'notes',
             department: currentUser.dept,
@@ -2287,1000 +1571,568 @@ const ResourcesView = ({ resources, setResources, currentUser, addNotification }
             uploaderName: currentUser.name,
             timestamp: Date.now(),
         });
-        setIsModalOpen(true);
     };
     
-    const handleEdit = (resource: Resource) => {
-        setEditingResource(resource);
-        setIsModalOpen(true);
-    };
+    const AIGapAnalysisModal = ({ onClose }: { onClose: () => void }) => {
+        const [department, setDepartment] = useState(DEPARTMENTS[0]);
+        const [isLoading, setIsLoading] = useState(false);
+        const [results, setResults] = useState<{ strengths: string[], gaps: string[], recommendations: string[] } | null>(null);
 
-    const handleDelete = (resourceId: string) => {
-        if (window.confirm('Are you sure you want to delete this resource?')) {
-            setResources(prev => prev.filter(res => res.id !== resourceId));
-            addNotification('Resource deleted successfully.', 'info');
-        }
-    };
-    
-    const handleSave = (resource: Resource) => {
-        if (resource.id.startsWith('new_')) {
-            setResources(prev => [{ ...resource, id: `res_${Date.now()}` }, ...prev]);
-            addNotification('Resource uploaded successfully!', 'success');
-        } else {
-            setResources(prev => prev.map(res => res.id === resource.id ? resource : res));
-            addNotification('Resource updated successfully!', 'success');
-        }
-        setIsModalOpen(false);
-        setEditingResource(null);
-    };
+        const handleAnalyze = async () => {
+            if (!ai) {
+                addNotification("AI features are disabled.", "warning");
+                return;
+            }
+            setIsLoading(true);
+            setResults(null);
+            try {
+                const departmentResources = resources
+                    .filter(r => r.department === department)
+                    .map(r => `${r.name} (${r.type} for ${r.subject})`)
+                    .join(', ');
 
-    const handleDownload = (resource: Resource) => {
-        addNotification(`Preparing download for "${resource.name}"...`, 'info');
-        try {
-            const filename = resource.name.replace(/[^a-z0-9_.-]/gi, '_').toLowerCase();
-            const fileContent = JSON.stringify(resource, null, 2);
-            const blob = new Blob([fileContent], { type: 'application/json;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `${filename}.json`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("Download failed:", error);
-            addNotification("Failed to prepare download.", "error");
-        }
-    };
+                const prompt = `
+                    Analyze the following list of academic resources for the ${department} department to identify curriculum gaps.
+                    Resources: [${departmentResources || 'None available'}]
+                    Based on this list, identify:
+                    1. Strengths: Well-covered subjects or topics.
+                    2. Gaps: Subjects or topics that appear to be missing or under-represented.
+                    3. Recommendations: Suggest 3 specific new resources (like notes, textbooks, or projects) to create or acquire that would fill these gaps.
+                `;
 
-    const handleGenerateQuiz = (resource: Resource) => {
-        setSelectedResourceForQuiz(resource);
-        setIsQuizModalOpen(true);
-    };
+                const schema = {
+                    type: Type.OBJECT,
+                    properties: {
+                        strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        gaps: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    }
+                };
 
-    const resourceTypeStyles: { [key in Resource['type']]: { icon: string; className: string; } } = {
-        book: { icon: 'book', className: 'resource-icon-bg-book' },
-        notes: { icon: 'notes', className: 'resource-icon-bg-notes' },
-        project: { icon: 'project', className: 'resource-icon-bg-project' },
-        lab: { icon: 'lab', className: 'resource-icon-bg-lab' },
-        other: { icon: 'other', className: 'resource-icon-bg-other' },
-    };
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: { responseMimeType: 'application/json', responseSchema: schema }
+                });
 
-    const getSortableHeader = (key: SortableKeys, title: string) => {
-        const isActive = sortConfig.key === key;
-        const icon = isActive
-            ? <Icon name={sortConfig.direction === 'ascending' ? 'chevron-up' : 'chevron-down'} className="w-4 h-4 text-accent" />
-            : <Icon name="chevron-up-down" className="w-4 h-4 text-secondary opacity-50" />;
+                setResults(JSON.parse(response.text));
+            } catch (error) {
+                console.error("AI Gap Analysis failed:", error);
+                addNotification("Failed to perform AI analysis. Please try again.", "error");
+            } finally {
+                setIsLoading(false);
+            }
+        };
 
         return (
-            <th onClick={() => requestSort(key)} className="sortable-header">
-                <div className="flex items-center gap-1">
-                    {title}
-                    {icon}
+            <Modal onClose={onClose} size="large">
+                <div className="modal-header">
+                    <h3>AI Resource Gap Analysis</h3>
+                    <button onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
                 </div>
-            </th>
+                <div className="modal-body">
+                    <p className="text-secondary mb-4">Select a department to analyze its resource coverage and identify potential curriculum gaps.</p>
+                    <div className="control-group">
+                        <label htmlFor="dept-analysis">Department</label>
+                        <select id="dept-analysis" className="form-control" value={department} onChange={e => setDepartment(e.target.value)}>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </div>
+                    {isLoading && (
+                         <div className="text-center py-8">
+                             <span className="spinner"></span>
+                             <p className="text-secondary mt-2">Analyzing resources...</p>
+                         </div>
+                    )}
+                    {results && (
+                        <div className="analysis-results-container">
+                            <div className="analysis-result-section">
+                                <h4><Icon name="check" className="text-green-500"/>Strengths</h4>
+                                <ul>{results.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                            </div>
+                            <div className="analysis-result-section">
+                                <h4><Icon name="search" className="text-yellow-500"/>Identified Gaps</h4>
+                                <ul>{results.gaps.map((g, i) => <li key={i}>{g}</li>)}</ul>
+                            </div>
+                            <div className="analysis-result-section">
+                                <h4><Icon name="lightbulb" className="text-blue-500"/>Recommendations</h4>
+                                <ul>{results.recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
+                    <button type="button" className="btn btn-primary" onClick={handleAnalyze} disabled={isLoading}>
+                         {isLoading ? 'Analyzing...' : <><Icon name="sparkles" className="w-4 h-4"/> Analyze</>}
+                    </button>
+                </div>
+            </Modal>
         );
     };
 
+    const ResourceModal = ({ resource, onSave, onClose }: { resource: Resource, onSave: (r: Resource) => void, onClose: () => void }) => {
+        const [formData, setFormData] = useState(resource);
+
+        return (
+            <Modal onClose={onClose}>
+                <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }}>
+                    <div className="modal-header">
+                        <h3>{resource.name ? 'Edit Resource' : 'Upload Resource'}</h3>
+                        <button type="button" onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
+                    </div>
+                    <div className="modal-body">
+                        <div className="control-group">
+                            <label htmlFor="res-name">Resource Name</label>
+                            <input id="res-name" type="text" className="form-control" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+                        </div>
+                        <div className="form-grid">
+                            <div className="control-group">
+                                <label htmlFor="res-type">Type</label>
+                                <select id="res-type" className="form-control" value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value as Resource['type'] })}>
+                                    <option value="notes">Notes</option>
+                                    <option value="book">Book</option>
+                                    <option value="project">Project</option>
+                                    <option value="lab">Lab Manual</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                             <div className="control-group">
+                                <label htmlFor="res-dept">Department</label>
+                                <select id="res-dept" className="form-control" value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value })}>
+                                   {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="control-group">
+                            <label htmlFor="res-subject">Subject</label>
+                            <input id="res-subject" type="text" className="form-control" value={formData.subject} onChange={e => setFormData({ ...formData, subject: e.target.value })} required />
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </Modal>
+        );
+    };
+    
+    const resourceIconMap: { [key in Resource['type']]: string } = { book: 'book', notes: 'notes', project: 'project', lab: 'lab', other: 'other' };
 
     return (
         <>
             <div className="view-header">
                 <h2 className="text-2xl font-bold">Resources</h2>
-                {canUpload && (
-                    <button className="btn btn-primary" onClick={handleUploadClick}>
-                        <Icon name="upload" className="w-4 h-4" /> Upload Resource
-                    </button>
-                )}
+                <div className="flex gap-2">
+                    {['hod', 'admin', 'principal'].includes(currentUser.role) && (
+                        <button className="btn btn-secondary" onClick={() => setGapAnalysisModalOpen(true)}>
+                            <Icon name="sparkles" className="w-4 h-4" /> AI Gap Analysis
+                        </button>
+                    )}
+                    {canManage && (
+                        <button className="btn btn-primary" onClick={openEditor}>
+                            <Icon name="upload" className="w-4 h-4" /> Upload Resource
+                        </button>
+                    )}
+                </div>
             </div>
-
-            <div className="dashboard-card mb-6">
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <div className="control-group !mb-0 col-span-1 md:col-span-1">
-                        <label htmlFor="search-res">Search Name/Subject</label>
-                        <input id="search-res" type="text" className="form-control" placeholder="e.g., Data Structures" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                    </div>
-                     <div className="control-group !mb-0">
-                        <label htmlFor="filter-res-dept">Filter by Department</label>
-                        <select id="filter-res-dept" className="form-control" value={filters.department} onChange={e => setFilters(f => ({...f, department: e.target.value}))}>
-                            <option value="all">All Departments</option>
-                            {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-                        </select>
-                    </div>
-                     <div className="control-group !mb-0">
-                        <label htmlFor="filter-res-type">Filter by Type</label>
-                        <select id="filter-res-type" className="form-control" value={filters.type} onChange={e => setFilters(f => ({...f, type: e.target.value}))}>
-                            <option value="all">All Types</option>
-                            <option value="book">Book</option>
-                            <option value="notes">Notes</option>
-                            <option value="project">Project</option>
-                            <option value="lab">Lab Manual</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                 </div>
-            </div>
-
-            <div className="table-wrapper">
+             <div className="table-wrapper">
                 <table className="entry-list-table">
                     <thead>
                         <tr>
-                            {getSortableHeader('name', 'Name')}
-                            {getSortableHeader('department', 'Department')}
-                            {getSortableHeader('subject', 'Subject')}
-                            {getSortableHeader('uploaderName', 'Uploader')}
-                            {getSortableHeader('timestamp', 'Date')}
-                            <th>Actions</th>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Subject</th>
+                            <th>Uploaded By</th>
+                            <th>Date</th>
+                            {canManage && <th>Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
-                         {filteredResources.length > 0 ? filteredResources.map(res => {
-                            const typeStyle = resourceTypeStyles[res.type];
-                            return (
-                                <tr key={res.id}>
-                                    <td>
-                                        <div className="flex items-center gap-3">
-                                            <div className={`resource-icon-container ${typeStyle.className}`}>
-                                                <Icon name={typeStyle.icon} className="w-5 h-5"/>
-                                            </div>
-                                            <div>
-                                                <div className="font-bold">{res.name}</div>
-                                                <div className="text-sm text-secondary capitalize">{res.type}</div>
-                                            </div>
+                        {filteredResources.map(res => (
+                            <tr key={res.id}>
+                                <td>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`resource-icon-container resource-icon-bg-${res.type}`}>
+                                            <Icon name={resourceIconMap[res.type]} className="w-5 h-5"/>
                                         </div>
-                                    </td>
-                                    <td>{res.department}</td>
-                                    <td>{res.subject}</td>
-                                    <td>{res.uploaderName}</td>
-                                    <td>{new Date(res.timestamp).toLocaleDateString()}</td>
-                                    <td>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            {['book', 'notes'].includes(res.type) && (
-                                                <button className="btn btn-secondary btn-sm" onClick={() => handleGenerateQuiz(res)} title="Generate Quiz">
-                                                    <Icon name="lightbulb" className="w-4 h-4"/>
-                                                </button>
-                                            )}
-                                            <button className="btn btn-secondary btn-sm" onClick={() => handleDownload(res)} title="Download">
-                                                <Icon name="download" className="w-4 h-4"/>
-                                            </button>
-                                            {canManageResource(res) && (
-                                                <>
-                                                    <button className="btn btn-secondary btn-sm" onClick={() => handleEdit(res)} title="Edit">
-                                                        <Icon name="edit" className="w-4 h-4"/>
-                                                    </button>
-                                                     <button className="btn btn-danger-outline btn-sm" onClick={() => handleDelete(res.id)} title="Delete">
-                                                        <Icon name="trash" className="w-4 h-4"/>
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )
-                         }) : (
-                            <tr>
-                                <td colSpan={6} className="text-center py-8 text-secondary">
-                                    No resources found.
+                                        <span>{res.name}</span>
+                                    </div>
                                 </td>
+                                <td>{res.department}</td>
+                                <td>{res.subject}</td>
+                                <td>{res.uploaderName}</td>
+                                <td>{new Date(res.timestamp).toLocaleDateString()}</td>
+                                {canManage && (
+                                    <td>
+                                        <div className="flex gap-2">
+                                            <button className="btn-icon" onClick={() => setEditingResource(res)}><Icon name="edit" className="w-5 h-5"/></button>
+                                            <button className="btn-icon icon-danger" onClick={() => handleDelete(res.id)}><Icon name="trash" className="w-5 h-5"/></button>
+                                        </div>
+                                    </td>
+                                )}
                             </tr>
-                         )}
+                        ))}
                     </tbody>
                 </table>
-            </div>
-            
-            {isModalOpen && editingResource && <ResourceModal resource={editingResource} onSave={handleSave} onClose={() => setIsModalOpen(false)} addNotification={addNotification} />}
-            {isQuizModalOpen && selectedResourceForQuiz && <QuizModal resource={selectedResourceForQuiz} onClose={() => setIsQuizModalOpen(false)} addNotification={addNotification} />}
+             </div>
+             {editingResource && <ResourceModal resource={editingResource} onSave={handleSave} onClose={() => setEditingResource(null)} />}
+             {isGapAnalysisModalOpen && <AIGapAnalysisModal onClose={() => setGapAnalysisModalOpen(false)} />}
         </>
     );
 };
 
+const SettingsView = ({ settings, setSettings, addNotification, currentUser }: { settings: AppSettings; setSettings: React.Dispatch<React.SetStateAction<AppSettings>>; addNotification: (m: string, t: AppNotification['type']) => void; currentUser: User }) => {
+    const [localSettings, setLocalSettings] = useState(settings);
 
-// --- MAIN APP COMPONENT ---
-const App = () => {
-    // --- State Management ---
-    const [users, setUsers] = useLocalStorage<User[]>('app_users', initialUsers);
-    const [timetable, setTimetable] = useLocalStorage<TimetableEntry[]>('app_timetable', initialTimetable);
-    const [announcements, setAnnouncements] = useLocalStorage<Announcement[]>('app_announcements', initialAnnouncements);
-    const [resources, setResources] = useLocalStorage<Resource[]>('app_resources', initialResources);
-    const [courseFiles, setCourseFiles] = useLocalStorage<CourseFile[]>('app_course_files', initialCourseFiles);
-    const [calendarEvents, setCalendarEvents] = useLocalStorage<CalendarEvent[]>('app_calendar_events', initialCalendarEvents);
-    const [securityAlerts, setSecurityAlerts] = useLocalStorage<SecurityAlert[]>('app_security_alerts', initialSecurityAlerts);
-    const [settings, setSettings] = useLocalStorage<AppSettings>('app_settings', initialAppSettings);
-    
-    const [currentUser, setCurrentUser] = useLocalStorage<User | null>('app_current_user', null);
-    const [currentView, setCurrentView] = useLocalStorage<AppView>('app_current_view', 'auth');
-    const [chatMessages, setChatMessages] = useLocalStorage<ChatMessage[]>('app_chat_messages', []);
-
-    const [isSidebarOpen, setSidebarOpen] = useState(false);
-    const [isCommandBarOpen, setCommandBarOpen] = useState(false);
-    const [isChatOpen, setChatOpen] = useState(false);
-    const [isNotificationCenterOpen, setNotificationCenterOpen] = useState(false);
-    const chatRef = useRef<Chat | null>(null);
-
-    const { notifications, toastQueue, addNotification, markAllAsRead, clearNotifications, unreadCount } = useAppNotifications();
-
-    // --- Effects ---
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', settings.theme);
-        const activeTheme = THEMES.find(t => t.name === settings.activeTheme) || THEMES[0];
-        for (const [key, value] of Object.entries(activeTheme.colors)) {
-            document.documentElement.style.setProperty(key, value);
-        }
-    }, [settings.theme, settings.activeTheme]);
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        setSettings(localSettings);
+        addNotification("Settings saved successfully!", "success");
+    };
     
     useEffect(() => {
-        if (!currentUser) {
-            setCurrentView('auth');
+        // Apply theme and colors
+        document.documentElement.setAttribute('data-theme', localSettings.theme);
+        const theme = THEMES.find(t => t.name === localSettings.activeTheme);
+        if (theme) {
+            Object.entries(theme.colors).forEach(([key, value]) => {
+                document.documentElement.style.setProperty(key, value);
+            });
         }
-    }, [currentUser]);
-
-    // --- Data Handlers ---
-    const addUser = (user: User) => setUsers(prev => [...prev, user]);
-
-    // --- Render Logic ---
-    const getHeaderTitle = (view: AppView): string => {
-        const titles: Record<AppView, string> = {
-            dashboard: 'Dashboard',
-            timetable: 'Timetable',
-            manage: 'Manage',
-            settings: 'Settings',
-            auth: 'Authentication',
-            approvals: 'User Approvals',
-            announcements: 'Announcements',
-            studentDirectory: 'Student Directory',
-            security: 'Security Center',
-            userManagement: 'User Management',
-            resources: 'Resources',
-            academicCalendar: 'Academic Calendar',
-            courseFiles: 'Course Files',
-        };
-        return titles[view] || 'Academic Assistant';
-    };
-
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setCurrentView('auth');
-        addNotification("You have been logged out.", 'info');
-    };
-    
-    const handleClearChat = () => {
-        setChatMessages([]);
-        chatRef.current = null; // Reset chat context
-        addNotification("Chat history cleared.", "info");
-    };
-
-    const handleSendMessage = async (message: string) => {
-        if (!ai) return;
-
-        const userMessage: ChatMessage = { id: `msg_${Date.now()}`, role: 'user', text: message };
-        setChatMessages(prev => [...prev, userMessage]);
-
-        try {
-            if (!chatRef.current) {
-                const systemInstruction = `You are a helpful academic assistant for a college portal. Be friendly and concise. The user is currently on the "${currentView}" page. Prioritize answers related to this page if applicable.`;
-                chatRef.current = ai.chats.create({
-                    model: 'gemini-2.5-flash',
-                    config: { systemInstruction }
-                });
-            }
-
-            const loadingId = `loading_${Date.now()}`;
-            setChatMessages(prev => [...prev, { id: loadingId, role: 'model', text: '...' }]);
-            
-            const stream = await chatRef.current.sendMessageStream({ message });
-            
-            let modelMessage: ChatMessage = { id: `msg_${Date.now()}`, role: 'model', text: '' };
-            setChatMessages(prev => [...prev.filter(m => m.id !== loadingId), modelMessage]);
-
-            for await (const chunk of stream) {
-                modelMessage.text += chunk.text;
-                setChatMessages(prev => prev.map(m => m.id === modelMessage.id ? { ...m, text: modelMessage.text } : m));
-            }
-
-        } catch (error) {
-            console.error("Chat error:", error);
-            const errorMessage: ChatMessage = { id: `err_${Date.now()}`, role: 'model', text: "Sorry, I couldn't get a response. Please try again.", isError: true };
-            setChatMessages(prev => [...prev.filter(m => m.role !== 'model' || m.text !== '...'), errorMessage]);
-        }
-    };
-
-    if (!currentUser || currentView === 'auth') {
-        return <AuthView setView={setCurrentView} setCurrentUser={setCurrentUser} users={users} addUser={addUser} addNotification={addNotification} />;
-    }
-
-    const navItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', roles: ROLES },
-        { id: 'timetable', label: 'Timetable', icon: 'timetable', roles: ROLES },
-        { id: 'announcements', label: 'Announcements', icon: 'announcements', roles: ROLES },
-        { id: 'academicCalendar', label: 'Calendar', icon: 'academicCalendar', roles: ROLES },
-        { id: 'resources', label: 'Resources', icon: 'resources', roles: ROLES },
-        { id: 'courseFiles', label: 'Course Files', icon: 'courseFiles', roles: ['faculty', 'hod', 'principal', 'admin'] },
-        { id: 'approvals', label: 'Approvals', icon: 'approvals', roles: ['admin', 'hod', 'principal'] },
-        { id: 'userManagement', label: 'User Management', icon: 'userManagement', roles: ['admin'] },
-        { id: 'security', label: 'Security', icon: 'security', roles: ['admin'] },
-        { id: 'settings', label: 'Settings', icon: 'settings', roles: ROLES },
-    ];
+    }, [localSettings]);
 
     return (
-        <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
-            <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-                <div className="sidebar-header">
-                    <a href="#" className="logo"><Icon name="dashboard" /></a>
-                    <h1>AcademiaAI</h1>
-                    <button className="sidebar-close" onClick={() => setSidebarOpen(false)}><Icon name="close" /></button>
-                </div>
-                <nav className="nav-list">
-                    <ul>
-                       {navItems.filter(item => item.roles.includes(currentUser.role)).map(item => (
-                             <li className="nav-item" key={item.id}>
-                                <button
-                                    className={currentView === item.id ? 'active' : ''}
-                                    onClick={() => {
-                                        setCurrentView(item.id as AppView);
-                                        setSidebarOpen(false);
-                                    }}
-                                >
-                                    <Icon name={item.icon} />
-                                    <span>{item.label}</span>
-                                </button>
-                            </li>
-                       ))}
-                    </ul>
-                </nav>
-                <div className="sidebar-footer">
-                    <div className="flex items-center gap-3 p-2">
-                        <div className="w-10 h-10 bg-tertiary rounded-full flex items-center justify-center font-bold text-accent-primary">
-                            {currentUser.name.charAt(0)}
-                        </div>
-                        <div>
-                            <p className="font-semibold text-sm">{currentUser.name}</p>
-                            <p className="text-xs text-secondary capitalize">{currentUser.role}</p>
-                        </div>
-                         <button onClick={handleLogout} className="logout-btn ml-auto" aria-label="Logout"><Icon name="logout" /></button>
-                    </div>
-                </div>
+        <>
+            <div className="view-header">
+                <h2 className="text-2xl font-bold">Settings</h2>
             </div>
-             <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
-            <main className="main-content">
-                <header className="header">
-                    <div className="header-left">
-                        <button className="menu-toggle" onClick={() => setSidebarOpen(true)}><Icon name="menu" /></button>
-                        <h2 className="header-title">{getHeaderTitle(currentView)}</h2>
-                    </div>
-                    <div className="header-right">
-                         <button className="header-action-btn" aria-label="Search (Ctrl+K)" onClick={() => setCommandBarOpen(true)}><Icon name="search"/></button>
-                         <button className="header-action-btn" aria-label="Notifications" onClick={() => { setNotificationCenterOpen(v => !v); if (unreadCount > 0) markAllAsRead(); }}>
-                             <Icon name="bell"/>
-                             {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-                         </button>
-                         {isNotificationCenterOpen && <NotificationCenter notifications={notifications} onClear={clearNotifications} onClose={() => setNotificationCenterOpen(false)}/>}
-                    </div>
-                </header>
-                <div className="page-content">
-                    {currentView === 'dashboard' && <DashboardView currentUser={currentUser} announcements={announcements} calendarEvents={calendarEvents} users={users} securityAlerts={securityAlerts} setView={setCurrentView} setUsers={setUsers} addNotification={addNotification} />}
-                    {currentView === 'timetable' && <TimetableView currentUser={currentUser} timetable={timetable} settings={settings} setTimetable={setTimetable} addNotification={addNotification} />}
-                    {currentView === 'announcements' && <AnnouncementsView announcements={announcements} setAnnouncements={setAnnouncements} currentUser={currentUser} addNotification={addNotification}/>}
-                    {currentView === 'academicCalendar' && <AcademicCalendarView events={calendarEvents} setEvents={setCalendarEvents} currentUser={currentUser} addNotification={addNotification} />}
-                    {currentView === 'userManagement' && <UserManagementView users={users} setUsers={setUsers} addNotification={addNotification} />}
-                    {currentView === 'security' && <SecurityView securityAlerts={securityAlerts} setSecurityAlerts={setSecurityAlerts} users={users} setUsers={setUsers} addNotification={addNotification} />}
-                    {currentView === 'settings' && <SettingsView settings={settings} setSettings={setSettings} currentUser={currentUser} addNotification={addNotification} />}
-                    {currentView === 'courseFiles' && <CourseFilesView courseFiles={courseFiles} setCourseFiles={setCourseFiles} currentUser={currentUser} addNotification={addNotification} />}
-                    {currentView === 'resources' && <ResourcesView resources={resources} setResources={setResources} currentUser={currentUser} addNotification={addNotification} />}
-                    {![ 'dashboard', 'timetable', 'academicCalendar', 'settings', 'announcements', 'userManagement', 'courseFiles', 'security', 'resources'].includes(currentView) && (
-                        <div className="flex flex-col items-center justify-center h-full text-center">
-                            <Icon name={currentView} className="w-16 h-16 text-secondary mb-4" />
-                            <h2 className="text-2xl font-semibold">{getHeaderTitle(currentView)}</h2>
-                            <p className="text-secondary mt-2">This feature is under construction. Check back soon!</p>
-                        </div>
-                    )}
-                </div>
-            </main>
-             <div className="notification-container">
-                {toastQueue.map(n => (
-                    <NotificationToast key={n.id} notification={n} onRemove={() => {}} />
-                ))}
-            </div>
-            {isCommandBarOpen && <CommandBar onClose={() => setCommandBarOpen(false)} navItems={navItems.filter(i => i.roles.includes(currentUser.role))} users={users} setView={setCurrentView} currentUser={currentUser} />}
-            <Chatbot isOpen={isChatOpen} onToggle={() => setChatOpen(prev => !prev)} messages={chatMessages} onSendMessage={handleSendMessage} onClearChat={handleClearChat} currentView={currentView} />
-        </div>
-    );
-};
-
-const CommandBar = ({ onClose, navItems, users, setView, currentUser }: { onClose: () => void, navItems: any[], users: User[], setView: (v: AppView) => void, currentUser: User }) => {
-    const [query, setQuery] = useState('');
-    const [results, setResults] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                e.preventDefault();
-                onClose(); // This seems wrong, should open if closed. The button handles opening.
-            }
-            if (e.key === 'Escape') {
-                onClose();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onClose]);
-    
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (query.trim() === '') {
-                setResults([]);
-                return;
-            }
-            performSearch(query);
-        }, 200);
-        return () => clearTimeout(timer);
-    }, [query]);
-
-    const performSearch = async (currentQuery: string) => {
-        const lowerQuery = currentQuery.toLowerCase();
-        
-        const navResults = navItems
-            .filter(item => item.label.toLowerCase().includes(lowerQuery))
-            .map(item => ({ type: 'nav', ...item }));
-
-        const userResults = users
-            .filter(user => user.name.toLowerCase().includes(lowerQuery))
-            .map(user => ({ type: 'user', ...user }));
-            
-        const allResults = [...navResults, ...userResults];
-        
-        if (allResults.length === 0 && isAiEnabled) {
-            allResults.push({ type: 'ai', query: currentQuery });
-        }
-        
-        setResults(allResults);
-    };
-    
-    const handleAiQuery = async (aiQuery: string) => {
-        if (!ai) return;
-        setIsLoading(true);
-        try {
-            const context = `You are an AI assistant for a college portal. Current user is ${currentUser.name} (${currentUser.role}). Available users: ${users.map(u => `${u.name} (${u.role})`).join(', ')}.`;
-            const prompt = `${context}\n\nAnswer the following question based on the provided context or general knowledge if the context is insufficient.\n\nQuestion: "${aiQuery}"`;
-            
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setResults([{ type: 'ai_response', text: response.text }]);
-        } catch (error) {
-            console.error("Command bar AI error:", error);
-            setResults([{ type: 'ai_response', text: 'Sorry, I had trouble answering that.' }]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    const handleSelect = (item: any) => {
-        if (item.type === 'nav') {
-            setView(item.id);
-            onClose();
-        } else if (item.type === 'user') {
-            // Future: show user profile
-            console.log("Selected user:", item);
-            onClose();
-        } else if (item.type === 'ai') {
-            handleAiQuery(item.query);
-        }
-    };
-
-    return createPortal(
-        <div className="command-bar-overlay" onMouseDown={onClose}>
-            <div className="command-bar-content" onMouseDown={e => e.stopPropagation()}>
-                <div className="command-bar-input-wrapper">
-                    <Icon name="search" />
-                    <input
-                        type="text"
-                        placeholder="Search or ask AI..."
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                        autoFocus
-                    />
-                     {isLoading && <div className="spinner"></div>}
-                </div>
-                <div className="command-bar-results">
-                    {results.length > 0 ? (
-                        <ul>
-                            {results.map((item, index) => (
-                                <li key={index} onClick={() => handleSelect(item)} className="result-item">
-                                    {item.type === 'nav' && <><Icon name={item.icon} /> <span>{item.label}</span></>}
-                                    {item.type === 'user' && <><Icon name="user" /> <span>{item.name} <em className="text-secondary">- {item.role}</em></span></>}
-                                    {item.type === 'ai' && <><Icon name="sparkles" /> <span>Ask AI: "{item.query}"</span></>}
-                                    {item.type === 'ai_response' && <div className="p-2" dangerouslySetInnerHTML={{ __html: marked(item.text) }}></div>}
-                                </li>
-                            ))}
-                        </ul>
-                    ) : query && (
-                        <div className="results-empty">No results found for "{query}"</div>
-                    )}
-                </div>
-            </div>
-        </div>,
-        document.body
-    );
-};
-
-const NotificationCenter = ({ notifications, onClear, onClose }: { notifications: HistoricalNotification[], onClear: () => void, onClose: () => void }) => {
-    const popoverRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-                onClose();
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [onClose]);
-
-    return (
-        <div className="notification-center-popover" ref={popoverRef}>
-            <div className="notification-center-header">
-                <h3>Notifications</h3>
-                <button onClick={onClear} className="btn-link text-xs">Clear All</button>
-            </div>
-            <div className="notification-center-list">
-                {notifications.length > 0 ? notifications.map(n => (
-                    <div key={n.id} className="notification-item">
-                         <div className={`toast-icon text-${n.type}`}><Icon name={n.type} /></div>
-                         <div className="notification-item-content">
-                             <p>{n.message}</p>
-                             <small>{formatRelativeTime(n.timestamp)}</small>
+            <div className="max-w-2xl mx-auto">
+                <form onSubmit={handleSave} className="settings-form">
+                    <div className="dashboard-card">
+                         <h3 className="text-lg font-semibold mb-4">Appearance</h3>
+                         <div className="form-grid">
+                            <div className="control-group">
+                                <label>Theme</label>
+                                <div className="flex gap-4">
+                                    <label><input type="radio" name="theme" value="light" checked={localSettings.theme === 'light'} onChange={e => setLocalSettings({...localSettings, theme: e.target.value as 'light' | 'dark' })}/> Light</label>
+                                    <label><input type="radio" name="theme" value="dark" checked={localSettings.theme === 'dark'} onChange={e => setLocalSettings({...localSettings, theme: e.target.value as 'light' | 'dark' })}/> Dark</label>
+                                </div>
+                            </div>
+                            <div className="control-group">
+                                <label htmlFor="theme-color">Accent Color</label>
+                                <select id="theme-color" className="form-control" value={localSettings.activeTheme} onChange={e => setLocalSettings({ ...localSettings, activeTheme: e.target.value })}>
+                                    {THEMES.map(theme => <option key={theme.name} value={theme.name}>{theme.name}</option>)}
+                                </select>
+                            </div>
                          </div>
                     </div>
-                )) : (
-                    <div className="notification-empty">
-                        <Icon name="bell" className="w-12 h-12 text-secondary" />
-                        <p>No new notifications</p>
+                    
+                    {['admin', 'creator'].includes(currentUser.role) && (
+                        <div className="dashboard-card mt-6">
+                            <h3 className="text-lg font-semibold mb-4">Timetable Configuration</h3>
+                            <div className="control-group">
+                                <label>Time Slots</label>
+                                {localSettings.timeSlots.map((slot, index) => (
+                                    <div key={index} className="flex gap-2 mb-2">
+                                        <input 
+                                            type="text" 
+                                            className="form-control" 
+                                            value={slot} 
+                                            onChange={e => {
+                                                const newSlots = [...localSettings.timeSlots];
+                                                newSlots[index] = e.target.value;
+                                                setLocalSettings({ ...localSettings, timeSlots: newSlots });
+                                            }}
+                                        />
+                                        <button 
+                                            type="button" 
+                                            className="btn btn-danger-outline btn-sm"
+                                            onClick={() => {
+                                                 const newSlots = localSettings.timeSlots.filter((_, i) => i !== index);
+                                                 setLocalSettings({ ...localSettings, timeSlots: newSlots });
+                                            }}
+                                        >
+                                            <Icon name="trash" />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm mt-2"
+                                    onClick={() => {
+                                        setLocalSettings({ ...localSettings, timeSlots: [...localSettings.timeSlots, ''] });
+                                    }}
+                                >
+                                   <Icon name="plus" /> Add Slot
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end">
+                        <button type="submit" className="btn btn-primary">Save Changes</button>
                     </div>
-                )}
+                </form>
             </div>
-        </div>
+        </>
     );
 };
 
-
-const Chatbot = ({ isOpen, onToggle, messages, onSendMessage, onClearChat, currentView }: { isOpen: boolean, onToggle: () => void, messages: ChatMessage[], onSendMessage: (msg: string) => void, onClearChat: () => void, currentView: AppView }) => {
+const AIChat = ({ onHide }: { onHide: () => void; }) => {
+    const [chat, setChat] = useState<Chat | null>(null);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        if (ai) {
+            const newChat = ai.chats.create({
+                model: 'gemini-2.5-flash',
+                config: {
+                    systemInstruction: 'You are a helpful academic assistant for a college portal. Be concise and professional.',
+                },
+            });
+            setChat(newChat);
+        }
+    }, []);
+    
+     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (input.trim()) {
-            onSendMessage(input);
-            setInput('');
+        if (!input.trim() || !chat || isLoading) return;
+
+        const userMessage: ChatMessage = { id: `msg_${Date.now()}`, role: 'user', text: input };
+        setMessages(prev => [...prev, userMessage]);
+        setInput('');
+        setIsLoading(true);
+
+        try {
+            const responseStream = await chat.sendMessageStream({ message: input });
+            let modelResponseText = '';
+            let modelMessageId = `msg_${Date.now()}_model`;
+
+            // Initialize model message
+            setMessages(prev => [...prev, { id: modelMessageId, role: 'model', text: '...' }]);
+
+            for await (const chunk of responseStream) {
+                modelResponseText += chunk.text;
+                setMessages(prev => prev.map(msg => 
+                    msg.id === modelMessageId ? { ...msg, text: modelResponseText } : msg
+                ));
+            }
+        } catch (error) {
+            console.error("AI chat error:", error);
+            setMessages(prev => [...prev, { id: `err_${Date.now()}`, role: 'model', text: "Sorry, I couldn't process that request.", isError: true }]);
+        } finally {
+            setIsLoading(false);
         }
     };
     
-    // Fix: Separated 'default' suggestions and made the main suggestions object a Partial Record.
-    const promptSuggestions: Partial<Record<AppView, string[]>> = {
-        dashboard: ["Summarize my day.", "Any important deadlines?", "What are the latest announcements?"],
-        timetable: ["What's my next class?", "Show me Friday's schedule.", "Who teaches Algorithms?"],
-        announcements: ["What's the latest important news?", "Summarize the guest lecture announcement."],
-        academicCalendar: ["When do mid-term exams start?", "Are there any holidays this month?"],
-        userManagement: ["How many students are pending approval?", "Show me all HODs."],
+    const renderMessageContent = (text: string) => {
+        const html = marked(text, { breaks: true });
+        return <div dangerouslySetInnerHTML={{ __html: html as string }} />;
     };
 
-    const defaultSuggestions = ["What can you do?", "Explain the dashboard.", "How do I change my theme?"];
-
-    const suggestions = promptSuggestions[currentView] || defaultSuggestions;
-
     return (
-        <div className="chatbot-container">
-            {isOpen && (
-                <div className="chatbot-window">
-                    <div className="chatbot-header">
-                        <span>AI Assistant</span>
-                        <div>
-                            <button onClick={onClearChat} className="btn-link text-xs mr-2">New Chat</button>
-                            <button onClick={onToggle}><Icon name="close" className="w-5 h-5"/></button>
+        <div className="chat-widget">
+            <div className="chat-widget-header">
+                <h3>AI Assistant</h3>
+                <button className="btn-icon" onClick={onHide}><Icon name="close" /></button>
+            </div>
+            <div className="chat-widget-body" ref={messagesEndRef}>
+                {messages.length === 0 ? (
+                    <div className="chat-empty">
+                        <Icon name="robot" className="w-12 h-12 text-secondary opacity-50 mb-2" />
+                        <p className="text-secondary text-sm">Ask me anything about the college!</p>
+                    </div>
+                ) : (
+                    messages.map(msg => (
+                        <div key={msg.id} className={`chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}>
+                            <div className="chat-bubble">{renderMessageContent(msg.text)}</div>
                         </div>
+                    ))
+                )}
+                 {isLoading && messages[messages.length-1].role === 'user' && (
+                    <div className="chat-message model">
+                        <div className="chat-bubble"><span className="spinner"></span></div>
                     </div>
-                    <div className="chatbot-messages">
-                       {messages.length === 0 && (
-                            <div className="chat-prompts">
-                                {suggestions.map((prompt, i) => (
-                                    <button key={i} onClick={() => onSendMessage(prompt)}>{prompt}</button>
-                                ))}
-                            </div>
-                       )}
-                       {messages.map((msg, index) => (
-                           <div key={index} className={`chat-bubble ${msg.role} ${msg.isError ? 'error' : ''}`}>
-                               {msg.text === '...' ? <div className="spinner"/> : <div dangerouslySetInnerHTML={{ __html: marked(msg.text) }} />}
-                           </div>
-                       ))}
-                       <div ref={messagesEndRef} />
-                    </div>
-                    <form className="chatbot-input-form" onSubmit={handleSubmit}>
-                        <input type="text" placeholder="Ask anything..." value={input} onChange={e => setInput(e.target.value)} disabled={!isAiEnabled}/>
-                        <button type="submit" disabled={!input.trim() || !isAiEnabled}><Icon name="send" /></button>
-                    </form>
-                </div>
-            )}
-            <button className="chatbot-toggle" onClick={onToggle} aria-label="Toggle AI Chat">
-                <Icon name={isOpen ? "close" : "sparkles"} />
-            </button>
+                )}
+            </div>
+            <div className="chat-widget-footer">
+                <form onSubmit={handleSendMessage}>
+                    <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Type a message..."
+                        value={input}
+                        onChange={e => setInput(e.target.value)}
+                        disabled={isLoading || !isAiEnabled}
+                    />
+                    <button type="submit" className="btn btn-primary" disabled={isLoading || !input.trim()}>
+                        <Icon name="send" className="w-4 h-4" />
+                    </button>
+                </form>
+            </div>
         </div>
     );
 };
 
-const StudyPlanModal = ({ onSave, onClose, addNotification }: { onSave: (plan: StudyPlan) => void; onClose: () => void; addNotification: (m: string, t: AppNotification['type']) => void; }) => {
-    const [subject, setSubject] = useState('');
-    const [duration, setDuration] = useState(4); // weeks
-    const [isLoading, setIsLoading] = useState(false);
-    const [generatedPlan, setGeneratedPlan] = useState<StudyPlan | null>(null);
+// --- App ---
+const App = () => {
+    const [currentUser, setCurrentUser] = useLocalStorage<User | null>('currentUser', null);
+    const [view, setView] = useState<AppView>('dashboard');
+    const [isSidebarOpen, setSidebarOpen] = useState(false);
+    const [isChatVisible, setChatVisible] = useState(false);
 
-    const handleGenerate = async () => {
-        if (!ai || !subject) {
-            addNotification("Please enter a subject.", "warning");
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const prompt = `Create a detailed ${duration}-week study plan for the subject "${subject}". Break it down by week, and for each week, provide a daily plan (Monday to Saturday) with a main topic and 2-3 specific, actionable tasks.`;
-            const planSchema = {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING },
-                    weeks: { type: Type.ARRAY, items: {
-                        type: Type.OBJECT, properties: {
-                            week: { type: Type.INTEGER },
-                            days: { type: Type.ARRAY, items: {
-                                type: Type.OBJECT, properties: {
-                                    day: { type: Type.STRING },
-                                    topic: { type: Type.STRING },
-                                    tasks: { type: Type.ARRAY, items: {
-                                        type: Type.OBJECT, properties: {
-                                            text: { type: Type.STRING },
-                                            completed: { type: Type.BOOLEAN },
-                                        }
-                                    }}
-                                }
-                            }}
-                        }
-                    }}
-                }
-            };
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: planSchema } });
-            const planData = JSON.parse(response.text);
-            setGeneratedPlan({ id: `plan_${Date.now()}`, ...planData });
-
-        } catch (error) {
-            console.error("Study plan generation failed:", error);
-            addNotification("Failed to generate study plan.", "error");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleTaskToggle = (weekIndex: number, dayIndex: number, taskIndex: number) => {
-        if (!generatedPlan) return;
-        const newPlan = { ...generatedPlan };
-        newPlan.weeks[weekIndex].days[dayIndex].tasks[taskIndex].completed = !newPlan.weeks[weekIndex].days[dayIndex].tasks[taskIndex].completed;
-        setGeneratedPlan(newPlan);
-    };
-
-    return (
-        <Modal onClose={onClose} size="large">
-             <div className="modal-header">
-                <h3><Icon name="study-plan" className="w-6 h-6"/> AI Study Plan Generator</h3>
-                <button onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
-            </div>
-            <div className="modal-body">
-                {!generatedPlan ? (
-                    <>
-                        <div className="control-group">
-                            <label htmlFor="subject-plan">Subject</label>
-                            <input type="text" id="subject-plan" className="form-control" value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g., Data Structures and Algorithms" />
-                        </div>
-                         <div className="control-group">
-                            <label htmlFor="duration-plan">Duration (in weeks)</label>
-                            <input type="number" id="duration-plan" className="form-control" value={duration} onChange={e => setDuration(parseInt(e.target.value, 10))} min="1" max="12" />
-                        </div>
-                    </>
-                ) : (
-                    <div className="study-plan-display">
-                        <h3 className="text-xl font-bold mb-4">{generatedPlan.title}</h3>
-                        {generatedPlan.weeks.map((week, weekIndex) => (
-                            <details key={week.week} className="study-plan-week" open>
-                                <summary>Week {week.week}</summary>
-                                <div className="study-plan-days">
-                                    {week.days.map((day, dayIndex) => (
-                                        <div key={day.day} className="study-plan-day">
-                                            <h4>{day.day} - <span className="font-normal text-secondary">{day.topic}</span></h4>
-                                            <ul>
-                                                {day.tasks.map((task, taskIndex) => (
-                                                    <li key={taskIndex}>
-                                                        <input type="checkbox" id={`task-${weekIndex}-${dayIndex}-${taskIndex}`} checked={task.completed} onChange={() => handleTaskToggle(weekIndex, dayIndex, taskIndex)} />
-                                                        <label htmlFor={`task-${weekIndex}-${dayIndex}-${taskIndex}`}>{task.text}</label>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ))}
-                                </div>
-                            </details>
-                        ))}
-                    </div>
-                )}
-            </div>
-            <div className="modal-footer">
-                {!generatedPlan ? (
-                     <button className="btn btn-primary" onClick={handleGenerate} disabled={isLoading}>
-                        {isLoading ? <><span className="spinner"></span> Generating...</> : 'Generate Plan'}
-                    </button>
-                ) : (
-                    <>
-                        <button className="btn btn-secondary" onClick={() => setGeneratedPlan(null)}>Start Over</button>
-                        <button className="btn btn-primary" onClick={() => onSave(generatedPlan)}>Save Plan</button>
-                    </>
-                )}
-            </div>
-        </Modal>
-    );
-};
-
-interface ResolutionOption {
-    summary: string;
-    entries: Omit<TimetableEntry, 'id'>[];
-}
-
-const AITimetableAssistant = ({ onClose, settings, addNotification, timetable, setTimetable, filter }: { onClose: () => void; settings: AppSettings; addNotification: (m: string, t: AppNotification['type']) => void; timetable: TimetableEntry[]; setTimetable: React.Dispatch<React.SetStateAction<TimetableEntry[]>>; filter: { department: string; year: string | undefined } }) => {
-    const [query, setQuery] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [loadingMessage, setLoadingMessage] = useState('Thinking...');
-    const [suggestion, setSuggestion] = useState<(Omit<TimetableEntry, 'id'>)[] | null>(null);
-    const [conflicts, setConflicts] = useState<{ conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[] | null>(null);
-    const [resolutionOptions, setResolutionOptions] = useState<ResolutionOption[] | null>(null);
-    const [selectedResolutionIndex, setSelectedResolutionIndex] = useState<number | null>(null);
+    // Data states
+    const [users, setUsers] = useLocalStorage<User[]>('users', initialUsers);
+    const [timetable, setTimetable] = useLocalStorage<TimetableEntry[]>('timetable', initialTimetable);
+    const [announcements, setAnnouncements] = useLocalStorage<Announcement[]>('announcements', initialAnnouncements);
+    const [resources, setResources] = useLocalStorage<Resource[]>('resources', initialResources);
+    const [courseFiles, setCourseFiles] = useLocalStorage<CourseFile[]>('courseFiles', initialCourseFiles);
+    const [calendarEvents, setCalendarEvents] = useLocalStorage<CalendarEvent[]>('calendarEvents', initialCalendarEvents);
+    const [securityAlerts, setSecurityAlerts] = useLocalStorage<SecurityAlert[]>('securityAlerts', initialSecurityAlerts);
+    const [settings, setSettings] = useLocalStorage<AppSettings>('settings', initialAppSettings);
+    const { notifications, toastQueue, addNotification, markAllAsRead, clearNotifications, unreadCount } = useAppNotifications();
+    const [isNotificationsOpen, setNotificationsOpen] = useState(false);
 
 
-    const handleResolveConflict = async (originalQuery: string, detectedConflicts: { conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[]) => {
-        if (!ai) return;
-        setLoadingMessage('Conflict found, resolving...');
-        try {
-            const conflictDetails = detectedConflicts.map(c => 
-                `The slot on ${c.existingEntry.day} at ${settings.timeSlots[c.existingEntry.timeIndex]} is already taken by '${c.existingEntry.subject}'.`
-            ).join(' ');
-            
-            const resolvePrompt = `You are a timetable scheduling assistant. The user's original request was: "${originalQuery}".
-            Your first attempt to schedule this resulted in the following conflicts: ${conflictDetails}
-            Please find up to 3 distinct alternative schedules that fulfill the original request but avoid these specific conflicts. For each alternative, provide a short summary and an array of entry objects.
-            Department: ${filter.department}, Year: ${filter.year}.
-            Available Time Slots: ${JSON.stringify(settings.timeSlots)}.
-            Existing schedule for this class: ${JSON.stringify(timetable.filter(e => e.department === filter.department && e.year === filter.year))}.`;
-            
-             const resolutionSchema = {
-                type: Type.OBJECT,
-                properties: {
-                    resolutions: {
-                        type: Type.ARRAY,
-                        description: "An array of up to 3 distinct resolution options. Each option is a complete set of timetable entries that resolves the conflict.",
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                summary: { type: Type.STRING, description: "A very brief, user-friendly summary of this resolution option. e.g., 'Move to Wednesday at 2 PM in room CS104'." },
-                                entries: {
-                                    type: Type.ARRAY,
-                                    items: {
-                                        type: Type.OBJECT,
-                                        properties: {
-                                            day: { type: Type.STRING },
-                                            timeIndex: { type: Type.INTEGER },
-                                            subject: { type: Type.STRING },
-                                            type: { type: Type.STRING, enum: ['class', 'lab', 'break', 'common'] },
-                                            faculty: { type: Type.STRING },
-                                            room: { type: Type.STRING }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            };
-
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: resolvePrompt, config: { responseMimeType: 'application/json', responseSchema: resolutionSchema } });
-            const { resolutions } = JSON.parse(response.text);
-
-            if (resolutions && resolutions.length > 0) {
-                 const resolutionsWithDeptAndYear = resolutions.map((res: ResolutionOption) => ({
-                    ...res,
-                    entries: res.entries.map(e => ({...e, department: filter.department, year: filter.year}))
-                }));
-                setResolutionOptions(resolutionsWithDeptAndYear);
-                setSelectedResolutionIndex(0);
-                addNotification("Found conflict-free alternatives!", "success");
-            } else {
-                 addNotification("Sorry, I couldn't automatically resolve the conflict.", "error");
+    useEffect(() => {
+        if (!currentUser) {
+            setView('auth');
+        } else {
+            // Re-apply theme on load
+            document.documentElement.setAttribute('data-theme', settings.theme);
+             const theme = THEMES.find(t => t.name === settings.activeTheme);
+            if (theme) {
+                Object.entries(theme.colors).forEach(([key, value]) => {
+                    document.documentElement.style.setProperty(key, value);
+                });
             }
-        } catch (error) {
-            console.error("AI conflict resolution failed:", error);
-            addNotification("Sorry, I couldn't automatically resolve the conflict.", "error");
-        } finally {
-            setIsLoading(false);
         }
-    };
-
-    const handleGenerate = async () => {
-        if (!ai || !query) {
-            addNotification("Please enter a command.", "warning");
-            return;
-        }
-        setIsLoading(true);
-        setLoadingMessage('Thinking...');
-        setSuggestion(null);
-        setConflicts(null);
-        setResolutionOptions(null);
-        setSelectedResolutionIndex(null);
-
-        try {
-             const schema = {
-                type: Type.OBJECT,
-                properties: {
-                    entries: { type: Type.ARRAY, items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            day: { type: Type.STRING },
-                            timeIndex: { type: Type.INTEGER },
-                            subject: { type: Type.STRING },
-                            type: { type: Type.STRING, enum: ['class', 'lab', 'break', 'common'] },
-                            faculty: { type: Type.STRING },
-                            room: { type: Type.STRING }
-                        }
-                    }}
-                }
-            };
-            const existingSchedule = timetable.filter(e => e.department === filter.department && e.year === filter.year);
-            const prompt = `You are a timetable scheduling assistant. Based on the user command, schedule a class.
-            User Command: "${query}"
-            Department: ${filter.department}, Year: ${filter.year}.
-            Available Time Slots: ${JSON.stringify(settings.timeSlots)}.
-            Existing schedule for this class (don't overwrite these): ${JSON.stringify(existingSchedule)}.
-            Parse the user's command and find available slots. Return an array of one or more timetable entry objects to be added. If it is a lab, it usually takes 2 consecutive hours.`;
-            
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: schema } });
-            const { entries: initialEntries } = JSON.parse(response.text);
-            
-            const detectedConflicts: { conflictingEntry: Omit<TimetableEntry, 'id'>; existingEntry: TimetableEntry; }[] = [];
-            const entriesWithDeptAndYear = initialEntries.map((newEntry: Omit<TimetableEntry, 'id' | 'department' | 'year'>) => {
-                const entry = {...newEntry, department: filter.department, year: filter.year};
-                const existing = existingSchedule.find(e => e.day === entry.day && e.timeIndex === entry.timeIndex);
-                if (existing) {
-                    detectedConflicts.push({ conflictingEntry: entry, existingEntry: existing });
-                }
-                return entry;
-            });
-            
-            setSuggestion(entriesWithDeptAndYear);
-
-            if (detectedConflicts.length > 0) {
-                setConflicts(detectedConflicts);
-                await handleResolveConflict(query, detectedConflicts);
-            } else {
-                setIsLoading(false);
-            }
-
-        } catch (error) {
-            console.error("AI timetable assistance failed:", error);
-            addNotification("Sorry, I couldn't understand that request.", "error");
-            setIsLoading(false);
-        }
+    }, [currentUser, settings]);
+    
+    const handleLogout = () => {
+        setCurrentUser(null);
+        setView('auth');
     };
     
-    const handleApply = () => {
-        let entriesToApply: Omit<TimetableEntry, 'id'>[] = [];
-
-        if (resolutionOptions && selectedResolutionIndex !== null) {
-            entriesToApply = resolutionOptions[selectedResolutionIndex].entries;
-        } else if (suggestion && !conflicts) {
-            entriesToApply = suggestion;
-        }
-
-        if (entriesToApply.length === 0) return;
-
-        const newEntries = entriesToApply.map(e => ({ ...e, id: `tt_${Date.now()}_${Math.random()}`}));
-        setTimetable(prev => [...prev.filter(p => !newEntries.some(n => n.day === p.day && n.timeIndex === p.timeIndex && n.department === p.department && n.year === p.year)), ...newEntries]);
-        addNotification("Timetable updated successfully!", "success");
-        onClose();
+    const addUser = (user: User) => {
+        setUsers(prev => [...prev, user]);
     };
+
+    const handleViewChange = (newView: AppView) => {
+        setView(newView);
+        setSidebarOpen(false);
+    }
     
-    const handleClear = () => {
-        setSuggestion(null);
-        setConflicts(null);
-        setResolutionOptions(null);
-        setSelectedResolutionIndex(null);
-        setQuery('');
+    const handleBellClick = () => {
+        if (!isNotificationsOpen) {
+            markAllAsRead();
+        }
+        setNotificationsOpen(prev => !prev);
     };
+
+    if (!currentUser) {
+        return <AuthView setView={setView} setCurrentUser={setCurrentUser} users={users} addUser={addUser} addNotification={addNotification} />;
+    }
+    
+    const navItems = [
+        { name: 'Dashboard', icon: 'dashboard', view: 'dashboard', roles: ['student', 'faculty', 'hod', 'admin', 'principal', 'creator', 'class advisor'] },
+        { name: 'Timetable', icon: 'timetable', view: 'timetable', roles: ['student', 'faculty', 'hod', 'admin', 'principal', 'creator', 'class advisor'] },
+        { name: 'Announcements', icon: 'announcements', view: 'announcements', roles: ['student', 'faculty', 'hod', 'admin', 'principal', 'creator'] },
+        { name: 'Resources', icon: 'resources', view: 'resources', roles: ['student', 'faculty', 'hod', 'admin', 'principal', 'creator'] },
+        { name: 'Academic Calendar', icon: 'academicCalendar', view: 'academicCalendar', roles: ['student', 'faculty', 'hod', 'admin', 'principal', 'creator'] },
+        { name: 'Career Counselor', icon: 'briefcase', view: 'careerCounselor', roles: ['student'] },
+        { name: 'Course Files', icon: 'courseFiles', view: 'courseFiles', roles: ['faculty', 'hod', 'principal'] },
+        { name: 'Student Analytics', icon: 'bar-chart', view: 'studentAnalytics', roles: ['hod', 'principal', 'class advisor'] },
+        { name: 'User Approvals', icon: 'approvals', view: 'approvals', roles: ['admin', 'hod', 'principal'] },
+        { name: 'User Management', icon: 'userManagement', view: 'userManagement', roles: ['admin', 'creator'] },
+        { name: 'Security Center', icon: 'security', view: 'security', roles: ['admin'] },
+    ];
+    
+    const getVisibleNavItems = () => navItems.filter(item => item.roles.includes(currentUser.role));
 
     return (
-        <Modal onClose={onClose}>
-            <div className="modal-header">
-                <h3><Icon name="robot" className="w-6 h-6"/> AI Timetable Assistant</h3>
-                <button onClick={onClose} className="modal-close-btn"><Icon name="close" /></button>
-            </div>
-             <div className="modal-body">
-                <p className="text-secondary mb-4">Describe the class you want to schedule in plain language.</p>
-                <div className="control-group">
-                    <textarea className="form-control" rows={3} value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g., Schedule a 2-hour lab for 'Advanced Networking' for CSE III year on Wednesday afternoon."/>
+        <div className={`app-container ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+             <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>
+            <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+                <div className="sidebar-header">
+                    <span className="logo"><Icon name="dashboard" /></span>
+                    <h1>AcademiaAI</h1>
+                     <button className="sidebar-close" onClick={() => setSidebarOpen(false)}><Icon name="close" /></button>
                 </div>
-                
-                 {conflicts && (
-                    <div className="conflict-details">
-                        <h4><Icon name="warning" className="w-5 h-5"/> Conflicts Detected</h4>
-                        {conflicts.map((c, i) => 
-                            <p key={i}>
-                                Slot on <strong>{c.existingEntry.day} at {settings.timeSlots[c.existingEntry.timeIndex]}</strong> is taken by <strong>'{c.existingEntry.subject}'</strong>.
-                            </p>
-                        )}
-                    </div>
-                )}
-                
-                {resolutionOptions && !isLoading && (
-                    <div className="resolution-options">
-                        <h4><Icon name="sparkles" className="w-5 h-5"/> Resolution Options</h4>
-                        <div className="radio-group">
-                            {resolutionOptions.map((option, index) => (
-                                <div key={index}>
-                                    <input
-                                        type="radio"
-                                        id={`res-option-${index}`}
-                                        name="resolution-option"
-                                        value={index}
-                                        checked={selectedResolutionIndex === index}
-                                        onChange={() => setSelectedResolutionIndex(index)}
-                                    />
-                                    <label htmlFor={`res-option-${index}`}>{option.summary}</label>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {suggestion && !conflicts && !isLoading && (
-                     <div className="ai-suggestion-panel">
-                        <h4>AI Suggestion:</h4>
-                         {suggestion.map((entry, i) => (
-                             <p key={i}>- Add <strong>{entry.subject}</strong> on {entry.day} at {settings.timeSlots[entry.timeIndex]}</p>
+                <nav className="nav-list">
+                    <ul>
+                        {getVisibleNavItems().map(item => (
+                            <li key={item.view} className="nav-item">
+                                <button
+                                    className={view === item.view ? 'active' : ''}
+                                    onClick={() => handleViewChange(item.view as AppView)}
+                                >
+                                    <Icon name={item.icon} />
+                                    <span>{item.name}</span>
+                                </button>
+                            </li>
                         ))}
+                    </ul>
+                </nav>
+                 <div className="sidebar-footer">
+                    <div className="nav-item">
+                        <button onClick={() => handleViewChange('settings')}>
+                            <Icon name="settings" />
+                            <span>Settings</span>
+                        </button>
                     </div>
-                )}
-
-             </div>
-             <div className="modal-footer">
-                 <div>
-                    {(suggestion || resolutionOptions) && !isLoading && (
-                        <button type="button" className="btn btn-secondary" onClick={handleClear}>Clear</button>
-                    )}
-                </div>
-                <div className="flex gap-2">
-                    <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-                    
-                    {(!suggestion && !resolutionOptions) ? (
-                        <button className="btn btn-primary" onClick={handleGenerate} disabled={isLoading || !query}>
-                            {isLoading ? <><span className="spinner"></span> {loadingMessage}</> : 'Generate Schedule'}
+                     <div className="nav-item">
+                        <button onClick={handleLogout} className="logout-btn">
+                            <Icon name="logout" />
+                             <span>Logout</span>
                         </button>
-                    ) : (
-                         <button className="btn btn-primary" onClick={handleApply} disabled={isLoading || (!!conflicts && !resolutionOptions)}>
-                            {isLoading 
-                                ? <><span className="spinner"></span> {loadingMessage}</> 
-                                : (resolutionOptions ? 'Apply Selected Resolution' : 'Apply Suggestion')
-                            }
-                        </button>
-                    )}
+                    </div>
                 </div>
+            </aside>
+            <main className="main-content">
+                <header className="header">
+                     <div className="header-left">
+                        <button className="menu-toggle" onClick={() => setSidebarOpen(true)}><Icon name="menu" /></button>
+                        <h2 className="header-title">{view.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h2>
+                    </div>
+                    <div className="header-right">
+                        <button className="header-action-btn" onClick={handleBellClick}>
+                            <Icon name="bell" />
+                            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+                        </button>
+                        {isNotificationsOpen && <NotificationCenter notifications={notifications} onClear={clearNotifications} onClose={() => setNotificationsOpen(false)} />}
+                    </div>
+                </header>
+                <div className="page-content">
+                    {view === 'dashboard' && <DashboardView currentUser={currentUser} announcements={announcements} calendarEvents={calendarEvents} users={users} securityAlerts={securityAlerts} setView={setView} setUsers={setUsers} addNotification={addNotification} />}
+                    {view === 'timetable' && <TimetableView currentUser={currentUser} timetable={timetable} settings={settings} setTimetable={setTimetable} addNotification={addNotification} />}
+                    {view === 'announcements' && <AnnouncementsView announcements={announcements} setAnnouncements={setAnnouncements} currentUser={currentUser} addNotification={addNotification} />}
+                    {view === 'academicCalendar' && <AcademicCalendarView events={calendarEvents} setEvents={setCalendarEvents} currentUser={currentUser} addNotification={addNotification} />}
+                    {view === 'resources' && <ResourcesView resources={resources} setResources={setResources} currentUser={currentUser} addNotification={addNotification} />}
+                    {view === 'settings' && <SettingsView settings={settings} setSettings={setSettings} addNotification={addNotification} currentUser={currentUser} />}
+                </div>
+            </main>
+            {isAiEnabled && (
+                <>
+                    {!isChatVisible && <button className="chat-fab" onClick={() => setChatVisible(true)}><Icon name="robot" /></button>}
+                    {isChatVisible && <AIChat onHide={() => setChatVisible(false)} />}
+                </>
+            )}
+            <div className="toast-container">
+                {toastQueue.map(n => <NotificationToast key={n.id} notification={n} onRemove={() => {}} />)}
             </div>
-        </Modal>
+        </div>
     );
 };
-
 
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);
