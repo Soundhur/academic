@@ -405,7 +405,7 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         project: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h6M9 11.25h6m-6 4.5h6M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM20.25 6.75h.007v.008h-.007V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />,
         lab: <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 6.087c0-.595.44-1.088 1.03-1.088h.01M15.29 5.002c.36-.002.71.124 1 .334l.32.16c.33.165.68.277 1.05.324l.35.043c.58.073 1.05.556 1.05 1.137v2.44c0 .58-.47 1.063-1.05 1.137l-.35.043c-.37.047-.72.16-1.05.324l-.32.16c-.29.21-.64.336-1 .334h-.01c-.59 0-1.03-.493-1.03-1.088v-4.626c0-.595.44-1.088 1.03-1.088zm-6 0c0-.595.44-1.088 1.03-1.088h.01c.59 0 1.03.493 1.03 1.088v4.626c0 .595-.44 1.088-1.03 1.088h-.01c-.59 0-1.03-.493-1.03-1.088V6.087zM5.318 14.44a1.5 1.5 0 01.733-1.282l.32-.16c.33-.165.68-.277 1.05-.324l.35-.043A1.125 1.125 0 019 13.875v2.44c0 .58-.47 1.063-1.05 1.137l-.35.043c-.37.047-.72.16-1.05.324l-.32.16a1.5 1.5 0 01-1.282-.733 9.041 9.041 0 01-.39-3.033c.125-.26.26-.516.402-.767z" />,
         other: <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.452-2.452L14.25 6l1.036-.259a3.375 3.375 0 002.452-2.452L18 2.25l.259 1.035a3.375 3.375 0 002.452 2.452L21.75 6l-1.035.259a3.375 3.375 0 00-2.452 2.452zM12.282 17.618L12 18.75l-.282-1.132a3.375 3.375 0 00-2.43-2.43L8.25 15l1.132-.282a3.375 3.375 0 002.43-2.43L12 11.25l.282 1.132a3.375 3.375 0 002.43 2.43L15.75 15l-1.132.282a3.375 3.375 0 00-2.43 2.43z" />,
-        ai: <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.452-2.452L14.25 6l1.036-.259a3.375 3.375 0 002.452-2.452L18 2.25l.259 1.035a3.375 3.375 0 002.452 2.452L21.75 6l-1.035.259a3.375 3.375 0 00-2.452 2.452zM12.282 17.618L12 18.75l-.282-1.132a3.375 3.375 0 00-2.43-2.43L8.25 15l1.132-.282a3.375 3.375 0 002.43-2.43L12 11.25l.282 1.132a3.375 3.375 0 002.43 2.43L15.75 15l-1.132.282a3.375 3.375 0 00-2.43 2.43z" />,
+        sparkles: <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.452-2.452L14.25 6l1.036-.259a3.375 3.375 0 002.452-2.452L18 2.25l.259 1.035a3.375 3.375 0 002.452 2.452L21.75 6l-1.035.259a3.375 3.375 0 00-2.452 2.452zM12.282 17.618L12 18.75l-.282-1.132a3.375 3.375 0 00-2.43-2.43L8.25 15l1.132-.282a3.375 3.375 0 002.43-2.43L12 11.25l.282 1.132a3.375 3.375 0 002.43 2.43L15.75 15l-1.132.282a3.375 3.375 0 00-2.43 2.43z" />,
         upload: <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />,
         download: <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />,
         eye: <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.432 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />,
@@ -528,7 +528,15 @@ function AuthView({ onLogin, onRegister, addNotification }: { onLogin: (id: stri
         };
         onRegister(newUser);
         addNotification('Registration successful! Your account is pending approval.', 'success');
-        setIsRegister(false); // Flip back to login
+        
+        // Clear form and flip back
+        setName('');
+        setId('');
+        setPassword('');
+        setRole('student');
+        setDept('CSE');
+        setYear('I');
+        setIsRegister(false);
     };
 
     return (
@@ -602,9 +610,9 @@ function AuthView({ onLogin, onRegister, addNotification }: { onLogin: (id: stri
     );
 }
 
-// ... Add other views (Dashboard, Timetable, etc.) in a similar manner
-function DashboardView({ user, announcements, timetable, settings, setView }: { user: User, announcements: Announcement[], timetable: TimetableEntry[], settings: AppSettings, setView: (view: AppView) => void }) {
+function DashboardView({ user, announcements, timetable, settings, users, securityAlerts, setView }: { user: User; announcements: Announcement[]; timetable: TimetableEntry[]; settings: AppSettings; users: User[]; securityAlerts: SecurityAlert[]; setView: (view: AppView) => void; }) {
     const today = new Date().toLocaleString('en-us', { weekday: 'long' });
+
     const userTimetable = timetable.filter(entry =>
         (user.role === 'student' && entry.department === user.dept && entry.year === user.year && entry.day === today) ||
         (user.role !== 'student' && entry.faculty === user.name && entry.day === today)
@@ -624,67 +632,186 @@ function DashboardView({ user, announcements, timetable, settings, setView }: { 
         return "Good Evening";
     };
 
+    const { pendingApprovals, atRiskStudents, activeAlerts, performance, systemStats } = useMemo(() => {
+        const studentUsers = users.filter(u => u.role === 'student');
+        return {
+            pendingApprovals: users.filter(u => u.status === 'pending_approval'),
+            atRiskStudents: studentUsers.filter(s => (s.attendance && (s.attendance.present / s.attendance.total) < 0.75) || (s.grades && s.grades.some(g => g.score < 50))),
+            activeAlerts: securityAlerts.filter(a => !a.isResolved),
+            performance: {
+                avgGrade: user.grades && user.grades.length > 0 ? (user.grades.reduce((acc, g) => acc + g.score, 0) / user.grades.length).toFixed(1) : 'N/A',
+                attendance: user.attendance ? ((user.attendance.present / user.attendance.total) * 100).toFixed(1) : 'N/A'
+            },
+            systemStats: {
+                totalUsers: users.length,
+                pendingUsers: users.filter(u => u.status === 'pending_approval').length
+            }
+        };
+    }, [users, securityAlerts, user]);
+
+    const [aiInsight, setAiInsight] = useState("Generating personalized insight...");
+    const [isInsightLoading, setIsInsightLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchAiInsight = async () => {
+            if (!ai) {
+                setAiInsight("AI features are disabled. Enable API_KEY to get insights.");
+                setIsInsightLoading(false);
+                return;
+            }
+            setIsInsightLoading(true);
+            let prompt = "";
+            const adminRoles: UserRole[] = ['hod', 'principal', 'admin', 'creator'];
+
+            if (user.role === 'student') {
+                prompt = `Generate a single, short, encouraging, and actionable insight for student ${user.name}. Focus on their academic data. Data: Grades - ${JSON.stringify(user.grades)}, Attendance - ${user.attendance?.present}/${user.attendance?.total}. Keep it under 25 words.`;
+            } else if (adminRoles.includes(user.role)) {
+                prompt = `Generate a single, short, and actionable administrative insight for ${user.role} ${user.name}. Focus on system-level data. Data: ${pendingApprovals.length} pending approvals, ${atRiskStudents.length} at-risk students, ${activeAlerts.length} active security alerts. Keep it under 25 words.`;
+            } else {
+                 setAiInsight("Have a productive day! Check your schedule and announcements.");
+                 setIsInsightLoading(false);
+                 return;
+            }
+
+            try {
+                 const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                 });
+                setAiInsight(response.text);
+            } catch (error) {
+                console.error("AI Insight Error:", error);
+                setAiInsight("Could not generate an insight at this time.");
+            } finally {
+                setIsInsightLoading(false);
+            }
+        };
+
+        fetchAiInsight();
+    }, [user.role]); // Rerun only when user role changes to avoid spamming API on data change
+
+    const StatCard = ({ icon, label, value, colorClass }: { icon: string, label: string, value: string | number, colorClass: string }) => (
+        <div className="stat-card">
+            <div className={`stat-card-icon ${colorClass}`}><Icon name={icon} /></div>
+            <div className="stat-card-info">
+                <div className="stat-label">{label}</div>
+                <div className="stat-value">{value}</div>
+            </div>
+        </div>
+    );
+    
+    const isAdminView = ['admin', 'hod', 'principal', 'creator'].includes(user.role);
+
     return (
         <div className="dashboard-container improved page-content">
             <div className="dashboard-header-section">
                 <h2 className="dashboard-greeting">{getGreeting()}, {user.name.split(' ')[0]}!</h2>
-                <p className="dashboard-subtitle">Here's what's happening today.</p>
+                <p className="dashboard-subtitle">Here's a summary of what's important right now.</p>
             </div>
 
             <div className="dashboard-grid improved">
                 <div className="dashboard-card full-width">
-                    {/* FIX: Property 'ai-insight-card' does not exist on type 'JSX.IntrinsicElements'. Replaced with a div. */}
-                     <div>
-                        <div className="ai-insight-card">
-                            <div className="feed-item-icon"><Icon name="ai" /></div>
-                            <div>
-                                <p><strong>AI Insight:</strong> You have a busy morning with back-to-back classes. Remember to review your notes for the upcoming Data Structures quiz.</p>
-                            </div>
+                     <div className="ai-insight-card">
+                        <div className="feed-item-icon"><Icon name="sparkles" /></div>
+                        <div>
+                            <p><strong>AI Insight:</strong> {isInsightLoading ? <span className="text-secondary">Generating...</span> : aiInsight}</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="dashboard-card" style={{gridColumn: 'span 2'}}>
-                    <h3>Today's Schedule ({today})</h3>
-                    {userTimetable.length > 0 ? (
-                        <div className="schedule-list">
-                            {userTimetable.map((entry, index) => (
-                                <div key={entry.id} className="schedule-item stagger-item" style={{ animationDelay: `${index * 100}ms`}}>
-                                    <div className="schedule-time">{settings.timeSlots[entry.timeIndex]}</div>
-                                    <div className={`schedule-type-indicator ${entry.type}`}></div>
-                                    <div className="schedule-details">
-                                        <div className="schedule-subject">{entry.subject}</div>
-                                        <div className="schedule-meta">
-                                            <span>{entry.type === 'class' ? entry.faculty : entry.room}</span>
-                                            <span>{entry.room}</span>
+                {isAdminView ? (
+                    <>
+                        <div className="stat-grid">
+                            <StatCard icon="userManagement" label="Total Users" value={systemStats.totalUsers} colorClass="bg-blue" />
+                            <StatCard icon="timetable" label="Pending Approvals" value={systemStats.pendingUsers} colorClass="bg-orange" />
+                            <StatCard icon="security" label="Active Alerts" value={activeAlerts.length} colorClass="bg-red" />
+                            <StatCard icon="studentAnalytics" label="At-Risk Students" value={atRiskStudents.length} colorClass="bg-orange" />
+                        </div>
+                        
+                        {pendingApprovals.length > 0 && (
+                            <div className="dashboard-card" style={{ gridColumn: 'span 2' }}>
+                                <h3>Pending Approvals</h3>
+                                <div>
+                                    {pendingApprovals.slice(0, 4).map(u => (
+                                        <div key={u.id} className="pending-action-item">
+                                            <div className="pending-action-info">
+                                                <span className="name">{u.name}</span>
+                                                <span className="meta capitalize">{u.role} - {u.dept}</span>
+                                            </div>
+                                            <button className="btn btn-sm btn-secondary" onClick={() => setView('userManagement')}>View</button>
                                         </div>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
+                            </div>
+                        )}
+                        {activeAlerts.length > 0 && (
+                             <div className="dashboard-card" style={{ gridColumn: 'span 2' }}>
+                                 <h3>Active Security Alerts</h3>
+                                 <div>
+                                    {activeAlerts.slice(0, 3).map(alert => (
+                                        <div key={alert.id} className="pending-action-item">
+                                             <div className="pending-action-info">
+                                                <span className="name">{alert.title}</span>
+                                                <span className={`severity-badge severity-${alert.severity}`}>{alert.severity}</span>
+                                            </div>
+                                            <button className="btn btn-sm btn-secondary" onClick={() => setView('security')}>Investigate</button>
+                                        </div>
+                                    ))}
+                                </div>
+                             </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <div className="stat-grid">
+                            <StatCard icon="studentDirectory" label="Average Grade" value={`${performance.avgGrade}%`} colorClass="bg-blue" />
+                            <StatCard icon="academicCalendar" label="Attendance" value={`${performance.attendance}%`} colorClass="bg-green" />
                         </div>
-                    ) : (
-                        <div className="empty-state">No classes scheduled for today.</div>
-                    )}
-                </div>
 
-                <div className="dashboard-card" style={{gridColumn: 'span 2'}}>
-                    <h3>Recent Announcements</h3>
-                     {relevantAnnouncements.length > 0 ? (
-                        <div className="feed-list">
-                            {relevantAnnouncements.map((ann, index) => (
-                                <div key={ann.id} className="feed-item-card stagger-item" style={{ animationDelay: `${index * 100}ms`}}>
-                                    <div className="feed-item-icon"><Icon name="announcements" /></div>
-                                    <div>
-                                        <div className="feed-item-title">{ann.title}</div>
-                                        <div className="feed-item-meta">{ann.author} &bull; {formatRelativeTime(ann.timestamp)}</div>
-                                    </div>
+                        <div className="dashboard-card" style={{gridColumn: 'span 2'}}>
+                            <h3>Today's Schedule ({today})</h3>
+                            {userTimetable.length > 0 ? (
+                                <div className="schedule-list">
+                                    {userTimetable.map((entry, index) => (
+                                        <div key={entry.id} className="schedule-item stagger-item" style={{ animationDelay: `${index * 100}ms`}}>
+                                            <div className="schedule-time">{settings.timeSlots[entry.timeIndex]}</div>
+                                            <div className={`schedule-type-indicator ${entry.type}`}></div>
+                                            <div className="schedule-details">
+                                                <div className="schedule-subject">{entry.subject}</div>
+                                                <div className="schedule-meta">
+                                                    <span>{entry.type === 'class' ? entry.faculty : entry.room}</span>
+                                                    <span>{entry.room}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="empty-state">No classes scheduled for today.</div>
+                            )}
                         </div>
-                    ) : (
-                         <div className="empty-state">No recent announcements.</div>
-                    )}
-                </div>
+
+                        <div className="dashboard-card" style={{gridColumn: 'span 2'}}>
+                            <h3>Recent Announcements</h3>
+                             {relevantAnnouncements.length > 0 ? (
+                                <div className="feed-list">
+                                    {relevantAnnouncements.map((ann, index) => (
+                                        <div key={ann.id} className="feed-item-card stagger-item" style={{ animationDelay: `${index * 100}ms`}}>
+                                            <div className="feed-item-icon"><Icon name="announcements" /></div>
+                                            <div>
+                                                <div className="feed-item-title">{ann.title}</div>
+                                                <div className="feed-item-meta">{ann.author} &bull; {formatRelativeTime(ann.timestamp)}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                 <div className="empty-state">No recent announcements.</div>
+                            )}
+                        </div>
+                    </>
+                )}
+
                  <div className="dashboard-card full-width">
                     <h3>Quick Actions</h3>
                      <div className="quick-actions-grid">
@@ -960,9 +1087,7 @@ function AnnouncementsView({ user, announcements, setAnnouncements, addNotificat
 const AnnouncementForm = ({ user, announcement, onSave, onClose }: { user: User; announcement: Announcement | null; onSave: Function; onClose: Function; }) => {
     const [title, setTitle] = useState(announcement?.title || '');
     const [content, setContent] = useState(announcement?.content || '');
-    // FIX: Explicitly type state to match the Announcement interface.
     const [targetRole, setTargetRole] = useState<Announcement['targetRole']>(announcement?.targetRole || 'all');
-    // FIX: Explicitly type state to match the Announcement interface.
     const [targetDept, setTargetDept] = useState<Announcement['targetDept']>(announcement?.targetDept || 'all');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -994,7 +1119,6 @@ const AnnouncementForm = ({ user, announcement, onSave, onClose }: { user: User;
                 <div className="form-grid">
                     <div className="control-group">
                         <label htmlFor="ann-role">Target Audience</label>
-                        {/* FIX: Cast select event value to fix type error on setTargetRole. */}
                         <select id="ann-role" className="form-control" value={targetRole} onChange={e => setTargetRole(e.target.value as Announcement['targetRole'])}>
                             <option value="all">All Roles</option>
                             <option value="student">Students Only</option>
@@ -1003,7 +1127,6 @@ const AnnouncementForm = ({ user, announcement, onSave, onClose }: { user: User;
                     </div>
                     <div className="control-group">
                         <label htmlFor="ann-dept">Target Department</label>
-                        {/* FIX: Cast select event value to fix type error on setTargetDept. */}
                         <select id="ann-dept" className="form-control" value={targetDept} onChange={e => setTargetDept(e.target.value as Announcement['targetDept'])}>
                             <option value="all">All Departments</option>
                             {DEPARTMENTS.slice(0, 10).map(d => <option key={d} value={d}>{d}</option>)}
@@ -1139,13 +1262,21 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
                                 <td className="capitalize">{user.role}</td>
                                 <td>{user.dept}</td>
                                 <td><span className={`status-badge status-${user.status}`}>{user.status.replace('_', ' ')}</span></td>
-                                <td>
+                                <td style={{textAlign: 'center'}}>
                                     {isGenerating === user.id ? (
-                                        <div className="flex items-center gap-2"><div className="spinner"></div> Generating...</div>
+                                        <div className="spinner-container"><div className="spinner"></div></div>
                                     ) : user.aiSummary ? (
-                                        <button className="btn btn-sm btn-secondary" onClick={() => setSelectedUser(user)}><Icon name="eye"/>View</button>
+                                        <button className="btn-icon" onClick={() => setSelectedUser(user)} aria-label="View AI Summary">
+                                            <Icon name="eye"/>
+                                        </button>
                                     ) : (
-                                        <button className="btn btn-sm" onClick={() => generateAiSummary(user)} disabled={!isAiEnabled}><Icon name="ai"/>Generate</button>
+                                        <button 
+                                            className="btn-icon btn-ai-icon" 
+                                            onClick={() => generateAiSummary(user)} 
+                                            disabled={!isAiEnabled || !!isGenerating}
+                                            aria-label="Generate AI Summary">
+                                            <Icon name="sparkles"/>
+                                        </button>
                                     )}
                                 </td>
                                 <td>
@@ -1445,8 +1576,8 @@ function CareerCounselorView({ user, setUser, addNotification }: { user: User; s
                             <label htmlFor="careerGoals">Career Goals</label>
                             <textarea id="careerGoals" className="form-control" rows={3} value={profile.careerGoals} onChange={e => handleProfileChange('careerGoals', e.target.value)}></textarea>
                         </div>
-                        <button type="submit" className="btn btn-primary w-full" disabled={isGenerating}>
-                            {isGenerating ? <><div className="spinner"></div> Generating Report...</> : 'Generate AI Career Report'}
+                        <button type="submit" className="btn btn-ai w-full" disabled={isGenerating}>
+                            {isGenerating ? <><div className="spinner"></div> Generating Report...</> : <><Icon name="sparkles" /> Generate AI Career Report</>}
                         </button>
                     </form>
                 </div>
@@ -1488,7 +1619,237 @@ function CareerCounselorView({ user, setUser, addNotification }: { user: User; s
     );
 }
 
-// ... Main App component, etc.
+function ResourcesView({ resources, user }: { resources: Resource[], user: User }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const resourceTypes: Resource['type'][] = ['book', 'notes', 'project', 'lab', 'other'];
+    const canUpload = ['faculty', 'hod', 'admin'].includes(user.role);
+
+    const filteredResources = useMemo(() => {
+        return resources.filter(res =>
+            res.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            res.subject.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [resources, searchTerm]);
+
+    return (
+        <div className="page-content">
+            <div className="view-header">
+                <h2>Study Resources</h2>
+                {canUpload && <button className="btn btn-primary"><Icon name="upload"/> Upload New</button>}
+            </div>
+            <div className="table-filters">
+                 <div className="control-group search-filter">
+                    <Icon name="search" />
+                    <input type="text" className="form-control" placeholder="Search resources..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                </div>
+            </div>
+            <div className="resource-grid">
+                {filteredResources.map(res => (
+                    <div key={res.id} className="resource-card">
+                        <div className="resource-card-header">
+                            <div className={`resource-icon-container resource-icon-bg-${res.type}`}>
+                                <Icon name={res.type} />
+                            </div>
+                            <button className="btn-icon"><Icon name="download"/></button>
+                        </div>
+                        <div className="resource-card-body">
+                            <h4>{res.name}</h4>
+                            <p>{res.subject}</p>
+                        </div>
+                        <div className="resource-card-footer">
+                             <span>{res.uploaderName}</span>
+                             <span>{formatRelativeTime(res.timestamp)}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function CourseFilesView({ courseFiles, setCourseFiles, user }: { courseFiles: CourseFile[], setCourseFiles: React.Dispatch<React.SetStateAction<CourseFile[]>>, user: User }) {
+    const canReview = ['hod', 'principal'].includes(user.role);
+    const canUpload = user.role === 'faculty';
+
+    const handleStatusChange = (id: string, status: CourseFile['status']) => {
+        setCourseFiles(prev => prev.map(cf => cf.id === id ? { ...cf, status } : cf));
+    }
+    
+    return (
+        <div className="page-content">
+            <div className="view-header">
+                <h2>Course Files</h2>
+                {canUpload && <button className="btn btn-primary"><Icon name="upload"/> Upload Files</button>}
+            </div>
+            <div className="table-wrapper">
+                <table className="entry-list-table">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Faculty</th>
+                            <th>Semester</th>
+                            <th>Files</th>
+                            <th>Status</th>
+                            {canReview && <th>Actions</th>}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {courseFiles.map((cf, index) => (
+                            <tr key={cf.id} className="stagger-item" style={{ animationDelay: `${index * 50}ms` }}>
+                                <td>{cf.subject}</td>
+                                <td>{cf.facultyName}</td>
+                                <td>{cf.semester}</td>
+                                <td>{cf.files.length} file(s)</td>
+                                <td><span className={`status-badge status-${cf.status.replace('_', '-')}`}>{cf.status.replace('_', ' ')}</span></td>
+                                {canReview && (
+                                    <td>
+                                        {cf.status === 'pending_review' && (
+                                            <div className="flex gap-2">
+                                                <button className="btn btn-sm btn-success" onClick={() => handleStatusChange(cf.id, 'approved')}>Approve</button>
+                                                <button className="btn btn-sm btn-danger-outline" onClick={() => handleStatusChange(cf.id, 'needs_revision')}>Reject</button>
+                                            </div>
+                                        )}
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function StudentAnalyticsView({ users }: { users: User[] }) {
+    const students = users.filter(u => u.role === 'student');
+    const overallAttendance = useMemo(() => {
+        const total = students.reduce((acc, s) => acc + (s.attendance?.total || 0), 0);
+        const present = students.reduce((acc, s) => acc + (s.attendance?.present || 0), 0);
+        return total > 0 ? (present / total) * 100 : 0;
+    }, [students]);
+
+    const averageGrade = useMemo(() => {
+        const allGrades = students.flatMap(s => s.grades?.map(g => g.score) || []);
+        return allGrades.length > 0 ? allGrades.reduce((a, b) => a + b, 0) / allGrades.length : 0;
+    }, [students]);
+
+    const atRiskStudents = students.filter(s => (s.attendance && (s.attendance.present / s.attendance.total) < 0.75) || (s.grades && s.grades.some(g => g.score < 50)));
+
+    return (
+        <div className="page-content">
+            <div className="view-header">
+                <h2>Student Analytics</h2>
+            </div>
+            <div className="analytics-grid">
+                <div className="analytics-card">
+                    <h4>Overall Attendance</h4>
+                    <p className="stat-large">{overallAttendance.toFixed(1)}%</p>
+                </div>
+                <div className="analytics-card">
+                    <h4>Average Grade</h4>
+                    <p className="stat-large">{averageGrade.toFixed(1)}%</p>
+                </div>
+                <div className="analytics-card">
+                    <h4>Students At-Risk</h4>
+                    <p className="stat-large">{atRiskStudents.length}</p>
+                </div>
+                <div className="analytics-card full-span">
+                     {students.find(s => s.grades)?.grades && <BarChart data={students.find(s => s.grades)!.grades!} title="Sample Student Performance" />}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SecurityView({ alerts, setAlerts }: { alerts: SecurityAlert[], setAlerts: React.Dispatch<React.SetStateAction<SecurityAlert[]>> }) {
+    
+    const handleResolve = (id: string) => {
+        setAlerts(prev => prev.map(a => a.id === id ? { ...a, isResolved: true } : a));
+    }
+
+    return (
+        <div className="page-content">
+            <div className="view-header">
+                <h2>Security Center</h2>
+            </div>
+            <div className="table-wrapper">
+                <table className="entry-list-table">
+                    <thead>
+                        <tr>
+                            <th>Alert</th>
+                            <th>Severity</th>
+                            <th>Timestamp</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {alerts.map((alert, index) => (
+                            <tr key={alert.id} className="stagger-item" style={{ animationDelay: `${index * 50}ms` }}>
+                                <td>
+                                    <div className="user-name-cell">
+                                        <span>{alert.title}</span>
+                                        <span className="user-id-subtext">{alert.description}</span>
+                                    </div>
+                                </td>
+                                <td><span className={`severity-badge severity-${alert.severity}`}>{alert.severity}</span></td>
+                                <td>{formatRelativeTime(alert.timestamp)}</td>
+                                <td>{alert.isResolved ? 'Resolved' : 'Active'}</td>
+                                <td>
+                                    {!alert.isResolved && <button className="btn btn-sm btn-secondary" onClick={() => handleResolve(alert.id)}>Mark as Resolved</button>}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function SettingsView({ settings, setSettings }: { settings: AppSettings, setSettings: React.Dispatch<React.SetStateAction<AppSettings>> }) {
+    
+    const handleThemeChange = (theme: 'light' | 'dark') => {
+        setSettings(prev => ({...prev, theme}));
+    }
+
+    const handleAccentChange = (themeName: string) => {
+        setSettings(prev => ({...prev, activeTheme: themeName}));
+    }
+
+    return (
+        <div className="page-content">
+             <div className="view-header">
+                <h2>Settings</h2>
+            </div>
+            <div className="settings-card">
+                <h3>Appearance</h3>
+                <div className="control-group">
+                    <label>Theme</label>
+                    <div className="theme-toggle">
+                        <button className={settings.theme === 'light' ? 'active' : ''} onClick={() => handleThemeChange('light')}>Light</button>
+                        <button className={settings.theme === 'dark' ? 'active' : ''} onClick={() => handleThemeChange('dark')}>Dark</button>
+                    </div>
+                </div>
+                <div className="control-group">
+                    <label>Accent Color</label>
+                    <div className="accent-picker">
+                        {THEMES.map(theme => (
+                            <button 
+                                key={theme.name} 
+                                className={`accent-color-dot ${settings.activeTheme === theme.name ? 'active' : ''}`}
+                                style={{ backgroundColor: theme.colors['--accent-primary'] }}
+                                onClick={() => handleAccentChange(theme.name)}
+                                aria-label={`Select ${theme.name} theme`}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 const App = () => {
     const [users, setUsers] = useLocalStorage<User[]>('app_users', initialUsers);
     const [currentUser, setCurrentUser] = useLocalStorage<User | null>('app_currentUser', null);
@@ -1517,6 +1878,7 @@ const App = () => {
         const user = users.find(u => u.id === userId);
         if (user) {
             setCurrentUser(user);
+            setView('dashboard');
         }
     };
 
@@ -1548,20 +1910,26 @@ const App = () => {
         student: ['dashboard', 'timetable', 'announcements', 'resources', 'academicCalendar', 'careerCounselor'],
         faculty: ['dashboard', 'timetable', 'announcements', 'resources', 'courseFiles', 'studentDirectory'],
         hod: ['dashboard', 'timetable', 'announcements', 'resources', 'courseFiles', 'studentDirectory', 'userManagement', 'studentAnalytics'],
-        admin: ['dashboard', 'timetable', 'userManagement', 'security', 'settings', 'announcements'],
+        admin: ['dashboard', 'timetable', 'userManagement', 'security', 'settings', 'announcements', 'resources', 'academicCalendar'],
+        principal: ['dashboard', 'timetable', 'announcements', 'resources', 'courseFiles', 'studentDirectory', 'userManagement', 'studentAnalytics', 'security'],
         creator: ['dashboard', 'timetable', 'announcements', 'resources', 'academicCalendar', 'careerCounselor','userManagement', 'security', 'settings','studentDirectory','courseFiles', 'studentAnalytics'],
     };
     
     const userViews = currentUser ? (availableViews[currentUser.role] || availableViews['student'])! : [];
 
     if (!currentUser) {
-        return <AuthView onLogin={handleLogin} onRegister={handleRegister} addNotification={addNotification} />;
+        return (
+            <>
+                <ToastContainer toasts={toastQueue} removeToast={removeNotification} />
+                <AuthView onLogin={handleLogin} onRegister={handleRegister} addNotification={addNotification} />
+            </>
+        );
     }
 
     const renderView = () => {
         switch (view) {
             case 'dashboard':
-                return <DashboardView user={currentUser} announcements={announcements} timetable={timetable} settings={settings} setView={setView} />;
+                return <DashboardView user={currentUser} announcements={announcements} timetable={timetable} settings={settings} users={users} securityAlerts={securityAlerts} setView={setView} />;
             case 'timetable':
                 return <TimetableView user={currentUser} timetable={timetable} settings={settings} setTimetable={setTimetable} addNotification={addNotification} />;
             case 'announcements':
@@ -1574,11 +1942,19 @@ const App = () => {
                 return <AcademicCalendarView events={calendarEvents} setEvents={setCalendarEvents} user={currentUser} />;
              case 'careerCounselor':
                 return <CareerCounselorView user={currentUser} setUser={handleSetCurrentUser} addNotification={addNotification} />;
+            case 'resources':
+                return <ResourcesView resources={resources} user={currentUser} />;
+            case 'courseFiles':
+                return <CourseFilesView courseFiles={courseFiles} setCourseFiles={setCourseFiles} user={currentUser} />;
+            case 'studentAnalytics':
+                return <StudentAnalyticsView users={users} />;
+            case 'security':
+                return <SecurityView alerts={securityAlerts} setAlerts={setSecurityAlerts} />;
+            case 'settings':
+                return <SettingsView settings={settings} setSettings={setSettings} />;
             default:
-                return <div>
-                    <h2>{view}</h2>
-                    <p>This view is under construction.</p>
-                </div>;
+                setView('dashboard'); // Fallback to dashboard for any unknown view
+                return <DashboardView user={currentUser} announcements={announcements} timetable={timetable} settings={settings} users={users} securityAlerts={securityAlerts} setView={setView} />;
         }
     };
     
@@ -1626,7 +2002,7 @@ const App = () => {
                  </nav>
                  <div className="sidebar-footer">
                      <ul>
-                         <NavLink currentView={view} targetView='settings' label='Settings' icon='settings' />
+                         {userViews.includes('settings') && <NavLink currentView={view} targetView='settings' label='Settings' icon='settings' />}
                          <li>
                              <button className="nav-link" onClick={handleLogout}>
                                  <Icon name="logout" />
