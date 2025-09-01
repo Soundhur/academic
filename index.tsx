@@ -492,6 +492,61 @@ const BarChart = ({ data, title }: { data: { subject: string, score: number }[],
     );
 };
 
+const NotificationPanel = ({ notifications, markAllAsRead, clearNotifications }: { notifications: HistoricalNotification[], markAllAsRead: () => void, clearNotifications: () => void }) => (
+    <div className="dropdown-panel notification-panel">
+        <div className="dropdown-header">
+            <h4>Notifications</h4>
+            <div className="dropdown-actions">
+                <button onClick={markAllAsRead}>Mark all as read</button>
+                <button onClick={clearNotifications}>Clear all</button>
+            </div>
+        </div>
+        <div className="dropdown-body">
+            {notifications.length > 0 ? (
+                notifications.map(notif => (
+                    <div key={notif.id} className={`notification-item ${notif.isRead ? 'read' : ''}`}>
+                        <div className={`icon-container icon-${notif.type}`}>
+                            <Icon name={notif.type} />
+                        </div>
+                        <div className="content">
+                            <p>{notif.message}</p>
+                            <span className="timestamp">{formatRelativeTime(notif.timestamp)}</span>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <div className="empty-state-small">No new notifications.</div>
+            )}
+        </div>
+    </div>
+);
+
+const ProfileMenu = ({ user, handleLogout, setView, userViews }: { user: User, handleLogout: () => void, setView: (view: AppView) => void, userViews: AppView[] }) => (
+    <div className="dropdown-panel profile-menu">
+        <div className="profile-menu-header">
+            <strong>{user.name}</strong>
+            <span className="capitalize">{user.role}</span>
+        </div>
+        <ul className="profile-menu-list">
+            {userViews.includes('settings') && (
+                <li>
+                    <button onClick={() => setView('settings')}>
+                        <Icon name="settings" />
+                        <span>Settings</span>
+                    </button>
+                </li>
+            )}
+            <li>
+                <button onClick={handleLogout}>
+                    <Icon name="logout" />
+                    <span>Logout</span>
+                </button>
+            </li>
+        </ul>
+    </div>
+);
+
+
 // --- VIEWS ---
 
 function AuthView({ onLogin, onRegister, addNotification }: { onLogin: (id: string, name: string) => void, onRegister: (user: User) => void, addNotification: (message: string, type: AppNotification['type']) => void }) {
@@ -1865,6 +1920,24 @@ const App = () => {
 
     const [view, setView] = useState<AppView>('dashboard');
     const [isSidebarOpen, setSidebarOpen] = useState(false);
+    const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
+    const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
+
+    const notificationRef = useRef<HTMLDivElement>(null);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+                setNotificationPanelOpen(false);
+            }
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+                setProfileMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', settings.theme);
@@ -1884,6 +1957,7 @@ const App = () => {
 
     const handleLogout = () => {
         setCurrentUser(null);
+        setProfileMenuOpen(false);
         setView('auth');
     };
 
@@ -1896,6 +1970,12 @@ const App = () => {
         setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
     };
 
+    const handleBellClick = () => {
+        setNotificationPanelOpen(prev => !prev);
+        if (!isNotificationPanelOpen && unreadCount > 0) {
+            markAllAsRead();
+        }
+    };
 
     const NavLink = ({ currentView, targetView, label, icon, action }: { currentView: AppView, targetView: AppView, label: string, icon: string, action?: () => void }) => (
         <li>
@@ -2017,16 +2097,38 @@ const App = () => {
                     <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}><Icon name="menu"/></button>
                     <h2>{viewTitles[view] || 'Dashboard'}</h2>
                      <div className="header-actions">
-                        <button className="header-action-btn">
-                            <Icon name="bell" />
-                             {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-                        </button>
-                        <div className="user-profile-menu">
-                             <div className="user-info">
-                                 <div className="user-name">{currentUser.name}</div>
-                                 <div className="user-role">{currentUser.role}</div>
-                             </div>
-                             <Icon name="chevronDown" />
+                        <div className="header-action-wrapper" ref={notificationRef}>
+                            <button className="header-action-btn" onClick={handleBellClick}>
+                                <Icon name="bell" />
+                                {unreadCount > 0 && !isNotificationPanelOpen && <span className="notification-badge">{unreadCount}</span>}
+                            </button>
+                             {isNotificationPanelOpen && (
+                                <NotificationPanel 
+                                    notifications={notifications} 
+                                    markAllAsRead={markAllAsRead} 
+                                    clearNotifications={clearNotifications} 
+                                />
+                            )}
+                        </div>
+                        <div className="header-action-wrapper" ref={profileMenuRef}>
+                            <button className="user-profile-menu" onClick={() => setProfileMenuOpen(prev => !prev)}>
+                                 <div className="user-info">
+                                     <div className="user-name">{currentUser.name}</div>
+                                     <div className="user-role">{currentUser.role}</div>
+                                 </div>
+                                 <Icon name="chevronDown" />
+                            </button>
+                            {isProfileMenuOpen && (
+                                <ProfileMenu 
+                                    user={currentUser} 
+                                    handleLogout={handleLogout} 
+                                    setView={(view) => {
+                                        setView(view);
+                                        setProfileMenuOpen(false);
+                                    }} 
+                                    userViews={userViews}
+                                />
+                            )}
                         </div>
                      </div>
                 </header>

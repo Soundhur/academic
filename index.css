@@ -50,8 +50,9 @@ body { font-family: var(--font-family); font-size: var(--font-size-base); backgr
 .header-action-btn { position: relative; background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 0.5rem; }
 .header-action-btn:hover { color: var(--text-primary); }
 .notification-badge { position: absolute; top: 0; right: 0; width: 18px; height: 18px; background-color: var(--accent-danger); color: white; border-radius: 50%; font-size: 0.7rem; font-weight: 600; display: flex; align-items: center; justify-content: center; }
-.user-profile-menu { display: flex; align-items: center; gap: 0.75rem; margin-left: 0.5rem; }
-.user-info .user-name { font-weight: 600; }
+.user-profile-menu { display: flex; align-items: center; gap: 0.75rem; margin-left: 0.5rem; background: none; border: none; cursor: pointer; font-family: inherit; padding: 0.25rem 0.5rem; border-radius: 6px; transition: background-color var(--transition-speed); }
+.user-profile-menu:hover { background-color: var(--bg-tertiary); }
+.user-info .user-name { font-weight: 600; color: var(--text-primary); }
 .user-info .user-role { font-size: 0.8rem; color: var(--text-secondary); text-transform: capitalize; }
 .view-container { padding: 2rem; overflow-y: auto; flex-grow: 1; }
 
@@ -370,6 +371,35 @@ textarea.form-control { min-height: 80px; resize: vertical; }
 .toast-info .toast-icon { color: var(--accent-info); }
 .toast p { flex-grow: 1; }
 .toast-close-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.25rem; margin-left: 1rem; }
+
+/* --- Header Dropdowns --- */
+.header-action-wrapper { position: relative; }
+.dropdown-panel { position: absolute; top: calc(100% + 10px); right: 0; width: 380px; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--shadow-md); z-index: 1100; overflow: hidden; animation: fadeIn 0.2s ease-out; }
+.dropdown-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); }
+.dropdown-header h4 { font-weight: 600; }
+.dropdown-actions button { background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; margin-left: 0.5rem; }
+.dropdown-actions button:hover { color: var(--accent-primary); }
+.dropdown-body { max-height: 400px; overflow-y: auto; }
+.notification-item { display: flex; padding: 1rem; border-bottom: 1px solid var(--border-color); gap: 1rem; }
+.notification-item:last-child { border-bottom: none; }
+.notification-item.read { opacity: 0.7; }
+.notification-item .icon-container { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.notification-item .icon-container svg { width: 18px; height: 18px; }
+.notification-item .icon-container.icon-success { background-color: color-mix(in srgb, var(--accent-secondary) 15%, transparent); color: var(--accent-secondary); }
+.notification-item .icon-container.icon-error { background-color: color-mix(in srgb, var(--accent-danger) 15%, transparent); color: var(--accent-danger); }
+.notification-item .icon-container.icon-warning { background-color: color-mix(in srgb, var(--accent-warning) 15%, transparent); color: var(--accent-warning); }
+.notification-item .icon-container.icon-info { background-color: color-mix(in srgb, var(--accent-info) 15%, transparent); color: var(--accent-info); }
+.notification-item .content p { font-size: 0.9rem; margin-bottom: 0.25rem; }
+.notification-item .content .timestamp { font-size: 0.75rem; color: var(--text-secondary); }
+.empty-state-small { padding: 2rem; text-align: center; color: var(--text-secondary); }
+.profile-menu { width: 240px; }
+.profile-menu-header { padding: 1rem; border-bottom: 1px solid var(--border-color); }
+.profile-menu-header strong { display: block; }
+.profile-menu-header span { font-size: 0.85rem; color: var(--text-secondary); }
+.profile-menu-list { list-style: none; padding: 0.5rem; }
+.profile-menu-list li button { width: 100%; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 6px; background: none; border: none; cursor: pointer; font-family: inherit; font-size: 0.9rem; text-align: left; color: var(--text-primary); }
+.profile-menu-list li button:hover { background-color: var(--bg-tertiary); }
+.profile-menu-list li button svg { width: 20px; height: 20px; color: var(--text-secondary); }
 
 /* --- Responsive Design --- */
 @media (max-width: 1024px) {
