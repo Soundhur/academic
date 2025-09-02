@@ -57,7 +57,7 @@ interface ChatMessage {
 }
 
 type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'class advisor' | 'principal' | 'creator';
-type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar' | 'courseFiles' | 'studentAnalytics' | 'careerCounselor';
+type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar' | 'courseFiles' | 'studentAnalytics' | 'careerCounselor' | 'studyPlanner' | 'academics';
 
 interface CareerProfile {
     interests: string[];
@@ -72,18 +72,50 @@ interface CareerReport {
     timestamp: number;
 }
 
+interface StudyTask {
+    id: string;
+    text: string;
+    completed: boolean;
+}
+
+interface StudyDay {
+    day: string; // e.g., "Monday"
+    topic: string;
+    tasks: StudyTask[];
+}
+
+interface StudyWeek {
+    week: number;
+    days: StudyDay[];
+}
+
 interface StudyPlan {
     id: string;
     title: string;
-    weeks: {
-        week: number;
-        days: {
-            day: string;
-            topic: string;
-            tasks: { text: string; completed: boolean; }[];
-        }[];
-    }[];
+    weeks: StudyWeek[];
 }
+
+type Grade = 'O' | 'A+' | 'A' | 'B+' | 'B' | 'C' | 'RA' | 'SA' | 'W';
+
+interface SubjectGrade {
+    id: string;
+    subjectCode: string;
+    subjectName: string;
+    credits: number;
+    grade: Grade;
+    internals?: {
+        test1?: number;
+        test2?: number;
+        test3?: number;
+    };
+}
+
+interface SemesterRecord {
+    semester: number;
+    subjects: SubjectGrade[];
+    gpa?: number;
+}
+
 
 interface User {
     id: string;
@@ -98,7 +130,6 @@ interface User {
         standing: string;
         note: string;
     };
-    grades?: { subject: string; score: number }[]; // For students
     attendance?: { present: number; total: number }; // For students
     isLocked?: boolean;
     aiRiskAnalysis?: {
@@ -111,6 +142,8 @@ interface User {
     careerProfile?: CareerProfile;
     careerReport?: CareerReport;
     registeredAt?: number;
+    academicRecords?: SemesterRecord[];
+    cgpa?: number;
 }
 
 interface Resource {
@@ -230,13 +263,16 @@ const DEPARTMENTS = ["CSE", "ECE", "EEE", "MCA", "AI&DS", "CYBERSECURITY", "MECH
 const YEARS = ["I", "II", "III", "IV"];
 // FIX: Added 'creator' to ROLES to match the UserRole type and initialUsers data.
 const ROLES: UserRole[] = ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'];
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const THEMES: AppTheme[] = [
     { name: 'Default Blue', colors: { '--accent-primary': '#3B82F6', '--accent-primary-hover': '#2563EB' } },
     { name: 'Ocean Green', colors: { '--accent-primary': '#10b981', '--accent-primary-hover': '#059669' } },
     { name: 'Sunset Orange', colors: { '--accent-primary': '#f59e0b', '--accent-primary-hover': '#d97706' } },
     { name: 'Royal Purple', colors: { '--accent-primary': '#8b5cf6', '--accent-primary-hover': '#7c3aed' } },
 ];
+const GRADES: Grade[] = ['O', 'A+', 'A', 'B+', 'B', 'C', 'RA', 'SA', 'W'];
+const GRADE_POINTS: Record<Grade, number> = { 'O': 10, 'A+': 9, 'A': 8, 'B+': 7, 'B': 6, 'C': 5, 'RA': 0, 'SA': 0, 'W': 0 };
+
 
 // --- MOCK DATA ---
 const initialUsers: User[] = [
@@ -244,10 +280,16 @@ const initialUsers: User[] = [
     { id: 'user_2', name: 'Admin User', role: 'admin', dept: 'IT', status: 'active', isLocked: false, registeredAt: Date.now() - 86400000 * 10 },
     { id: 'user_3', name: 'Prof. Samuel Chen', role: 'hod', dept: 'CSE', status: 'active', isLocked: false, registeredAt: Date.now() - 86400000 * 8 },
     { id: 'user_4', name: 'Prof. Aisha Khan', role: 'faculty', dept: 'ECE', status: 'active', isLocked: false, registeredAt: Date.now() - 86400000 * 7 },
-    { id: 'user_5', name: 'John Doe', role: 'student', dept: 'CSE', year: 'II', status: 'active', grades: [{ subject: 'Data Structures', score: 85 }, { subject: 'Algorithms', score: 92 }, { subject: 'DBMS', score: 78 }, { subject: 'OS', score: 88 }], attendance: { present: 78, total: 85 }, isLocked: false, studyPlans: [], careerProfile: { interests: ['Web Development', 'AI/ML'], skills: ['React', 'Python'], careerGoals: 'Become a full-stack developer at a tech company.' }, registeredAt: Date.now() - 86400000 * 5 },
+    { id: 'user_5', name: 'John Doe', role: 'student', dept: 'CSE', year: 'II', status: 'active', attendance: { present: 78, total: 85 }, isLocked: false, studyPlans: [], careerProfile: { interests: ['Web Development', 'AI/ML'], skills: ['React', 'Python'], careerGoals: 'Become a full-stack developer at a tech company.' }, registeredAt: Date.now() - 86400000 * 5,
+      academicRecords: [
+        { semester: 1, subjects: [ { id: 's1', subjectCode: 'HS8151', subjectName: 'Communicative English', credits: 4, grade: 'A', internals: { test1: 85, test2: 90 } }, { id: 's2', subjectCode: 'MA8151', subjectName: 'Engineering Mathematics I', credits: 4, grade: 'A+', internals: { test1: 92, test2: 95 } }, { id: 's3', subjectCode: 'PH8151', subjectName: 'Engineering Physics', credits: 3, grade: 'B+', internals: { test1: 78, test2: 82, test3: 80 } }, ], gpa: 8.82 },
+        { semester: 2, subjects: [ { id: 's4', subjectCode: 'GE8151', subjectName: 'Problem Solving and Python', credits: 3, grade: 'O', internals: { test1: 98, test2: 96 } }, { id: 's5', subjectCode: 'CS8251', subjectName: 'Programming in C', credits: 3, grade: 'A' }, { id: 's6', subjectCode: 'BE8255', subjectName: 'Basic Electrical, Electronics & Measurement Engg', credits: 3, grade: 'A+' } ], gpa: 9.33 },
+        { semester: 3, subjects: [ { id: 's7', subjectCode: 'CS8351', subjectName: 'Digital Principles and System Design', credits: 4, grade: 'A' }, { id: 's8', subjectCode: 'CS8391', subjectName: 'Data Structures', credits: 3, grade: 'O' } ], gpa: 8.86 }
+      ], cgpa: 9.0,
+    },
     { id: 'user_6', name: 'Jane Smith', role: 'student', dept: 'CSE', year: 'II', status: 'pending_approval', isLocked: false, studyPlans: [], registeredAt: Date.now() - 86400000 * 2 },
     { id: 'user_7', name: 'Creator', role: 'creator', dept: 'IT', status: 'active', isLocked: false, registeredAt: Date.now() - 86400000 * 10 },
-    { id: 'user_8', name: 'Emily White', role: 'student', dept: 'ECE', year: 'I', status: 'active', grades: [{ subject: 'Basic Electronics', score: 55 }, { subject: 'Circuit Theory', score: 62 }], attendance: { present: 60, total: 85 }, isLocked: false, studyPlans: [], registeredAt: Date.now() - 86400000 * 4 }
+    { id: 'user_8', name: 'Emily White', role: 'student', dept: 'ECE', year: 'I', status: 'active', academicRecords: [{ semester: 1, subjects: [{id: 'e1', subjectCode: 'EC8252', subjectName: 'Electronic Devices', credits: 3, grade: 'C'}, {id: 'e2', subjectCode: 'EC8251', subjectName: 'Circuit Analysis', credits: 4, grade: 'B'}], gpa: 5.57 }], cgpa: 5.57, attendance: { present: 60, total: 85 }, isLocked: false, studyPlans: [], registeredAt: Date.now() - 86400000 * 4 }
 ];
 
 const initialTimetable: TimetableEntry[] = [
@@ -370,6 +412,29 @@ const formatRelativeTime = (timestamp: number) => {
     return "Just now";
 };
 
+const calculateAcademics = (records: SemesterRecord[] | undefined) => {
+    if (!records) return { updatedRecords: [], cgpa: 0 };
+    let totalPoints = 0;
+    let totalCredits = 0;
+    const updatedRecords = records.map(semester => {
+        let semesterPoints = 0;
+        let semesterCredits = 0;
+        semester.subjects.forEach(subject => {
+            const gradePoint = GRADE_POINTS[subject.grade] || 0;
+            if (subject.grade !== 'W' && subject.grade !== 'SA') {
+                semesterCredits += subject.credits;
+                semesterPoints += subject.credits * gradePoint;
+            }
+        });
+        const gpa = semesterCredits > 0 ? parseFloat((semesterPoints / semesterCredits).toFixed(2)) : 0;
+        totalCredits += semesterCredits;
+        totalPoints += semesterPoints;
+        return { ...semester, gpa };
+    });
+    const cgpa = totalCredits > 0 ? parseFloat((totalPoints / totalCredits).toFixed(2)) : 0;
+    return { updatedRecords, cgpa };
+};
+
 
 // --- UI COMPONENTS ---
 
@@ -387,6 +452,8 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         courseFiles: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />,
         studentAnalytics: <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />,
         careerCounselor: <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />,
+        studyPlanner: <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />,
+        academics: <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />,
         logout: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />,
         menu: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />,
         close: <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />,
@@ -421,7 +488,7 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
     );
 };
 
-const Modal = ({ children, onClose, title, size = 'medium' }: { children: React.ReactNode, onClose: () => void, title: string, size?: 'medium' | 'large' }) => {
+const Modal = ({ children, onClose, title, size = 'medium' }: { children: React.ReactNode, onClose: () => void, title: string, size?: 'medium' | 'large' | 'xlarge' }) => {
     useEffect(() => {
         const handleEsc = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -432,9 +499,15 @@ const Modal = ({ children, onClose, title, size = 'medium' }: { children: React.
         return () => window.removeEventListener('keydown', handleEsc);
     }, [onClose]);
 
+    const sizeClass = {
+        'medium': '',
+        'large': 'large',
+        'xlarge': 'xlarge'
+    }[size];
+
     return createPortal(
         <div className="modal-overlay" onMouseDown={onClose}>
-            <div className={`modal-content ${size === 'large' ? 'large' : ''}`} onMouseDown={(e) => e.stopPropagation()}>
+            <div className={`modal-content ${sizeClass}`} onMouseDown={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3>{title}</h3>
                     <button onClick={onClose} className="modal-close-btn" aria-label="Close modal">
@@ -491,6 +564,71 @@ const BarChart = ({ data, title }: { data: { subject: string, score: number }[],
         </div>
     );
 };
+
+const LineChart = ({ data, title }: { data: { label: string; value: number }[], title: string }) => {
+    const chartHeight = 250;
+    const chartWidth = 500;
+    const padding = 40;
+
+    if (!data || data.length === 0) {
+        return (
+            <div className="line-chart-container">
+                <h4>{title}</h4>
+                <div className="empty-state-small">Not enough data to display chart.</div>
+            </div>
+        );
+    }
+    
+    const maxVal = Math.max(...data.map(d => d.value), 10); // Ensure maxVal is at least 10
+    const minVal = 0;
+
+    const getX = (index: number) => padding + (index / (data.length - 1)) * (chartWidth - padding * 2);
+    const getY = (value: number) => chartHeight - padding - ((value - minVal) / (maxVal - minVal)) * (chartHeight - padding * 2);
+
+    const pathData = data.map((point, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(point.value)}`).join(' ');
+
+    const yAxisLabels = Array.from({ length: 5 }, (_, i) => {
+        const value = minVal + (i / 4) * (maxVal - minVal);
+        return { value: value.toFixed(1), y: getY(value) };
+    });
+
+    return (
+        <div className="line-chart-container">
+            <h4>{title}</h4>
+            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label={title}>
+                <g className="grid-lines">
+                    {yAxisLabels.map(label => (
+                        <line key={label.value} x1={padding} y1={label.y} x2={chartWidth - padding} y2={label.y}></line>
+                    ))}
+                </g>
+                <g className="axes">
+                     <line x1={padding} y1={padding / 2} x2={padding} y2={chartHeight - padding}></line>
+                     <line x1={padding} y1={chartHeight - padding} x2={chartWidth - padding * 0.5} y2={chartHeight - padding}></line>
+                </g>
+                <g className="labels y-labels">
+                    {yAxisLabels.map(label => (
+                        <text key={label.value} x={padding - 8} y={label.y} textAnchor="end" alignmentBaseline="middle">{label.value}</text>
+                    ))}
+                </g>
+                <g className="labels x-labels">
+                    {data.map((point, i) => (
+                        <text key={point.label} x={getX(i)} y={chartHeight - padding + 15} textAnchor="middle">{point.label}</text>
+                    ))}
+                </g>
+                <path className="line-path" d={pathData} />
+                <g className="data-points">
+                    {data.map((point, i) => (
+                        <g key={i} className="data-point-group">
+                            <circle cx={getX(i)} cy={getY(point.value)} r="4" />
+                            <text className="data-point-tooltip" x={getX(i)} y={getY(point.value) - 10} textAnchor="middle">{point.value.toFixed(2)}</text>
+                        </g>
+                    ))}
+                </g>
+            </svg>
+        </div>
+    );
+};
+
 
 const NotificationPanel = ({ notifications, markAllAsRead, clearNotifications }: { notifications: HistoricalNotification[], markAllAsRead: () => void, clearNotifications: () => void }) => (
     <div className="dropdown-panel notification-panel">
@@ -687,20 +825,21 @@ function DashboardView({ user, announcements, timetable, settings, users, securi
         return "Good Evening";
     };
 
-    const { pendingApprovals, atRiskStudents, activeAlerts, performance, systemStats } = useMemo(() => {
+    const { pendingApprovals, atRiskStudents, activeAlerts, performance, systemStats, gpaTrendData } = useMemo(() => {
         const studentUsers = users.filter(u => u.role === 'student');
         return {
             pendingApprovals: users.filter(u => u.status === 'pending_approval'),
-            atRiskStudents: studentUsers.filter(s => (s.attendance && (s.attendance.present / s.attendance.total) < 0.75) || (s.grades && s.grades.some(g => g.score < 50))),
+            atRiskStudents: studentUsers.filter(s => (s.attendance && (s.attendance.present / s.attendance.total) < 0.75) || (s.cgpa && s.cgpa < 6.5)),
             activeAlerts: securityAlerts.filter(a => !a.isResolved),
             performance: {
-                avgGrade: user.grades && user.grades.length > 0 ? (user.grades.reduce((acc, g) => acc + g.score, 0) / user.grades.length).toFixed(1) : 'N/A',
+                cgpa: user.cgpa ? user.cgpa.toFixed(2) : 'N/A',
                 attendance: user.attendance ? ((user.attendance.present / user.attendance.total) * 100).toFixed(1) : 'N/A'
             },
             systemStats: {
                 totalUsers: users.length,
                 pendingUsers: users.filter(u => u.status === 'pending_approval').length
-            }
+            },
+            gpaTrendData: user.academicRecords?.map(rec => ({ label: `Sem ${rec.semester}`, value: rec.gpa || 0 })).sort((a,b) => a.label.localeCompare(b.label, undefined, { numeric: true })) || []
         };
     }, [users, securityAlerts, user]);
 
@@ -719,7 +858,7 @@ function DashboardView({ user, announcements, timetable, settings, users, securi
             const adminRoles: UserRole[] = ['hod', 'principal', 'admin', 'creator'];
 
             if (user.role === 'student') {
-                prompt = `Generate a single, short, encouraging, and actionable insight for student ${user.name}. Focus on their academic data. Data: Grades - ${JSON.stringify(user.grades)}, Attendance - ${user.attendance?.present}/${user.attendance?.total}. Keep it under 25 words.`;
+                prompt = `Generate a single, short, encouraging, and actionable insight for student ${user.name}. Focus on their academic data. Data: CGPA - ${user.cgpa}, Attendance - ${user.attendance?.present}/${user.attendance?.total}. Keep it under 25 words.`;
             } else if (adminRoles.includes(user.role)) {
                 prompt = `Generate a single, short, and actionable administrative insight for ${user.role} ${user.name}. Focus on system-level data. Data: ${pendingApprovals.length} pending approvals, ${atRiskStudents.length} at-risk students, ${activeAlerts.length} active security alerts. Keep it under 25 words.`;
             } else {
@@ -819,8 +958,12 @@ function DashboardView({ user, announcements, timetable, settings, users, securi
                 ) : (
                     <>
                         <div className="stat-grid">
-                            <StatCard icon="studentDirectory" label="Average Grade" value={`${performance.avgGrade}%`} colorClass="bg-blue" />
+                            <StatCard icon="academics" label="Overall CGPA" value={performance.cgpa} colorClass="bg-blue" />
                             <StatCard icon="academicCalendar" label="Attendance" value={`${performance.attendance}%`} colorClass="bg-green" />
+                        </div>
+                        
+                        <div className="dashboard-card" style={{gridColumn: 'span 2'}}>
+                            <LineChart data={gpaTrendData} title="GPA Trend"/>
                         </div>
 
                         <div className="dashboard-card" style={{gridColumn: 'span 2'}}>
@@ -846,7 +989,7 @@ function DashboardView({ user, announcements, timetable, settings, users, securi
                             )}
                         </div>
 
-                        <div className="dashboard-card" style={{gridColumn: 'span 2'}}>
+                        <div className="dashboard-card" style={{gridColumn: 'span 4'}}>
                             <h3>Recent Announcements</h3>
                              {relevantAnnouncements.length > 0 ? (
                                 <div className="feed-list">
@@ -961,12 +1104,12 @@ function TimetableView({ user, timetable, settings, setTimetable, addNotificatio
             <div className="timetable-wrapper">
                 <div className="timetable-grid">
                     <div className="grid-header">Time</div>
-                    {DAYS.map(day => <div key={day} className="grid-header">{day}</div>)}
+                    {DAYS.slice(0, 6).map(day => <div key={day} className="grid-header">{day}</div>)}
 
                     {settings.timeSlots.map((slot, timeIndex) => (
                         <React.Fragment key={timeIndex}>
                             <div className="time-slot">{slot}</div>
-                            {DAYS.map(day => {
+                            {DAYS.slice(0, 6).map(day => {
                                 const entry = filteredTimetable.find(e => e.day === day && e.timeIndex === timeIndex);
                                 const isEditable = canEdit;
                                 return (
@@ -1245,7 +1388,7 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
             Department: ${user.dept}
             ${user.year ? `Year: ${user.year}` : ''}
             Status: ${user.status}
-            ${user.grades ? `Grades: ${JSON.stringify(user.grades)}` : ''}
+            ${user.cgpa ? `CGPA: ${user.cgpa}` : ''}
             ${user.attendance ? `Attendance: ${user.attendance.present}/${user.attendance.total} sessions` : ''}
             
             Format the output as a JSON object with three keys: "profile", "standing", and "note".
@@ -1381,9 +1524,11 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
     );
 }
 
-function StudentDirectoryView({ users }: { users: User[] }) {
+function StudentDirectoryView({ users, currentUser, onUpdateUser, addNotification }: { users: User[], currentUser: User, onUpdateUser: (user: User) => void, addNotification: Function }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+
+    const canManage = useMemo(() => ['admin', 'faculty', 'hod', 'principal', 'creator'].includes(currentUser.role), [currentUser.role]);
 
     const students = useMemo(() =>
         users.filter(u => u.role === 'student' && (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.dept.toLowerCase().includes(searchTerm.toLowerCase())))
@@ -1412,25 +1557,35 @@ function StudentDirectoryView({ users }: { users: User[] }) {
                 ))}
             </div>
             {selectedStudent && (
-                 <Modal title={selectedStudent.name} onClose={() => setSelectedStudent(null)} size="large">
-                    <div className="modal-body">
-                        <div className="student-profile-grid">
-                            <div className="student-profile-details">
-                                <h3>Student Details</h3>
-                                <p><strong>Department:</strong> {selectedStudent.dept}</p>
-                                <p><strong>Year:</strong> {selectedStudent.year}</p>
-                                <p><strong>Status:</strong> <span className={`status-badge status-${selectedStudent.status}`}>{selectedStudent.status}</span></p>
-                                {selectedStudent.attendance && (
-                                     <p><strong>Attendance:</strong> {selectedStudent.attendance.present} / {selectedStudent.attendance.total} days ({((selectedStudent.attendance.present / selectedStudent.attendance.total) * 100).toFixed(1)}%)</p>
-                                )}
-                            </div>
-                             <div className="student-profile-analytics">
-                                 {selectedStudent.grades && selectedStudent.grades.length > 0 && (
-                                     <BarChart data={selectedStudent.grades} title="Academic Performance"/>
-                                 )}
+                 <Modal title={canManage ? `Manage ${selectedStudent.name}` : selectedStudent.name} onClose={() => setSelectedStudent(null)} size={canManage ? 'xlarge' : 'large'}>
+                    {canManage ? (
+                        <StudentManagementPanel 
+                            student={selectedStudent} 
+                            onUpdateUser={onUpdateUser}
+                            addNotification={addNotification}
+                            onClose={() => setSelectedStudent(null)}
+                        />
+                    ) : (
+                         <div className="modal-body">
+                            <div className="student-profile-grid">
+                                <div className="student-profile-details">
+                                    <h3>Student Details</h3>
+                                    <p><strong>Department:</strong> {selectedStudent.dept}</p>
+                                    <p><strong>Year:</strong> {selectedStudent.year}</p>
+                                    <p><strong>Status:</strong> <span className={`status-badge status-${selectedStudent.status}`}>{selectedStudent.status}</span></p>
+                                    {selectedStudent.attendance && (
+                                         <p><strong>Attendance:</strong> {selectedStudent.attendance.present} / {selectedStudent.attendance.total} days ({((selectedStudent.attendance.present / selectedStudent.attendance.total) * 100).toFixed(1)}%)</p>
+                                    )}
+                                     <p><strong>CGPA:</strong> {selectedStudent.cgpa?.toFixed(2) || 'N/A'}</p>
+                                </div>
+                                 <div className="student-profile-analytics">
+                                     {selectedStudent.academicRecords && selectedStudent.academicRecords.length > 0 && (
+                                         <LineChart data={selectedStudent.academicRecords.map(r => ({label: `Sem ${r.semester}`, value: r.gpa || 0}))} title="GPA Trend"/>
+                                     )}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                  </Modal>
             )}
         </div>
@@ -1581,7 +1736,7 @@ function CareerCounselorView({ user, setUser, addNotification }: { user: User; s
                 - Interests: ${currentUser.careerProfile.interests.join(', ')}
                 - Current Skills: ${currentUser.careerProfile.skills.join(', ')}
                 - Career Goals: ${currentUser.careerProfile.careerGoals}
-                - Academic Performance: ${JSON.stringify(currentUser.grades)}
+                - Academic Performance (CGPA): ${currentUser.cgpa || 'Not available'}
 
                 Generate a JSON object with the following structure:
                 {
@@ -1783,12 +1938,12 @@ function StudentAnalyticsView({ users }: { users: User[] }) {
         return total > 0 ? (present / total) * 100 : 0;
     }, [students]);
 
-    const averageGrade = useMemo(() => {
-        const allGrades = students.flatMap(s => s.grades?.map(g => g.score) || []);
-        return allGrades.length > 0 ? allGrades.reduce((a, b) => a + b, 0) / allGrades.length : 0;
+    const averageCgpa = useMemo(() => {
+        const allCgpas = students.map(s => s.cgpa || 0).filter(c => c > 0);
+        return allCgpas.length > 0 ? allCgpas.reduce((a, b) => a + b, 0) / allCgpas.length : 0;
     }, [students]);
 
-    const atRiskStudents = students.filter(s => (s.attendance && (s.attendance.present / s.attendance.total) < 0.75) || (s.grades && s.grades.some(g => g.score < 50)));
+    const atRiskStudents = students.filter(s => (s.attendance && (s.attendance.present / s.attendance.total) < 0.75) || (s.cgpa && s.cgpa < 6.5));
 
     return (
         <div className="page-content">
@@ -1801,15 +1956,15 @@ function StudentAnalyticsView({ users }: { users: User[] }) {
                     <p className="stat-large">{overallAttendance.toFixed(1)}%</p>
                 </div>
                 <div className="analytics-card">
-                    <h4>Average Grade</h4>
-                    <p className="stat-large">{averageGrade.toFixed(1)}%</p>
+                    <h4>Average CGPA</h4>
+                    <p className="stat-large">{averageCgpa.toFixed(2)}</p>
                 </div>
                 <div className="analytics-card">
                     <h4>Students At-Risk</h4>
                     <p className="stat-large">{atRiskStudents.length}</p>
                 </div>
                 <div className="analytics-card full-span">
-                     {students.find(s => s.grades)?.grades && <BarChart data={students.find(s => s.grades)!.grades!} title="Sample Student Performance" />}
+                     {students.length > 0 && <LineChart data={students.map(s => ({label: s.name.split(' ')[0], value: s.cgpa || 0}))} title="Student CGPA Distribution" />}
                 </div>
             </div>
         </div>
@@ -1905,6 +2060,728 @@ function SettingsView({ settings, setSettings }: { settings: AppSettings, setSet
     );
 }
 
+function StudyPlannerView({ user, setUser, addNotification }: { user: User, setUser: (user: User) => void, addNotification: (message: string, type: AppNotification['type']) => void }) {
+    const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newPlanTitle, setNewPlanTitle] = useState('');
+
+    const studyPlans = user.studyPlans || [];
+    const selectedPlan = useMemo(() => studyPlans.find(p => p.id === selectedPlanId), [studyPlans, selectedPlanId]);
+
+    const handleCreatePlan = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newPlanTitle.trim()) {
+            addNotification('Please enter a title for your plan.', 'error');
+            return;
+        }
+        const newPlan: StudyPlan = {
+            id: `plan_${Date.now()}`,
+            title: newPlanTitle,
+            weeks: [],
+        };
+        const updatedPlans = [...studyPlans, newPlan];
+        setUser({ ...user, studyPlans: updatedPlans });
+        addNotification(`Study plan "${newPlanTitle}" created!`, 'success');
+        setSelectedPlanId(newPlan.id);
+        setShowCreateModal(false);
+        setNewPlanTitle('');
+    };
+
+    const handleDeletePlan = (planId: string) => {
+        const updatedPlans = studyPlans.filter(p => p.id !== planId);
+        setUser({ ...user, studyPlans: updatedPlans });
+        addNotification('Study plan deleted.', 'success');
+        if (selectedPlanId === planId) {
+            setSelectedPlanId(null);
+        }
+    };
+
+    const handleUpdatePlan = (updatedPlan: StudyPlan) => {
+        const updatedPlans = studyPlans.map(p => p.id === updatedPlan.id ? updatedPlan : p);
+        setUser({ ...user, studyPlans: updatedPlans });
+    };
+
+    return (
+        <div className="page-content study-planner-view">
+            <div className="study-planner-sidebar">
+                <div className="planner-sidebar-header">
+                    <h3>My Study Plans</h3>
+                    <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
+                        <Icon name="plus" /> New Plan
+                    </button>
+                </div>
+                <div className="planner-list">
+                    {studyPlans.map(plan => (
+                        <button
+                            key={plan.id}
+                            className={`planner-list-item ${plan.id === selectedPlanId ? 'active' : ''}`}
+                            onClick={() => setSelectedPlanId(plan.id)}
+                        >
+                            {plan.title}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="study-planner-content">
+                {selectedPlan ? (
+                    <PlanDetails
+                        plan={selectedPlan}
+                        onUpdate={handleUpdatePlan}
+                        onDelete={handleDeletePlan}
+                    />
+                ) : (
+                    <div className="empty-state">
+                        <Icon name="studyPlanner" className="w-16 h-16 text-gray-400 mb-4" />
+                        <h2>Select a study plan</h2>
+                        <p>Choose a plan from the list or create a new one to get started.</p>
+                    </div>
+                )}
+            </div>
+            {showCreateModal && (
+                <Modal title="Create New Study Plan" onClose={() => setShowCreateModal(false)}>
+                    <form onSubmit={handleCreatePlan}>
+                        <div className="modal-body">
+                            <div className="control-group">
+                                <label htmlFor="plan-title">Plan Title</label>
+                                <input
+                                    id="plan-title"
+                                    type="text"
+                                    className="form-control"
+                                    value={newPlanTitle}
+                                    onChange={e => setNewPlanTitle(e.target.value)}
+                                    placeholder="e.g., Final Exam Prep"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <div></div>
+                            <div>
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-primary">Create Plan</button>
+                            </div>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+}
+
+const PlanDetails = ({ plan, onUpdate, onDelete }: { plan: StudyPlan, onUpdate: (plan: StudyPlan) => void, onDelete: (id: string) => void }) => {
+    const [activeWeek, setActiveWeek] = useState<number | null>(plan.weeks.length > 0 ? 1 : null);
+
+    const planProgress = useMemo(() => {
+        const allTasks = plan.weeks.flatMap(week => week.days.flatMap(day => day.tasks));
+        if (allTasks.length === 0) return { total: 0, completed: 0, percentage: 0 };
+        const completedTasks = allTasks.filter(task => task.completed).length;
+        const totalTasks = allTasks.length;
+        const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+        return { total: totalTasks, completed: completedTasks, percentage };
+    }, [plan]);
+
+
+    const handleAddWeek = () => {
+        const newWeekNumber = plan.weeks.length > 0 ? Math.max(...plan.weeks.map(w => w.week)) + 1 : 1;
+        const newWeek: StudyWeek = {
+            week: newWeekNumber,
+            days: DAYS.slice(0, 6).map(day => ({ day, topic: '', tasks: [] })),
+        };
+        onUpdate({ ...plan, weeks: [...plan.weeks, newWeek] });
+        setActiveWeek(newWeekNumber);
+    };
+
+    const handleTaskToggle = (weekIndex: number, dayIndex: number, taskId: string) => {
+        const updatedWeeks = plan.weeks.map((week, wIdx) => {
+            if (wIdx !== weekIndex) return week;
+            return {
+                ...week,
+                days: week.days.map((day, dIdx) => {
+                    if (dIdx !== dayIndex) return day;
+                    return {
+                        ...day,
+                        tasks: day.tasks.map(task => 
+                            task.id === taskId ? { ...task, completed: !task.completed } : task
+                        ),
+                    };
+                }),
+            };
+        });
+        onUpdate({ ...plan, weeks: updatedWeeks });
+    };
+
+    const handleAddTask = (weekIndex: number, dayIndex: number, taskText: string) => {
+        if (!taskText.trim()) return;
+        const newTask: StudyTask = { id: `task_${Date.now()}`, text: taskText, completed: false };
+        const updatedWeeks = plan.weeks.map((week, wIdx) => {
+            if (wIdx !== weekIndex) return week;
+            return {
+                ...week,
+                days: week.days.map((day, dIdx) => {
+                    if (dIdx !== dayIndex) return day;
+                    return {
+                        ...day,
+                        tasks: [...day.tasks, newTask],
+                    };
+                }),
+            };
+        });
+        onUpdate({ ...plan, weeks: updatedWeeks });
+    };
+    
+    const handleDeleteTask = (weekIndex: number, dayIndex: number, taskId: string) => {
+        const updatedWeeks = plan.weeks.map((week, wIdx) => {
+            if (wIdx !== weekIndex) return week;
+            return {
+                ...week,
+                days: week.days.map((day, dIdx) => {
+                    if (dIdx !== dayIndex) return day;
+                    return {
+                        ...day,
+                        tasks: day.tasks.filter(task => task.id !== taskId),
+                    };
+                }),
+            };
+        });
+        onUpdate({ ...plan, weeks: updatedWeeks });
+    };
+
+    const handleEditTask = (weekIndex: number, dayIndex: number, taskId: string, newText: string) => {
+        const updatedWeeks = plan.weeks.map((week, wIdx) => {
+            if (wIdx !== weekIndex) return week;
+            return {
+                ...week,
+                days: week.days.map((day, dIdx) => {
+                    if (dIdx !== dayIndex) return day;
+                    return {
+                        ...day,
+                        tasks: day.tasks.map(task =>
+                            task.id === taskId ? { ...task, text: newText } : task
+                        ),
+                    };
+                }),
+            };
+        });
+        onUpdate({ ...plan, weeks: updatedWeeks });
+    };
+
+
+    const handleTopicChange = (weekIndex: number, dayIndex: number, newTopic: string) => {
+        const updatedWeeks = plan.weeks.map((week, wIdx) => {
+            if (wIdx !== weekIndex) return week;
+            return {
+                ...week,
+                days: week.days.map((day, dIdx) => {
+                    if (dIdx !== dayIndex) return day;
+                    return { ...day, topic: newTopic };
+                }),
+            };
+        });
+        onUpdate({ ...plan, weeks: updatedWeeks });
+    };
+
+    return (
+        <div className="plan-details-container">
+            <div className="plan-details-header">
+                <div className="plan-header-main">
+                    <h2>{plan.title}</h2>
+                    <div className="plan-progress-summary">
+                        <div className="progress-bar-container">
+                            <div className="progress-bar" style={{ width: `${planProgress.percentage}%` }}></div>
+                        </div>
+                        <span>{planProgress.completed} / {planProgress.total} Tasks Completed</span>
+                    </div>
+                </div>
+                <button className="btn btn-danger-outline btn-sm" onClick={() => onDelete(plan.id)}>
+                    <Icon name="delete" /> Delete Plan
+                </button>
+            </div>
+            <div className="plan-weeks-accordion">
+                {plan.weeks.map((week, weekIndex) => {
+                    const totalTasks = week.days.reduce((acc, day) => acc + day.tasks.length, 0);
+                    const completedTasks = week.days.reduce((acc, day) => acc + day.tasks.filter(t => t.completed).length, 0);
+                    const weekProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+                    return (
+                        <div key={week.week} className="week-item">
+                            <button className="week-header" onClick={() => setActiveWeek(activeWeek === week.week ? null : week.week)}>
+                                <span>Week {week.week}</span>
+                                <div className="week-progress">
+                                    <div className="progress-bar-container">
+                                        <div className="progress-bar" style={{ width: `${weekProgress}%` }}></div>
+                                    </div>
+                                    <span>{Math.round(weekProgress)}%</span>
+                                </div>
+                                <Icon name="chevronDown" className={`chevron-icon ${activeWeek === week.week ? 'open' : ''}`} />
+                            </button>
+                            {activeWeek === week.week && (
+                                <div className="week-content">
+                                    {week.days.map((day, dayIndex) => (
+                                        <DayCard
+                                            key={day.day}
+                                            day={day}
+                                            onTaskToggle={(taskId) => handleTaskToggle(weekIndex, dayIndex, taskId)}
+                                            onAddTask={(taskText) => handleAddTask(weekIndex, dayIndex, taskText)}
+                                            onTopicChange={(newTopic) => handleTopicChange(weekIndex, dayIndex, newTopic)}
+                                            onDeleteTask={(taskId) => handleDeleteTask(weekIndex, dayIndex, taskId)}
+                                            onEditTask={(taskId, newText) => handleEditTask(weekIndex, dayIndex, taskId, newText)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+            <button className="btn btn-secondary" onClick={handleAddWeek}>
+                <Icon name="plus" /> Add Week
+            </button>
+        </div>
+    );
+};
+
+interface DayCardProps {
+    day: StudyDay;
+    onTaskToggle: (taskId: string) => void;
+    onAddTask: (taskText: string) => void;
+    onTopicChange: (topic: string) => void;
+    onDeleteTask: (taskId: string) => void;
+    onEditTask: (taskId: string, newText: string) => void;
+}
+
+const DayCard = ({ day, onTaskToggle, onAddTask, onTopicChange, onDeleteTask, onEditTask }: DayCardProps) => {
+    const [newTaskText, setNewTaskText] = useState('');
+    const [localTopic, setLocalTopic] = useState(day.topic);
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+    const [editingTaskText, setEditingTaskText] = useState('');
+    const editInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        setLocalTopic(day.topic);
+    }, [day.topic]);
+
+    useEffect(() => {
+        if (editingTaskId && editInputRef.current) {
+            editInputRef.current.focus();
+        }
+    }, [editingTaskId]);
+
+    const handleTopicBlur = () => {
+        if (localTopic !== day.topic) {
+            onTopicChange(localTopic);
+        }
+    };
+    
+    const handleTopicKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleTopicBlur();
+            e.currentTarget.blur();
+        }
+    };
+    
+    const handleAddTaskSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onAddTask(newTaskText);
+        setNewTaskText('');
+    };
+
+    const handleStartEdit = (task: StudyTask) => {
+        setEditingTaskId(task.id);
+        setEditingTaskText(task.text);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingTaskId(null);
+        setEditingTaskText('');
+    };
+
+    const handleSaveEdit = () => {
+        if (editingTaskId && editingTaskText.trim()) {
+            onEditTask(editingTaskId, editingTaskText.trim());
+        }
+        handleCancelEdit();
+    };
+
+    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleSaveEdit();
+        } else if (e.key === 'Escape') {
+            handleCancelEdit();
+        }
+    };
+
+    const dayProgress = day.tasks.length > 0 ? (day.tasks.filter(t => t.completed).length / day.tasks.length) * 100 : 0;
+
+    return (
+        <div className="day-card">
+            <h4>{day.day}</h4>
+            <div className="progress-bar-container day-progress">
+                <div className="progress-bar" style={{ width: `${dayProgress}%` }}></div>
+            </div>
+            <input
+                type="text"
+                className="form-control topic-input"
+                placeholder="Topic of the day..."
+                value={localTopic}
+                onChange={(e) => setLocalTopic(e.target.value)}
+                onBlur={handleTopicBlur}
+                onKeyDown={handleTopicKeyDown}
+            />
+            <div className="task-list">
+                {day.tasks.map(task => (
+                    <div key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
+                        <input
+                            type="checkbox"
+                            id={task.id}
+                            checked={task.completed}
+                            onChange={() => onTaskToggle(task.id)}
+                            disabled={!!editingTaskId}
+                        />
+                         {editingTaskId === task.id ? (
+                            <input
+                                ref={editInputRef}
+                                type="text"
+                                className="task-edit-input"
+                                value={editingTaskText}
+                                onChange={(e) => setEditingTaskText(e.target.value)}
+                                onBlur={handleSaveEdit}
+                                onKeyDown={handleEditKeyDown}
+                            />
+                        ) : (
+                            <label htmlFor={task.id} onDoubleClick={() => handleStartEdit(task)}>{task.text}</label>
+                        )}
+                        <div className="task-actions">
+                            {editingTaskId !== task.id && (
+                                <button className="btn-icon" onClick={() => handleStartEdit(task)} aria-label="Edit task">
+                                    <Icon name="edit" />
+                                </button>
+                            )}
+                            <button className="btn-icon icon-danger" onClick={() => onDeleteTask(task.id)} aria-label="Delete task">
+                                <Icon name="delete" />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <form onSubmit={handleAddTaskSubmit} className="add-task-form">
+                <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Add a new task..."
+                    value={newTaskText}
+                    onChange={e => setNewTaskText(e.target.value)}
+                />
+                <button type="submit" className="btn-icon"><Icon name="plus"/></button>
+            </form>
+        </div>
+    );
+};
+
+function AcademicsView({ user }: { user: User }) {
+    const records = useMemo(() => user.academicRecords?.sort((a,b) => a.semester - b.semester) || [], [user.academicRecords]);
+
+    return (
+        <div className="page-content">
+            <div className="view-header">
+                <h2>My Academics</h2>
+            </div>
+            <div className="academics-summary">
+                <div className="summary-card">
+                    <h4>Overall CGPA</h4>
+                    <p>{user.cgpa?.toFixed(2) || 'N/A'}</p>
+                </div>
+                 <div className="summary-card">
+                    <h4>Attendance</h4>
+                    <p>{user.attendance ? `${((user.attendance.present / user.attendance.total) * 100).toFixed(1)}%` : 'N/A'}</p>
+                    <span className="summary-card-subtext">{user.attendance ? `${user.attendance.present} / ${user.attendance.total} days` : ''}</span>
+                </div>
+            </div>
+            <div className="academics-semesters">
+                {records.map(record => (
+                    <div key={record.semester} className="semester-card">
+                        <div className="semester-header">
+                            <h3>Semester {record.semester}</h3>
+                            <div className="gpa-display">
+                                <span>GPA:</span>
+                                <strong>{record.gpa?.toFixed(2) || 'N/A'}</strong>
+                            </div>
+                        </div>
+                        <div className="table-wrapper">
+                            <table className="grade-table">
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Subject Name</th>
+                                        <th>Credits</th>
+                                        <th>Test 1</th>
+                                        <th>Test 2</th>
+                                        <th>Test 3</th>
+                                        <th>Grade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {record.subjects.map(subject => (
+                                        <tr key={subject.id}>
+                                            <td>{subject.subjectCode}</td>
+                                            <td>{subject.subjectName}</td>
+                                            <td>{subject.credits}</td>
+                                            <td>{subject.internals?.test1 ?? '–'}</td>
+                                            <td>{subject.internals?.test2 ?? '–'}</td>
+                                            <td>{subject.internals?.test3 ?? '–'}</td>
+                                            <td><span className={`grade-badge grade-${subject.grade}`}>{subject.grade}</span></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+const StudentManagementPanel = ({ student, onUpdateUser, addNotification, onClose }: { student: User, onUpdateUser: (user: User) => void, addNotification: Function, onClose: () => void }) => {
+    const [localStudent, setLocalStudent] = useState(student);
+    const [showGradeModal, setShowGradeModal] = useState(false);
+    const [editingSubject, setEditingSubject] = useState<SubjectGrade | null>(null);
+    const [targetSemester, setTargetSemester] = useState<number | null>(null);
+    const records = useMemo(() => localStudent.academicRecords?.sort((a,b) => a.semester - b.semester) || [], [localStudent.academicRecords]);
+    
+    const handleAttendanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setLocalStudent(prev => ({
+            ...prev,
+            attendance: {
+                ...prev.attendance,
+                present: 0, // ensure object exists
+                total: 0,
+                [name]: parseInt(value) || 0,
+            }
+        }));
+    };
+
+    const handleSaveChanges = () => {
+        onUpdateUser(localStudent);
+        addNotification(`Updated records for ${localStudent.name}`, 'success');
+        onClose();
+    };
+    
+    const handleAddSemester = () => {
+        const currentRecords = localStudent.academicRecords || [];
+        const nextSemester = currentRecords.length > 0 ? Math.max(...currentRecords.map(r => r.semester)) + 1 : 1;
+        const newSemester: SemesterRecord = { semester: nextSemester, subjects: [] };
+        setLocalStudent(prev => ({ ...prev, academicRecords: [...currentRecords, newSemester] }));
+    };
+
+    const handleAddSubjectClick = (semester: number) => {
+        setTargetSemester(semester);
+        setEditingSubject(null);
+        setShowGradeModal(true);
+    };
+
+    const handleEditSubjectClick = (subject: SubjectGrade, semester: number) => {
+        setTargetSemester(semester);
+        setEditingSubject(subject);
+        setShowGradeModal(true);
+    };
+
+    const handleDeleteSubject = (subjectId: string, semester: number) => {
+        const updatedRecords = records.map(r => {
+            if (r.semester === semester) {
+                return { ...r, subjects: r.subjects.filter(s => s.id !== subjectId) };
+            }
+            return r;
+        });
+        setLocalStudent(prev => ({...prev, academicRecords: updatedRecords}));
+        addNotification('Subject deleted.', 'success');
+    };
+
+    const handleSaveSubject = (subjectData: Omit<SubjectGrade, 'id'>) => {
+        let updatedRecords;
+        if (editingSubject) { // Editing existing subject
+            updatedRecords = records.map(r => {
+                if (r.semester === targetSemester) {
+                    return { ...r, subjects: r.subjects.map(s => s.id === editingSubject.id ? { ...editingSubject, ...subjectData } : s) };
+                }
+                return r;
+            });
+            addNotification('Subject updated.', 'success');
+        } else { // Adding new subject
+            const newSubject: SubjectGrade = { id: `sub_${Date.now()}`, ...subjectData };
+            updatedRecords = records.map(r => {
+                if (r.semester === targetSemester) {
+                    return { ...r, subjects: [...r.subjects, newSubject] };
+                }
+                return r;
+            });
+            addNotification('Subject added.', 'success');
+        }
+        setLocalStudent(prev => ({...prev, academicRecords: updatedRecords}));
+        setShowGradeModal(false);
+    };
+    
+    return (
+        <>
+            <div className="modal-body modal-body-scrollable">
+                <div className="management-section">
+                    <h4>Attendance</h4>
+                    <div className="form-grid">
+                        <div className="control-group">
+                            <label htmlFor="present">Days Present</label>
+                            <input id="present" name="present" type="number" className="form-control" value={localStudent.attendance?.present || 0} onChange={handleAttendanceChange}/>
+                        </div>
+                        <div className="control-group">
+                            <label htmlFor="total">Total Days</label>
+                            <input id="total" name="total" type="number" className="form-control" value={localStudent.attendance?.total || 0} onChange={handleAttendanceChange}/>
+                        </div>
+                    </div>
+                </div>
+                 <div className="management-section">
+                    <h4>Academic Records</h4>
+                     <div className="academics-semesters">
+                        {records.map(record => (
+                            <div key={record.semester} className="semester-card">
+                                <div className="semester-header">
+                                    <h3>Semester {record.semester}</h3>
+                                </div>
+                                <div className="table-wrapper">
+                                    <table className="grade-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Code</th><th>Subject</th><th>Credits</th><th>T1</th><th>T2</th><th>T3</th><th>Grade</th><th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {record.subjects.map(subject => (
+                                                <tr key={subject.id}>
+                                                    <td>{subject.subjectCode}</td><td>{subject.subjectName}</td><td>{subject.credits}</td>
+                                                    <td>{subject.internals?.test1 ?? '–'}</td><td>{subject.internals?.test2 ?? '–'}</td><td>{subject.internals?.test3 ?? '–'}</td>
+                                                    <td><span className={`grade-badge grade-${subject.grade}`}>{subject.grade}</span></td>
+                                                    <td>
+                                                        <div className="flex gap-2">
+                                                            <button className="btn-icon" onClick={() => handleEditSubjectClick(subject, record.semester)}><Icon name="edit"/></button>
+                                                            <button className="btn-icon icon-danger" onClick={() => handleDeleteSubject(subject.id, record.semester)}><Icon name="delete"/></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                 <button className="btn btn-secondary btn-sm" onClick={() => handleAddSubjectClick(record.semester)}>
+                                    <Icon name="plus" /> Add Subject
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <button className="btn btn-secondary" onClick={handleAddSemester}><Icon name="plus" /> Add Semester</button>
+                </div>
+            </div>
+            <div className="modal-footer">
+                <div></div>
+                <div>
+                    <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                    <button type="button" className="btn btn-primary" onClick={handleSaveChanges}>Save Changes</button>
+                </div>
+            </div>
+            {showGradeModal && (
+                <Modal title={editingSubject ? "Edit Subject" : "Add Subject"} onClose={() => setShowGradeModal(false)}>
+                    <GradeEntryForm subject={editingSubject} onSave={handleSaveSubject} onClose={() => setShowGradeModal(false)} />
+                </Modal>
+            )}
+        </>
+    );
+};
+
+
+const GradeEntryForm = ({ subject, onSave, onClose }: { subject: SubjectGrade | null, onSave: (data: Omit<SubjectGrade, 'id'>) => void, onClose: () => void }) => {
+    const [formData, setFormData] = useState({
+        subjectCode: subject?.subjectCode || '',
+        subjectName: subject?.subjectName || '',
+        credits: subject?.credits || 3,
+        grade: subject?.grade || 'O',
+        internals: {
+            test1: subject?.internals?.test1,
+            test2: subject?.internals?.test2,
+            test3: subject?.internals?.test3,
+        }
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: name === 'credits' ? parseInt(value) : value }));
+    };
+
+    const handleInternalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            internals: {
+                ...prev.internals,
+                [name]: value ? parseInt(value) : undefined
+            }
+        }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(formData as Omit<SubjectGrade, 'id'>);
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <div className="modal-body">
+                 <div className="form-grid">
+                    <div className="control-group">
+                        <label htmlFor="subjectCode">Subject Code</label>
+                        <input id="subjectCode" name="subjectCode" type="text" className="form-control" value={formData.subjectCode} onChange={handleChange} required />
+                    </div>
+                     <div className="control-group">
+                        <label htmlFor="subjectName">Subject Name</label>
+                        <input id="subjectName" name="subjectName" type="text" className="form-control" value={formData.subjectName} onChange={handleChange} required />
+                    </div>
+                </div>
+                 <div className="form-grid">
+                     <div className="control-group">
+                        <label htmlFor="credits">Credits</label>
+                        <input id="credits" name="credits" type="number" min="1" max="6" className="form-control" value={formData.credits} onChange={handleChange} required />
+                    </div>
+                    <div className="control-group">
+                        <label htmlFor="grade">Final Grade</label>
+                        <select id="grade" name="grade" className="form-control" value={formData.grade} onChange={handleChange}>
+                            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <hr className="form-divider" />
+                 <div className="grid grid-cols-3 gap-4">
+                     <div className="control-group">
+                        <label htmlFor="test1">Internal Test 1</label>
+                        <input id="test1" name="test1" type="number" min="0" max="100" className="form-control" value={formData.internals.test1 || ''} onChange={handleInternalChange} />
+                    </div>
+                    <div className="control-group">
+                        <label htmlFor="test2">Internal Test 2</label>
+                        <input id="test2" name="test2" type="number" min="0" max="100" className="form-control" value={formData.internals.test2 || ''} onChange={handleInternalChange} />
+                    </div>
+                     <div className="control-group">
+                        <label htmlFor="test3">Internal Test 3</label>
+                        <input id="test3" name="test3" type="number" min="0" max="100" className="form-control" value={formData.internals.test3 || ''} onChange={handleInternalChange} />
+                    </div>
+                </div>
+            </div>
+            <div className="modal-footer">
+                <div></div>
+                <div>
+                    <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                    <button type="submit" className="btn btn-primary">Save Subject</button>
+                </div>
+            </div>
+        </form>
+    );
+};
+
+
 const App = () => {
     const [users, setUsers] = useLocalStorage<User[]>('app_users', initialUsers);
     const [currentUser, setCurrentUser] = useLocalStorage<User | null>('app_currentUser', null);
@@ -1965,10 +2842,24 @@ const App = () => {
         setUsers(prev => [...prev, newUser]);
     };
     
-    const handleSetCurrentUser = (updatedUser: User) => {
-        setCurrentUser(updatedUser);
-        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    const handleUpdateUser = (updatedUser: User) => {
+        let userWithCalculations = updatedUser;
+        
+        // Recalculate academics if records exist
+        if (userWithCalculations.academicRecords) {
+            const { updatedRecords, cgpa } = calculateAcademics(userWithCalculations.academicRecords);
+            userWithCalculations = { ...userWithCalculations, academicRecords: updatedRecords, cgpa };
+        }
+
+        // Update the master list of users
+        setUsers(prev => prev.map(u => u.id === userWithCalculations.id ? userWithCalculations : u));
+        
+        // If the updated user is the current user, update their state too
+        if (currentUser?.id === userWithCalculations.id) {
+            setCurrentUser(userWithCalculations);
+        }
     };
+
 
     const handleBellClick = () => {
         setNotificationPanelOpen(prev => !prev);
@@ -1987,12 +2878,12 @@ const App = () => {
     );
 
     const availableViews: { [key in UserRole]?: AppView[] } = {
-        student: ['dashboard', 'timetable', 'announcements', 'resources', 'academicCalendar', 'careerCounselor'],
+        student: ['dashboard', 'timetable', 'academics', 'announcements', 'resources', 'academicCalendar', 'careerCounselor', 'studyPlanner'],
         faculty: ['dashboard', 'timetable', 'announcements', 'resources', 'courseFiles', 'studentDirectory'],
         hod: ['dashboard', 'timetable', 'announcements', 'resources', 'courseFiles', 'studentDirectory', 'userManagement', 'studentAnalytics'],
-        admin: ['dashboard', 'timetable', 'userManagement', 'security', 'settings', 'announcements', 'resources', 'academicCalendar'],
+        admin: ['dashboard', 'timetable', 'userManagement', 'security', 'settings', 'announcements', 'resources', 'academicCalendar', 'studentDirectory'],
         principal: ['dashboard', 'timetable', 'announcements', 'resources', 'courseFiles', 'studentDirectory', 'userManagement', 'studentAnalytics', 'security'],
-        creator: ['dashboard', 'timetable', 'announcements', 'resources', 'academicCalendar', 'careerCounselor','userManagement', 'security', 'settings','studentDirectory','courseFiles', 'studentAnalytics'],
+        creator: ['dashboard', 'timetable', 'announcements', 'resources', 'academicCalendar', 'academics', 'careerCounselor','userManagement', 'security', 'settings','studentDirectory','courseFiles', 'studentAnalytics', 'studyPlanner'],
     };
     
     const userViews = currentUser ? (availableViews[currentUser.role] || availableViews['student'])! : [];
@@ -2017,11 +2908,15 @@ const App = () => {
              case 'userManagement':
                 return <UserManagementView users={users} setUsers={setUsers} addNotification={addNotification} />;
             case 'studentDirectory':
-                return <StudentDirectoryView users={users} />;
+                return <StudentDirectoryView users={users} currentUser={currentUser} onUpdateUser={handleUpdateUser} addNotification={addNotification} />;
             case 'academicCalendar':
                 return <AcademicCalendarView events={calendarEvents} setEvents={setCalendarEvents} user={currentUser} />;
              case 'careerCounselor':
-                return <CareerCounselorView user={currentUser} setUser={handleSetCurrentUser} addNotification={addNotification} />;
+                return <CareerCounselorView user={currentUser} setUser={handleUpdateUser} addNotification={addNotification} />;
+            case 'studyPlanner':
+                return <StudyPlannerView user={currentUser} setUser={handleUpdateUser} addNotification={addNotification} />;
+            case 'academics':
+                return <AcademicsView user={currentUser} />;
             case 'resources':
                 return <ResourcesView resources={resources} user={currentUser} />;
             case 'courseFiles':
@@ -2049,7 +2944,9 @@ const App = () => {
         userManagement: 'User Management',
         security: 'Security Center',
         academicCalendar: 'Academic Calendar',
-        careerCounselor: 'Career Counselor',
+        careerCounselor: 'Career AI',
+        studyPlanner: 'Study Planner',
+        academics: 'My Academics',
         settings: 'Settings',
         auth: 'Login',
         manage: 'Manage',
@@ -2069,8 +2966,10 @@ const App = () => {
                      <ul>
                          {userViews.includes('dashboard') && <NavLink currentView={view} targetView='dashboard' label='Dashboard' icon='dashboard' />}
                          {userViews.includes('timetable') && <NavLink currentView={view} targetView='timetable' label='Timetable' icon='timetable' />}
+                         {userViews.includes('academics') && <NavLink currentView={view} targetView='academics' label='My Academics' icon='academics' />}
                          {userViews.includes('announcements') && <NavLink currentView={view} targetView='announcements' label='Announcements' icon='announcements' />}
                          {userViews.includes('resources') && <NavLink currentView={view} targetView='resources' label='Resources' icon='resources' />}
+                         {userViews.includes('studyPlanner') && <NavLink currentView={view} targetView='studyPlanner' label='Study Planner' icon='studyPlanner' />}
                          {userViews.includes('courseFiles') && <NavLink currentView={view} targetView='courseFiles' label='Course Files' icon='courseFiles' />}
                          {userViews.includes('studentDirectory') && <NavLink currentView={view} targetView='studentDirectory' label='Student Directory' icon='studentDirectory' />}
                          {userViews.includes('studentAnalytics') && <NavLink currentView={view} targetView='studentAnalytics' label='Analytics' icon='studentAnalytics' />}
