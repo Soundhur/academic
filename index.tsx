@@ -1424,16 +1424,20 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
         setIsGeneratingRisk(true);
         try {
             const prompt = `
-                Analyze the following student's profile to identify potential academic or dropout risks.
-                Consider their CGPA, attendance, and semester-wise performance. A significant drop in GPA or low attendance are key risk factors.
+                Act as an academic advisor. Analyze the following student's profile to identify potential academic or dropout risks.
+                Consider their CGPA, attendance history, and semester-wise performance. A significant drop in GPA or attendance below 75% are key risk factors.
+
+                Student Data:
                 - Name: ${user.name}
                 - Department: ${user.dept}, Year: ${user.year}
                 - CGPA: ${user.cgpa || 'N/A'}
-                - Attendance: ${user.attendance ? `${((user.attendance.present / user.attendance.total) * 100).toFixed(1)}%` : 'N/A'}
+                - Attendance: ${user.attendance ? `${((user.attendance.present / user.attendance.total) * 100).toFixed(1)}% (${user.attendance.present}/${user.attendance.total} days)` : 'N/A'}
                 - Academic Records: ${JSON.stringify(user.academicRecords)}
 
-                Provide a risk level ('Low', 'Moderate', or 'High'), a brief rationale for your assessment, and a list of 2-3 concrete, actionable interventions.
-                Format the output as a JSON object with keys: "riskLevel", "rationale", and "interventions" (an array of strings).
+                Your task is to provide a structured risk analysis. You MUST return a JSON object with the following keys:
+                1.  "riskLevel": A string, must be one of 'Low', 'Moderate', or 'High'.
+                2.  "rationale": A brief string (1-2 sentences) explaining the reason for the assigned risk level, based on the provided data.
+                3.  "interventions": An array of 2 to 3 strings. Each string must be a concrete, actionable intervention tailored to the student's situation. For example: "Schedule a mandatory meeting with the class advisor" or "Recommend remedial classes for subjects with low internal marks." Do not provide generic advice.
             `;
 
             const result = await ai.models.generateContent({
