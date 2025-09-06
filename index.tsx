@@ -479,6 +479,12 @@ const Icon = ({ name, className = '' }: { name: string, className?: string }) =>
         send: <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />,
         left: <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />,
         right: <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />,
+        briefcase: <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3A2.25 2.25 0 008.25 5.25v3.456" />,
+        code: <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />,
+        palette: <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 3.03v.568c0 .334.148.65.405.864l1.068.89c.442.369.535 1.01.216 1.49l-.51.766a2.25 2.25 0 01-1.161.886l-.143.048a1.109 1.109 0 00-.554 0l-.143-.048a2.25 2.25 0 01-1.161-.886l-.51-.766c-.32- .48-.226-1.121.216-1.49l1.068-.89a1.125 1.125 0 00.405-.864v-.568a12.006 12.006 0 00-9 11.622 3.375 3.375 0 003.375 3.375h9.75a3.375 3.375 0 003.375-3.375 12.006 12.006 0 00-9-11.622z" />,
+        chart: <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />,
+        brain: <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.385m5.043.025a15.994 15.994 0 001.622 3.385m3.388-1.62a15.998 15.998 0 00-1.622-3.385m0 0a2.25 2.25 0 00-2.4-2.245 4.5 4.5 0 00-8.4 2.245c0 .399.078.78.22 1.128zm0 0c0 .245.02.49.06.722m5.043-.025a15.994 15.994 0 01-1.622-3.385m-5.043.025a15.994 15.994 0 00-1.622 3.385m0 0a2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 018.4-2.245c0-.399-.078-.78-.22-1.128zm0 0c0-.245-.02-.49-.06-.722m-5.043.025a15.998 15.998 0 01-3.388-1.62m5.043.025a15.998 15.998 0 003.388 1.62" />,
+        star: <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321 1.003l-4.12 3.693a.563.563 0 00-.162.632l1.24 5.385c.115.498-.441.872-.885.642l-4.82-3.005a.563.563 0 00-.61.001l-4.82 3.005c-.444.23-.999-.143-.885-.642l1.24-5.385a.563.563 0 00-.162.632l-4.12-3.693c-.38-.34-.178-.964.321-1.003l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />,
     };
 
     return (
@@ -1349,6 +1355,7 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isGenerating, setIsGenerating] = useState<string | null>(null);
+    const [isGeneratingRisk, setIsGeneratingRisk] = useState(false);
 
     const filteredUsers = useMemo(() => {
         return users.filter(user =>
@@ -1409,6 +1416,49 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
         }
     };
 
+    const generateAiRiskAnalysis = async (user: User) => {
+        if (!ai) {
+            addNotification('AI features are disabled.', 'error');
+            return;
+        }
+        setIsGeneratingRisk(true);
+        try {
+            const prompt = `
+                Analyze the following student's profile to identify potential academic or dropout risks.
+                Consider their CGPA, attendance, and semester-wise performance. A significant drop in GPA or low attendance are key risk factors.
+                - Name: ${user.name}
+                - Department: ${user.dept}, Year: ${user.year}
+                - CGPA: ${user.cgpa || 'N/A'}
+                - Attendance: ${user.attendance ? `${((user.attendance.present / user.attendance.total) * 100).toFixed(1)}%` : 'N/A'}
+                - Academic Records: ${JSON.stringify(user.academicRecords)}
+
+                Provide a risk level ('Low', 'Moderate', or 'High'), a brief rationale for your assessment, and a list of 2-3 concrete, actionable interventions.
+                Format the output as a JSON object with keys: "riskLevel", "rationale", and "interventions" (an array of strings).
+            `;
+
+            const result = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: { responseMimeType: 'application/json' }
+            });
+
+            const analysisData = JSON.parse(result.text);
+            const newAnalysis = { ...analysisData, timestamp: Date.now() };
+
+            const updatedUser = { ...user, aiRiskAnalysis: newAnalysis };
+
+            setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+            setSelectedUser(updatedUser); // Update the user in the modal
+            addNotification(`AI risk analysis generated for ${user.name}.`, 'success');
+
+        } catch (error) {
+            console.error(error);
+            addNotification('Failed to generate AI risk analysis.', 'error');
+        } finally {
+            setIsGeneratingRisk(false);
+        }
+    };
+
     return (
         <div className="page-content">
             <div className="view-header">
@@ -1459,12 +1509,12 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
                                 </td>
                                 <td className="capitalize">{user.role}</td>
                                 <td>{user.dept}</td>
-                                <td><span className={`status-badge status-${user.status}`}>{user.status.replace('_', ' ')}</span></td>
+                                <td><span className={`status-badge status-${user.status.replace('_', ' ')}`}>{user.status.replace('_', ' ')}</span></td>
                                 <td style={{textAlign: 'center'}}>
                                     {isGenerating === user.id ? (
                                         <div className="spinner-container"><div className="spinner"></div></div>
                                     ) : user.aiSummary ? (
-                                        <button className="btn-icon" onClick={() => setSelectedUser(user)} aria-label="View AI Summary">
+                                        <button className="btn-icon" onClick={() => { setSelectedUser(user); setIsGeneratingRisk(false); }} aria-label="View AI Summary">
                                             <Icon name="eye"/>
                                         </button>
                                     ) : (
@@ -1498,21 +1548,45 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
                     </tbody>
                 </table>
             </div>
-             {selectedUser && selectedUser.aiSummary && (
-                <Modal title={`AI Summary for ${selectedUser.name}`} onClose={() => setSelectedUser(null)}>
+             {selectedUser && (
+                <Modal title={`User Details: ${selectedUser.name}`} onClose={() => setSelectedUser(null)} size="large">
                     <div className="modal-body">
                          <div className="analysis-result-section">
-                             <h4>Profile Overview</h4>
-                             <p>{selectedUser.aiSummary.profile}</p>
+                             <h4>AI Summary</h4>
+                             {selectedUser.aiSummary ? (
+                                <>
+                                    <p><strong>Profile Overview:</strong> {selectedUser.aiSummary.profile}</p>
+                                    <p><strong>Academic/Professional Standing:</strong> {selectedUser.aiSummary.standing}</p>
+                                    <p><strong>Administrative Note:</strong> {selectedUser.aiSummary.note}</p>
+                                </>
+                             ) : (
+                                <p>No AI summary has been generated for this user.</p>
+                             )}
                          </div>
-                          <div className="analysis-result-section">
-                             <h4>Academic/Professional Standing</h4>
-                             <p>{selectedUser.aiSummary.standing}</p>
-                         </div>
-                          <div className="analysis-result-section">
-                             <h4>Administrative Note</h4>
-                             <p>{selectedUser.aiSummary.note}</p>
-                         </div>
+                         {selectedUser.role === 'student' && (
+                             <div className="analysis-result-section">
+                                 <h4>AI Risk Analysis</h4>
+                                 {isGeneratingRisk ? (
+                                     <div className="spinner-container"><div className="spinner"></div> Generating...</div>
+                                 ) : selectedUser.aiRiskAnalysis ? (
+                                     <div>
+                                         <p><strong>Risk Level:</strong> <span className={`risk-level-badge risk-${selectedUser.aiRiskAnalysis.riskLevel.toLowerCase()}`}>{selectedUser.aiRiskAnalysis.riskLevel}</span></p>
+                                         <p><strong>Rationale:</strong> {selectedUser.aiRiskAnalysis.rationale}</p>
+                                         <strong>Recommended Interventions:</strong>
+                                         <ul className="intervention-list">
+                                             {selectedUser.aiRiskAnalysis.interventions.map((item, index) => <li key={index}>{item}</li>)}
+                                         </ul>
+                                     </div>
+                                 ) : (
+                                     <div>
+                                         <p>No risk analysis has been generated for this student.</p>
+                                         <button className="btn btn-secondary" onClick={() => generateAiRiskAnalysis(selectedUser)} disabled={!isAiEnabled || isGeneratingRisk}>
+                                             <Icon name="sparkles" /> Generate Risk Analysis
+                                         </button>
+                                     </div>
+                                 )}
+                             </div>
+                         )}
                     </div>
                      <div className="modal-footer">
                          <div></div>
@@ -1703,9 +1777,87 @@ const EventForm = ({ onSave, onClose }: { onSave: (event: Omit<CalendarEvent, 'i
     );
 }
 
+const ReportSkeleton = () => (
+    <div className="skeleton-container">
+        {/* Section 1: Career Paths */}
+        <div className="report-section">
+            <div className="skeleton-header">
+                <div className="skeleton-icon"></div>
+                <div className="skeleton-line" style={{ width: '50%', height: '1.5rem' }}></div>
+            </div>
+            {[...Array(3)].map((_, i) => (
+                <div className="skeleton-path-card" key={i}>
+                    <div className="skeleton-path-header">
+                        <div className="skeleton-icon small"></div>
+                        <div className="skeleton-line" style={{ width: '60%', height: '1rem' }}></div>
+                    </div>
+                    <div className="skeleton-line" style={{ width: '90%', height: '0.8rem', marginBottom: '0.5rem' }}></div>
+                    <div className="skeleton-line" style={{ width: '75%', height: '0.8rem' }}></div>
+                </div>
+            ))}
+        </div>
+        
+        {/* Section 2: Skills */}
+         <div className="report-section">
+            <div className="skeleton-header">
+                <div className="skeleton-icon"></div>
+                <div className="skeleton-line" style={{ width: '40%', height: '1.5rem' }}></div>
+            </div>
+            <div className="skeleton-tags">
+                <div className="skeleton-line" style={{ width: '100px', height: '2rem', borderRadius: '16px' }}></div>
+                <div className="skeleton-line" style={{ width: '140px', height: '2rem', borderRadius: '16px' }}></div>
+                <div className="skeleton-line" style={{ width: '80px', height: '2rem', borderRadius: '16px' }}></div>
+                <div className="skeleton-line" style={{ width: '120px', height: '2rem', borderRadius: '16px' }}></div>
+                <div className="skeleton-line" style={{ width: '90px', height: '2rem', borderRadius: '16px' }}></div>
+            </div>
+        </div>
+
+        {/* Section 3: Courses */}
+        <div className="report-section">
+            <div className="skeleton-header">
+                <div className="skeleton-icon"></div>
+                <div className="skeleton-line" style={{ width: '60%', height: '1.5rem' }}></div>
+            </div>
+            {[...Array(2)].map((_, i) => (
+                <div className="skeleton-course-card" key={i}>
+                    <div style={{ flexGrow: 1, marginRight: '1rem' }}>
+                        <div className="skeleton-line" style={{ width: '70%', height: '1rem' }}></div>
+                        <div className="skeleton-line" style={{ width: '40%', height: '0.8rem', marginTop: '0.5rem' }}></div>
+                    </div>
+                    <div className="skeleton-line" style={{ width: '80px', height: '32px', flexShrink: 0 }}></div>
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+const getCareerIcon = (title: string): string => {
+    const lowerTitle = title.toLowerCase();
+    if (lowerTitle.includes('developer') || lowerTitle.includes('engineer') || lowerTitle.includes('software') || lowerTitle.includes('programmer')) {
+        return 'code';
+    }
+    if (lowerTitle.includes('design') || lowerTitle.includes('artist') || lowerTitle.includes('creative')) {
+        return 'palette';
+    }
+    if (lowerTitle.includes('analyst') || lowerTitle.includes('data') || lowerTitle.includes('business')) {
+        return 'chart';
+    }
+    if (lowerTitle.includes('ai') || lowerTitle.includes('machine learning') || lowerTitle.includes('research')) {
+        return 'brain';
+    }
+    if (lowerTitle.includes('manager') || lowerTitle.includes('lead') || lowerTitle.includes('consultant')) {
+        return 'briefcase';
+    }
+    return 'star'; // Default icon
+};
+
 function CareerCounselorView({ user, setUser, addNotification }: { user: User; setUser: (user: User) => void; addNotification: Function; }) {
     const [profile, setProfile] = useState<CareerProfile>(user.careerProfile || { interests: [], skills: [], careerGoals: '' });
     const [isGenerating, setIsGenerating] = useState(false);
+
+    useEffect(() => {
+        setProfile(user.careerProfile || { interests: [], skills: [], careerGoals: '' });
+    }, [user.careerProfile]);
 
     const handleProfileChange = (field: keyof CareerProfile, value: string) => {
         setProfile(prev => ({
@@ -1716,7 +1868,6 @@ function CareerCounselorView({ user, setUser, addNotification }: { user: User; s
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Save profile to user data
         const updatedUser = { ...user, careerProfile: profile };
         setUser(updatedUser);
         generateReport(updatedUser);
@@ -1730,7 +1881,7 @@ function CareerCounselorView({ user, setUser, addNotification }: { user: User; s
         setIsGenerating(true);
         try {
             const prompt = `
-                Based on the following student profile, act as an expert career counselor and generate a career report.
+                Based on the following student profile, act as an expert career counselor and generate a detailed career report.
                 - Student Name: ${currentUser.name}
                 - Department: ${currentUser.dept}, Year: ${currentUser.year}
                 - Interests: ${currentUser.careerProfile.interests.join(', ')}
@@ -1738,18 +1889,52 @@ function CareerCounselorView({ user, setUser, addNotification }: { user: User; s
                 - Career Goals: ${currentUser.careerProfile.careerGoals}
                 - Academic Performance (CGPA): ${currentUser.cgpa || 'Not available'}
 
-                Generate a JSON object with the following structure:
-                {
-                  "suggestedPaths": [{"title": "string", "description": "string", "relevance": "string (explain why it's a good fit)"}],
-                  "skillsToDevelop": ["string"],
-                  "recommendedCourses": [{"title": "string", "platform": "string (e.g., Coursera, Udemy)", "url": "string"}]
-                }
-                Provide at least 3 career paths, 5 skills, and 3 course recommendations.
+                For each suggested career path, you must provide a "relevance" explanation, detailing why it aligns with the student's profile.
+                Provide at least 3 diverse and insightful career paths, 5 skills to develop, and 3 online course recommendations.
             `;
              const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
-                config: { responseMimeType: "application/json" }
+                config: { 
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            suggestedPaths: {
+                                type: Type.ARRAY,
+                                description: 'List of potential career paths.',
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        title: { type: Type.STRING, description: 'The title of the career path.' },
+                                        description: { type: Type.STRING, description: 'A brief description of the career path.' },
+                                        relevance: { type: Type.STRING, description: "A concise explanation (1-2 sentences) of why this career path is a good fit, connecting to the student's interests, skills, or goals." }
+                                    },
+                                    required: ['title', 'description', 'relevance']
+                                }
+                            },
+                            skillsToDevelop: {
+                                type: Type.ARRAY,
+                                description: 'A list of skills the student should focus on developing.',
+                                items: { type: Type.STRING }
+                            },
+                            recommendedCourses: {
+                                type: Type.ARRAY,
+                                description: 'List of online courses to help develop skills.',
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        title: { type: Type.STRING, description: 'The name of the course.' },
+                                        platform: { type: Type.STRING, description: "e.g., Coursera, Udemy, edX" },
+                                        url: { type: Type.STRING, description: 'A direct link to the course.' }
+                                    },
+                                    required: ['title', 'platform', 'url']
+                                }
+                            }
+                        },
+                        required: ['suggestedPaths', 'skillsToDevelop', 'recommendedCourses']
+                    }
+                }
             });
             const reportData = JSON.parse(response.text);
             const newReport: CareerReport = { ...reportData, timestamp: Date.now() };
@@ -1769,60 +1954,89 @@ function CareerCounselorView({ user, setUser, addNotification }: { user: User; s
             <div className="view-header">
                 <h2>AI Career Counselor</h2>
             </div>
+            <p className="view-subheader">Get personalized career guidance based on your profile and academic performance. The more detail you provide, the better the recommendations.</p>
             <div className="career-counselor-layout">
                 <div className="counselor-form-card">
                     <h3>Your Career Profile</h3>
                     <p>Tell us about your goals to get a personalized report.</p>
                     <form onSubmit={handleSubmit}>
                         <div className="control-group">
-                            <label htmlFor="interests">Interests (comma-separated)</label>
-                            <input id="interests" type="text" className="form-control" value={profile.interests.join(', ')} onChange={e => handleProfileChange('interests', e.target.value)} />
+                            <label htmlFor="interests">Your Interests (comma-separated)</label>
+                            <input id="interests" type="text" className="form-control" value={profile.interests.join(', ')} onChange={e => handleProfileChange('interests', e.target.value)} placeholder="e.g., Artificial Intelligence, Mobile Apps, Design"/>
                         </div>
                         <div className="control-group">
-                            <label htmlFor="skills">Skills (comma-separated)</label>
-                            <input id="skills" type="text" className="form-control" value={profile.skills.join(', ')} onChange={e => handleProfileChange('skills', e.target.value)} />
+                            <label htmlFor="skills">Your Current Skills (comma-separated)</label>
+                            <input id="skills" type="text" className="form-control" value={profile.skills.join(', ')} onChange={e => handleProfileChange('skills', e.target.value)} placeholder="e.g., Python, React, UI/UX" />
                         </div>
                         <div className="control-group">
-                            <label htmlFor="careerGoals">Career Goals</label>
-                            <textarea id="careerGoals" className="form-control" rows={3} value={profile.careerGoals} onChange={e => handleProfileChange('careerGoals', e.target.value)}></textarea>
+                            <label htmlFor="careerGoals">Your Career Goals</label>
+                            <textarea id="careerGoals" className="form-control" rows={3} value={profile.careerGoals} onChange={e => handleProfileChange('careerGoals', e.target.value)} placeholder="e.g., To become a senior software engineer at a FAANG company within 5 years."></textarea>
                         </div>
-                        <button type="submit" className="btn btn-ai w-full" disabled={isGenerating}>
+                        <button type="submit" className={`btn btn-ai w-full ${isGenerating ? 'is-loading' : ''}`} disabled={isGenerating || !isAiEnabled}>
                             {isGenerating ? <><div className="spinner"></div> Generating Report...</> : <><Icon name="sparkles" /> Generate AI Career Report</>}
                         </button>
                     </form>
                 </div>
-                <div className="counselor-report-card">
-                    <h3>Your Report</h3>
-                    {user.careerReport ? (
+                <div className="counselor-report-container">
+                    <h3>Your Personalized Report</h3>
+                    <div className="report-content-wrapper">
+                    {isGenerating ? (
+                        <ReportSkeleton />
+                    ) : user.careerReport ? (
                         <div className="career-report">
                             <p className="report-timestamp">Generated: {formatRelativeTime(user.careerReport.timestamp)}</p>
                             
-                            <h4>Suggested Career Paths</h4>
-                            {user.careerReport.suggestedPaths.map((path, i) => (
-                                <div key={i} className="report-section">
-                                    <h5>{path.title}</h5>
-                                    <p>{path.description}</p>
-                                    <p><strong>Relevance:</strong> {path.relevance}</p>
+                            <div className="report-section">
+                                <h4 className="report-section-header"><Icon name="careerCounselor" /> Suggested Career Paths</h4>
+                                <div className="path-card-container">
+                                {user.careerReport.suggestedPaths.map((path, i) => (
+                                    <div key={i} className="path-card">
+                                        <h5>
+                                            <Icon name={getCareerIcon(path.title)} />
+                                            <span>{path.title}</span>
+                                        </h5>
+                                        <p>{path.description}</p>
+                                        <div className="relevance-section">
+                                            <strong>Why it's a good fit:</strong>
+                                            <p>{path.relevance}</p>
+                                        </div>
+                                    </div>
+                                ))}
                                 </div>
-                            ))}
+                            </div>
 
-                            <h4>Skills to Develop</h4>
-                            <ul className="skills-list">
-                                {user.careerReport.skillsToDevelop.map((skill, i) => <li key={i}>{skill}</li>)}
-                            </ul>
-                            
-                            <h4>Recommended Courses</h4>
-                             {user.careerReport.recommendedCourses.map((course, i) => (
-                                <div key={i} className="course-recommendation">
-                                    <a href={course.url} target="_blank" rel="noopener noreferrer">{course.title}</a> on {course.platform}
+                            <div className="report-section">
+                                <h4 className="report-section-header"><Icon name="settings" /> Skills to Develop</h4>
+                                <div className="skills-list">
+                                    {user.careerReport.skillsToDevelop.map((skill, i) => <span key={i} className="skill-tag">{skill}</span>)}
                                 </div>
-                            ))}
+                            </div>
+                            
+                            <div className="report-section">
+                                <h4 className="report-section-header"><Icon name="book" /> Recommended Online Courses</h4>
+                                <div className="course-card-container">
+                                {user.careerReport.recommendedCourses.map((course, i) => (
+                                    <div key={i} className="course-card">
+                                        <div className="course-info">
+                                            <h5>{course.title}</h5>
+                                            <p>{course.platform}</p>
+                                        </div>
+                                        <a href={course.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-secondary">
+                                            View Course <Icon name="right" className="w-4 h-4" />
+                                        </a>
+                                    </div>
+                                ))}
+                                </div>
+                            </div>
                         </div>
                     ) : (
                         <div className="empty-state">
-                            <p>Complete your profile and generate a report to see your career insights.</p>
+                            <Icon name="careerCounselor" className="w-16 h-16 text-gray-400 mb-4" />
+                            <h3>Your Report Awaits</h3>
+                            <p>Complete your profile on the left and generate a report to see your career insights.</p>
                         </div>
                     )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -2061,12 +2275,52 @@ function SettingsView({ settings, setSettings }: { settings: AppSettings, setSet
 }
 
 function StudyPlannerView({ user, setUser, addNotification }: { user: User, setUser: (user: User) => void, addNotification: (message: string, type: AppNotification['type']) => void }) {
+    const [localPlans, setLocalPlans] = useState<StudyPlan[]>(user.studyPlans || []);
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newPlanTitle, setNewPlanTitle] = useState('');
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const saveTimeoutRef = useRef<number | null>(null);
+    const isInitialMount = useRef(true);
 
-    const studyPlans = user.studyPlans || [];
-    const selectedPlan = useMemo(() => studyPlans.find(p => p.id === selectedPlanId), [studyPlans, selectedPlanId]);
+    // Sync local state when the user prop changes (e.g., login/logout)
+    useEffect(() => {
+        setLocalPlans(user.studyPlans || []);
+        setSelectedPlanId(null); // Deselect plan when user changes
+        isInitialMount.current = true; // Reset initial mount flag on user change
+    }, [user.id]);
+    
+    // The autosave effect
+    useEffect(() => {
+        // Do not save on the initial render after component mounts or user changes.
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+
+        setSaveStatus('saving');
+
+        saveTimeoutRef.current = window.setTimeout(() => {
+            setUser({ ...user, studyPlans: localPlans });
+            setSaveStatus('saved');
+
+            setTimeout(() => {
+                setSaveStatus('idle');
+            }, 2000);
+        }, 1500); // 1.5 second debounce delay
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [localPlans]);
+
+    const selectedPlan = useMemo(() => localPlans.find(p => p.id === selectedPlanId), [localPlans, selectedPlanId]);
 
     const handleCreatePlan = (e: React.FormEvent) => {
         e.preventDefault();
@@ -2079,8 +2333,7 @@ function StudyPlannerView({ user, setUser, addNotification }: { user: User, setU
             title: newPlanTitle,
             weeks: [],
         };
-        const updatedPlans = [...studyPlans, newPlan];
-        setUser({ ...user, studyPlans: updatedPlans });
+        setLocalPlans(prev => [...prev, newPlan]);
         addNotification(`Study plan "${newPlanTitle}" created!`, 'success');
         setSelectedPlanId(newPlan.id);
         setShowCreateModal(false);
@@ -2088,8 +2341,7 @@ function StudyPlannerView({ user, setUser, addNotification }: { user: User, setU
     };
 
     const handleDeletePlan = (planId: string) => {
-        const updatedPlans = studyPlans.filter(p => p.id !== planId);
-        setUser({ ...user, studyPlans: updatedPlans });
+        setLocalPlans(prev => prev.filter(p => p.id !== planId));
         addNotification('Study plan deleted.', 'success');
         if (selectedPlanId === planId) {
             setSelectedPlanId(null);
@@ -2097,8 +2349,7 @@ function StudyPlannerView({ user, setUser, addNotification }: { user: User, setU
     };
 
     const handleUpdatePlan = (updatedPlan: StudyPlan) => {
-        const updatedPlans = studyPlans.map(p => p.id === updatedPlan.id ? updatedPlan : p);
-        setUser({ ...user, studyPlans: updatedPlans });
+        setLocalPlans(prev => prev.map(p => p.id === updatedPlan.id ? updatedPlan : p));
     };
 
     return (
@@ -2111,7 +2362,7 @@ function StudyPlannerView({ user, setUser, addNotification }: { user: User, setU
                     </button>
                 </div>
                 <div className="planner-list">
-                    {studyPlans.map(plan => (
+                    {localPlans.map(plan => (
                         <button
                             key={plan.id}
                             className={`planner-list-item ${plan.id === selectedPlanId ? 'active' : ''}`}
@@ -2128,6 +2379,7 @@ function StudyPlannerView({ user, setUser, addNotification }: { user: User, setU
                         plan={selectedPlan}
                         onUpdate={handleUpdatePlan}
                         onDelete={handleDeletePlan}
+                        saveStatus={saveStatus}
                     />
                 ) : (
                     <div className="empty-state">
@@ -2168,7 +2420,20 @@ function StudyPlannerView({ user, setUser, addNotification }: { user: User, setU
     );
 }
 
-const PlanDetails = ({ plan, onUpdate, onDelete }: { plan: StudyPlan, onUpdate: (plan: StudyPlan) => void, onDelete: (id: string) => void }) => {
+const SaveStatusIndicator = ({ status }: { status: 'idle' | 'saving' | 'saved' }) => {
+    if (status === 'idle') {
+        return <div className="save-status-indicator idle"></div>;
+    }
+    return (
+        <div className={`save-status-indicator status-${status}`}>
+            {status === 'saving' && <><div className="spinner-sm"></div><span>Saving...</span></>}
+            {status === 'saved' && <><Icon name="success" className="w-5 h-5" /><span>Saved</span></>}
+        </div>
+    );
+};
+
+
+const PlanDetails = ({ plan, onUpdate, onDelete, saveStatus }: { plan: StudyPlan, onUpdate: (plan: StudyPlan) => void, onDelete: (id: string) => void, saveStatus: 'idle' | 'saving' | 'saved' }) => {
     const [activeWeek, setActiveWeek] = useState<number | null>(plan.weeks.length > 0 ? 1 : null);
 
     const planProgress = useMemo(() => {
@@ -2285,6 +2550,7 @@ const PlanDetails = ({ plan, onUpdate, onDelete }: { plan: StudyPlan, onUpdate: 
             <div className="plan-details-header">
                 <div className="plan-header-main">
                     <h2>{plan.title}</h2>
+                    <SaveStatusIndicator status={saveStatus} />
                     <div className="plan-progress-summary">
                         <div className="progress-bar-container">
                             <div className="progress-bar" style={{ width: `${planProgress.percentage}%` }}></div>
