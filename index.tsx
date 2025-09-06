@@ -76,6 +76,7 @@ interface StudyTask {
     id: string;
     text: string;
     completed: boolean;
+    priority: 'High' | 'Medium' | 'Low';
 }
 
 interface StudyDay {
@@ -740,8 +741,8 @@ function AuthView({ onLogin, onRegister, addNotification }: { onLogin: (id: stri
 
     return (
         <div className="login-view-container">
-            <div className="login-card">
-                <div className={`login-card-inner ${isRegister ? 'is-flipped' : ''}`}>
+            <div className={`login-card ${isRegister ? 'is-flipped' : ''}`}>
+                <div className="login-card-inner">
                     <div className="login-card-front">
                         <div className="login-header">
                             <span className="logo"><Icon name="academicCalendar" className="w-8 h-8"/></span>
@@ -1349,13 +1350,15 @@ const AnnouncementForm = ({ user, announcement, onSave, onClose }: { user: User;
     );
 }
 
-function UserManagementView({ users, setUsers, addNotification }: { users: User[]; setUsers: React.Dispatch<React.SetStateAction<User[]>>; addNotification: Function; }) {
+function UserManagementView({ users, setUsers, addNotification, currentUser }: { users: User[]; setUsers: React.Dispatch<React.SetStateAction<User[]>>; addNotification: Function; currentUser: User; }) {
     const [filterRole, setFilterRole] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isGenerating, setIsGenerating] = useState<string | null>(null);
     const [isGeneratingRisk, setIsGeneratingRisk] = useState(false);
+
+    const canGenerateAnalysis = useMemo(() => ['admin', 'hod', 'principal'].includes(currentUser.role), [currentUser.role]);
 
     const filteredUsers = useMemo(() => {
         return users.filter(user =>
@@ -1567,7 +1570,7 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
                                 <p>No AI summary has been generated for this user.</p>
                              )}
                          </div>
-                         {selectedUser.role === 'student' && (
+                         {selectedUser.role === 'student' && (canGenerateAnalysis || selectedUser.aiRiskAnalysis) && (
                              <div className="analysis-result-section">
                                  <h4>AI Risk Analysis</h4>
                                  {isGeneratingRisk ? (
@@ -1582,12 +1585,14 @@ function UserManagementView({ users, setUsers, addNotification }: { users: User[
                                          </ul>
                                      </div>
                                  ) : (
-                                     <div>
-                                         <p>No risk analysis has been generated for this student.</p>
-                                         <button className="btn btn-secondary" onClick={() => generateAiRiskAnalysis(selectedUser)} disabled={!isAiEnabled || isGeneratingRisk}>
-                                             <Icon name="sparkles" /> Generate Risk Analysis
-                                         </button>
-                                     </div>
+                                     canGenerateAnalysis && (
+                                        <div>
+                                            <p>No risk analysis has been generated for this student.</p>
+                                            <button className="btn btn-secondary" onClick={() => generateAiRiskAnalysis(selectedUser)} disabled={!isAiEnabled || isGeneratingRisk}>
+                                                <Icon name="sparkles" /> Generate Risk Analysis
+                                            </button>
+                                        </div>
+                                     )
                                  )}
                              </div>
                          )}
@@ -2047,9 +2052,72 @@ function CareerCounselorView({ user, setUser, addNotification }: { user: User; s
     );
 }
 
-function ResourcesView({ resources, user }: { resources: Resource[], user: User }) {
+const ResourceUploadForm = ({ onSave, onClose }: { onSave: (data: { name: string, type: Resource['type'], department: string, subject: string }) => void, onClose: () => void }) => {
+    const [name, setName] = useState('');
+    const [type, setType] = useState<Resource['type']>('notes');
+    const [department, setDepartment] = useState('CSE');
+    const [subject, setSubject] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim() || !subject.trim()) {
+            // Basic validation, could be enhanced
+            return;
+        }
+        onSave({ name, type, department, subject });
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <div className="modal-body">
+                <div className="control-group">
+                    <label htmlFor="res-name">Resource Name</label>
+                    <input id="res-name" type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Unit 1 - Data Structures" required />
+                </div>
+                <div className="control-group">
+                    <label htmlFor="res-subject">Subject</label>
+                    <input id="res-subject" type="text" className="form-control" value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g., Data Structures" required />
+                </div>
+                <div className="form-grid">
+                    <div className="control-group">
+                        <label htmlFor="res-type">Type</label>
+                        <select id="res-type" className="form-control" value={type} onChange={e => setType(e.target.value as Resource['type'])}>
+                            <option value="notes">Notes</option>
+                            <option value="book">Book</option>
+                            <option value="project">Project</option>
+                            <option value="lab">Lab Manual</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div className="control-group">
+                        <label htmlFor="res-dept">Department</label>
+                        <select id="res-dept" className="form-control" value={department} onChange={e => setDepartment(e.target.value)}>
+                            {DEPARTMENTS.slice(0, 10).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </div>
+                </div>
+                 <div className="control-group">
+                    <label>File Upload</label>
+                    <div className="file-upload-simulation">
+                        <Icon name="upload" />
+                        <span>Click or drag to upload (simulated)</span>
+                    </div>
+                </div>
+            </div>
+            <div className="modal-footer">
+                 <div></div>
+                <div>
+                    <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                    <button type="submit" className="btn btn-primary">Upload Resource</button>
+                </div>
+            </div>
+        </form>
+    );
+};
+
+function ResourcesView({ resources, setResources, user, addNotification }: { resources: Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>, user: User, addNotification: Function }) {
     const [searchTerm, setSearchTerm] = useState('');
-    const resourceTypes: Resource['type'][] = ['book', 'notes', 'project', 'lab', 'other'];
+    const [showUploadModal, setShowUploadModal] = useState(false);
     const canUpload = ['faculty', 'hod', 'admin'].includes(user.role);
 
     const filteredResources = useMemo(() => {
@@ -2059,11 +2127,28 @@ function ResourcesView({ resources, user }: { resources: Resource[], user: User 
         );
     }, [resources, searchTerm]);
 
+    const handleUploadSave = (formData: { name: string, type: Resource['type'], department: string, subject: string }) => {
+        const newResource: Resource = {
+            id: `res_${Date.now()}`,
+            name: formData.name,
+            type: formData.type,
+            department: formData.department,
+            subject: formData.subject,
+            uploaderId: user.id,
+            uploaderName: user.name,
+            timestamp: Date.now(),
+        };
+        setResources(prev => [newResource, ...prev]);
+        addNotification(`Resource "${formData.name}" uploaded successfully.`, 'success');
+        setShowUploadModal(false);
+    };
+
+
     return (
         <div className="page-content">
             <div className="view-header">
                 <h2>Study Resources</h2>
-                {canUpload && <button className="btn btn-primary"><Icon name="upload"/> Upload New</button>}
+                {canUpload && <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}><Icon name="upload"/> Upload New</button>}
             </div>
             <div className="table-filters">
                  <div className="control-group search-filter">
@@ -2091,6 +2176,11 @@ function ResourcesView({ resources, user }: { resources: Resource[], user: User 
                     </div>
                 ))}
             </div>
+            {showUploadModal && (
+                <Modal title="Upload New Resource" onClose={() => setShowUploadModal(false)}>
+                    <ResourceUploadForm onSave={handleUploadSave} onClose={() => setShowUploadModal(false)} />
+                </Modal>
+            )}
         </div>
     );
 }
@@ -2481,7 +2571,7 @@ const PlanDetails = ({ plan, onUpdate, onDelete, saveStatus }: { plan: StudyPlan
 
     const handleAddTask = (weekIndex: number, dayIndex: number, taskText: string) => {
         if (!taskText.trim()) return;
-        const newTask: StudyTask = { id: `task_${Date.now()}`, text: taskText, completed: false };
+        const newTask: StudyTask = { id: `task_${Date.now()}`, text: taskText, completed: false, priority: 'Medium' };
         const updatedWeeks = plan.weeks.map((week, wIdx) => {
             if (wIdx !== weekIndex) return week;
             return {
@@ -2549,6 +2639,25 @@ const PlanDetails = ({ plan, onUpdate, onDelete, saveStatus }: { plan: StudyPlan
         onUpdate({ ...plan, weeks: updatedWeeks });
     };
 
+    const handlePriorityChange = (weekIndex: number, dayIndex: number, taskId: string, priority: StudyTask['priority']) => {
+        const updatedWeeks = plan.weeks.map((week, wIdx) => {
+            if (wIdx !== weekIndex) return week;
+            return {
+                ...week,
+                days: week.days.map((day, dIdx) => {
+                    if (dIdx !== dayIndex) return day;
+                    return {
+                        ...day,
+                        tasks: day.tasks.map(task =>
+                            task.id === taskId ? { ...task, priority } : task
+                        ),
+                    };
+                }),
+            };
+        });
+        onUpdate({ ...plan, weeks: updatedWeeks });
+    };
+
     return (
         <div className="plan-details-container">
             <div className="plan-details-header">
@@ -2574,7 +2683,7 @@ const PlanDetails = ({ plan, onUpdate, onDelete, saveStatus }: { plan: StudyPlan
 
                     return (
                         <div key={week.week} className="week-item">
-                            <button className="week-header" onClick={() => setActiveWeek(activeWeek === week.week ? null : week.week)}>
+                            <button className={`week-header ${activeWeek === week.week ? 'open' : ''}`} onClick={() => setActiveWeek(activeWeek === week.week ? null : week.week)}>
                                 <span>Week {week.week}</span>
                                 <div className="week-progress">
                                     <div className="progress-bar-container">
@@ -2595,6 +2704,7 @@ const PlanDetails = ({ plan, onUpdate, onDelete, saveStatus }: { plan: StudyPlan
                                             onTopicChange={(newTopic) => handleTopicChange(weekIndex, dayIndex, newTopic)}
                                             onDeleteTask={(taskId) => handleDeleteTask(weekIndex, dayIndex, taskId)}
                                             onEditTask={(taskId, newText) => handleEditTask(weekIndex, dayIndex, taskId, newText)}
+                                            onPriorityChange={(taskId, priority) => handlePriorityChange(weekIndex, dayIndex, taskId, priority)}
                                         />
                                     ))}
                                 </div>
@@ -2617,9 +2727,10 @@ interface DayCardProps {
     onTopicChange: (topic: string) => void;
     onDeleteTask: (taskId: string) => void;
     onEditTask: (taskId: string, newText: string) => void;
+    onPriorityChange: (taskId: string, priority: StudyTask['priority']) => void;
 }
 
-const DayCard = ({ day, onTaskToggle, onAddTask, onTopicChange, onDeleteTask, onEditTask }: DayCardProps) => {
+const DayCard = ({ day, onTaskToggle, onAddTask, onTopicChange, onDeleteTask, onEditTask, onPriorityChange }: DayCardProps) => {
     const [newTaskText, setNewTaskText] = useState('');
     const [localTopic, setLocalTopic] = useState(day.topic);
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -2700,6 +2811,7 @@ const DayCard = ({ day, onTaskToggle, onAddTask, onTopicChange, onDeleteTask, on
             <div className="task-list">
                 {day.tasks.map(task => (
                     <div key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
+                        <div className={`priority-indicator priority-${task.priority.toLowerCase()}`}></div>
                         <input
                             type="checkbox"
                             id={task.id}
@@ -2721,6 +2833,17 @@ const DayCard = ({ day, onTaskToggle, onAddTask, onTopicChange, onDeleteTask, on
                             <label htmlFor={task.id} onDoubleClick={() => handleStartEdit(task)}>{task.text}</label>
                         )}
                         <div className="task-actions">
+                             <select
+                                className="priority-selector"
+                                value={task.priority}
+                                onChange={(e) => onPriorityChange(task.id, e.target.value as StudyTask['priority'])}
+                                aria-label={`Change priority for ${task.text}`}
+                                disabled={!!editingTaskId}
+                            >
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
                             {editingTaskId !== task.id && (
                                 <button className="btn-icon" onClick={() => handleStartEdit(task)} aria-label="Edit task">
                                     <Icon name="edit" />
@@ -3176,7 +3299,7 @@ const App = () => {
             case 'announcements':
                 return <AnnouncementsView user={currentUser} announcements={announcements} setAnnouncements={setAnnouncements} addNotification={addNotification} />;
              case 'userManagement':
-                return <UserManagementView users={users} setUsers={setUsers} addNotification={addNotification} />;
+                return <UserManagementView users={users} setUsers={setUsers} addNotification={addNotification} currentUser={currentUser} />;
             case 'studentDirectory':
                 return <StudentDirectoryView users={users} currentUser={currentUser} onUpdateUser={handleUpdateUser} addNotification={addNotification} />;
             case 'academicCalendar':
@@ -3188,7 +3311,7 @@ const App = () => {
             case 'academics':
                 return <AcademicsView user={currentUser} />;
             case 'resources':
-                return <ResourcesView resources={resources} user={currentUser} />;
+                return <ResourcesView resources={resources} setResources={setResources} user={currentUser} addNotification={addNotification} />;
             case 'courseFiles':
                 return <CourseFilesView courseFiles={courseFiles} setCourseFiles={setCourseFiles} user={currentUser} />;
             case 'studentAnalytics':
