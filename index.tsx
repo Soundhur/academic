@@ -56,7 +56,7 @@ interface ChatMessage {
     isError?: boolean;
 }
 
-type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'class advisor' | 'principal' | 'creator';
+type UserRole = 'student' | 'faculty' | 'hod' | 'admin' | 'principal' | 'creator';
 type AppView = 'dashboard' | 'timetable' | 'manage' | 'settings' | 'auth' | 'approvals' | 'announcements' | 'studentDirectory' | 'security' | 'userManagement' | 'resources' | 'academicCalendar' | 'courseFiles' | 'studentAnalytics' | 'careerCounselor' | 'studyPlanner' | 'academics';
 
 interface CareerProfile {
@@ -263,7 +263,7 @@ interface QuizQuestion {
 const DEPARTMENTS = ["CSE", "ECE", "EEE", "MCA", "AI&DS", "CYBERSECURITY", "MECHANICAL", "TAMIL", "ENGLISH", "MATHS", "LIB", "NSS", "NET", "Administration", "IT"];
 const YEARS = ["I", "II", "III", "IV"];
 // FIX: Added 'creator' to ROLES to match the UserRole type and initialUsers data.
-const ROLES: UserRole[] = ['student', 'faculty', 'hod', 'admin', 'class advisor', 'principal', 'creator'];
+const ROLES: UserRole[] = ['student', 'faculty', 'hod', 'admin', 'principal', 'creator'];
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const THEMES: AppTheme[] = [
     { name: 'Default Blue', colors: { '--accent-primary': '#3B82F6', '--accent-primary-hover': '#2563EB' } },
@@ -362,6 +362,10 @@ const useLocalStorage = <T,>(key: string, initialValue: T): [T, React.Dispatch<R
     };
 
     return [storedValue, setValue];
+};
+
+const hasPermission = (userRole: UserRole, allowedRoles: UserRole[]): boolean => {
+    return allowedRoles.includes(userRole);
 };
 
 const useAppNotifications = () => {
@@ -702,6 +706,9 @@ function AuthView({ onLogin, onRegister, addNotification }: { onLogin: (id: stri
     const [role, setRole] = useState<UserRole>('student');
     const [dept, setDept] = useState('CSE');
     const [year, setYear] = useState('I');
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [resetId, setResetId] = useState('');
+
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -739,6 +746,13 @@ function AuthView({ onLogin, onRegister, addNotification }: { onLogin: (id: stri
         setIsRegister(false);
     };
 
+    const handleForgotPassword = (e: React.FormEvent) => {
+        e.preventDefault();
+        addNotification(`Password reset instructions sent for user ID: ${resetId}`, 'info');
+        setShowForgotPassword(false);
+        setResetId('');
+    };
+
     return (
         <div className="login-view-container">
             <div className={`login-card ${isRegister ? 'is-flipped' : ''}`}>
@@ -757,6 +771,9 @@ function AuthView({ onLogin, onRegister, addNotification }: { onLogin: (id: stri
                             <div className="control-group">
                                 <label htmlFor="login-password">Password</label>
                                 <input id="login-password" type="password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+                            </div>
+                            <div className="forgot-password-link">
+                                <button type="button" onClick={() => setShowForgotPassword(true)}>Forgot Password?</button>
                             </div>
                             <button type="submit" className="btn btn-primary w-full">Login</button>
                         </form>
@@ -806,6 +823,34 @@ function AuthView({ onLogin, onRegister, addNotification }: { onLogin: (id: stri
                     </div>
                 </div>
             </div>
+            {showForgotPassword && (
+                <Modal title="Reset Password" onClose={() => setShowForgotPassword(false)}>
+                    <form onSubmit={handleForgotPassword}>
+                        <div className="modal-body">
+                            <p className="modal-description">Enter your User ID to receive password reset instructions.</p>
+                            <div className="control-group">
+                                <label htmlFor="reset-id">User ID</label>
+                                <input
+                                    id="reset-id"
+                                    type="text"
+                                    className="form-control"
+                                    value={resetId}
+                                    onChange={(e) => setResetId(e.target.value)}
+                                    placeholder="e.g., user_5"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <div></div>
+                            <div>
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowForgotPassword(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-primary">Send Reset Link</button>
+                            </div>
+                        </div>
+                    </form>
+                </Modal>
+            )}
         </div>
     );
 }
@@ -901,7 +946,7 @@ function DashboardView({ user, announcements, timetable, settings, users, securi
         </div>
     );
     
-    const isAdminView = ['admin', 'hod', 'principal', 'creator'].includes(user.role);
+    const isAdminView = hasPermission(user.role, ['admin', 'hod', 'principal', 'creator']);
 
     return (
         <div className="dashboard-container improved page-content">
@@ -1037,7 +1082,7 @@ function TimetableView({ user, timetable, settings, setTimetable, addNotificatio
     const [isEditing, setIsEditing] = useState<TimetableEntry | null>(null);
     const [editingCell, setEditingCell] = useState<{ day: string, timeIndex: number } | null>(null);
 
-    const canEdit = user.role === 'admin' || user.role === 'hod';
+    const canEdit = hasPermission(user.role, ['admin', 'hod']);
 
     const filteredTimetable = useMemo(() => {
         return timetable.filter(entry => entry.department === filterDept && entry.year === filterYear);
@@ -1218,7 +1263,7 @@ function AnnouncementsView({ user, announcements, setAnnouncements, addNotificat
     const [showModal, setShowModal] = useState(false);
     const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
 
-    const canCreate = ['admin', 'hod', 'principal', 'faculty'].includes(user.role);
+    const canCreate = hasPermission(user.role, ['admin', 'hod', 'principal', 'faculty']);
 
     const handleSave = (announcement: Announcement) => {
         if (editingAnnouncement) {
@@ -1358,7 +1403,7 @@ function UserManagementView({ users, setUsers, addNotification, currentUser }: {
     const [isGenerating, setIsGenerating] = useState<string | null>(null);
     const [isGeneratingRisk, setIsGeneratingRisk] = useState(false);
 
-    const canGenerateAnalysis = useMemo(() => ['admin', 'hod', 'principal'].includes(currentUser.role), [currentUser.role]);
+    const canGenerateAnalysis = useMemo(() => hasPermission(currentUser.role, ['admin', 'hod', 'principal']), [currentUser.role]);
 
     const filteredUsers = useMemo(() => {
         return users.filter(user =>
@@ -1611,7 +1656,7 @@ function StudentDirectoryView({ users, currentUser, onUpdateUser, addNotificatio
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
 
-    const canManage = useMemo(() => ['admin', 'faculty', 'hod', 'principal', 'creator'].includes(currentUser.role), [currentUser.role]);
+    const canManage = useMemo(() => hasPermission(currentUser.role, ['admin', 'faculty', 'hod', 'principal', 'creator']), [currentUser.role]);
 
     const students = useMemo(() =>
         users.filter(u => u.role === 'student' && (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.dept.toLowerCase().includes(searchTerm.toLowerCase())))
@@ -1679,7 +1724,7 @@ function AcademicCalendarView({ events, setEvents, user }: { events: CalendarEve
     const [currentDate, setCurrentDate] = useState(new Date());
     const [showModal, setShowModal] = useState(false);
 
-    const canEdit = ['admin', 'principal'].includes(user.role);
+    const canEdit = hasPermission(user.role, ['admin', 'principal']);
 
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
@@ -2118,7 +2163,7 @@ const ResourceUploadForm = ({ onSave, onClose }: { onSave: (data: { name: string
 function ResourcesView({ resources, setResources, user, addNotification }: { resources: Resource[], setResources: React.Dispatch<React.SetStateAction<Resource[]>>, user: User, addNotification: Function }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [showUploadModal, setShowUploadModal] = useState(false);
-    const canUpload = ['faculty', 'hod', 'admin'].includes(user.role);
+    const canUpload = hasPermission(user.role, ['faculty', 'hod', 'admin']);
 
     const filteredResources = useMemo(() => {
         return resources.filter(res =>
@@ -2186,8 +2231,8 @@ function ResourcesView({ resources, setResources, user, addNotification }: { res
 }
 
 function CourseFilesView({ courseFiles, setCourseFiles, user }: { courseFiles: CourseFile[], setCourseFiles: React.Dispatch<React.SetStateAction<CourseFile[]>>, user: User }) {
-    const canReview = ['hod', 'principal'].includes(user.role);
-    const canUpload = user.role === 'faculty';
+    const canReview = hasPermission(user.role, ['hod', 'principal']);
+    const canUpload = hasPermission(user.role, ['faculty']);
 
     const handleStatusChange = (id: string, status: CourseFile['status']) => {
         setCourseFiles(prev => prev.map(cf => cf.id === id ? { ...cf, status } : cf));
